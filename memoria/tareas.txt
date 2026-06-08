@@ -1,0 +1,390 @@
+==============================================================================
+ COMEXHUB - PLAN DE DESARROLLO DIRIGIDO
+ Rol: Scrum Master (define requerimientos)  ->  Agente desarrollador (ejecuta)
+ Stack: Laravel 11 + Inertia.js + Vue 3 + Tailwind CSS (Vite) + PostgreSQL
+==============================================================================
+
+Instrucciones de uso (para el equipo, no para el agente):
+- Entregar UNA tarea por vez al agente. La primera vez, pegar tambien las secciones
+  CONTEXTO, STACK y REGLAS PERMANENTES. Luego pasar Tarea 1, esperar el reporte,
+  revisar, y recien entregar la Tarea 2, y asi sucesivamente.
+
+
+==============================================================================
+ CONTEXTO DEL SISTEMA (leer antes de empezar)
+==============================================================================
+
+ComexHub es una plataforma web que centraliza datos de comercio exterior
+(exportaciones e importaciones) de varias organizaciones estadisticas. Se empieza
+con una sola organizacion: el INE de Bolivia. El objetivo es:
+
+1. Cargar archivos Excel/CSV grandes (hasta ~400.000 filas por gestion).
+2. Almacenarlos en una base de datos PostgreSQL YA CREADA (no la crea el agente).
+3. Mostrarlos en un portal web con filtros dinamicos, busquedas, graficos e
+   indicadores, en estilo de portal de datos profesional (limpio, paleta azul,
+   tarjetas, tablas y charts).
+
+Idea central de la base de datos:
+- Una sola base para todas las organizaciones. Cada fila de hechos lleva
+  organizacion_id. Para ver solo INE: WHERE organizacion_id = 1.
+- Las tablas de hechos se separan por FORMA del dato, no por organizacion. Hoy
+  existe solo la forma "microdato" en la tabla operacion_comercio_exterior (INE).
+- Las cabeceras de los archivos cambian con los anios (mismos datos, distintos
+  nombres de columna). El mapeo de columnas es por NOMBRE, mediante las tablas
+  perfil_mapeo y mapeo_columna. El orden fisico de las columnas no importa.
+
+
+==============================================================================
+ STACK OBLIGATORIO
+==============================================================================
+
+- Backend: Laravel 11 (PHP 8.3). El proyecto ya esta creado y sin modificar.
+- Frontend: Inertia.js + Vue 3 (Composition API, <script setup>) + Tailwind CSS,
+  todo sobre Vite.
+- Base de datos: PostgreSQL (gestionada por el equipo con pgAdmin).
+- Cola de trabajos: driver "database" (para procesar cargas pesadas en segundo plano).
+- Todo el codigo, comentarios y textos de interfaz en ESPANIOL.
+
+
+==============================================================================
+ REGLAS PERMANENTES (aplican a TODAS las tareas)
+==============================================================================
+
+1. CARPETA DE MEMORIA. Crear en la raiz del proyecto una carpeta llamada "memoria/".
+   Dentro, mantener y actualizar estos archivos:
+   - memoria/contexto-proyecto.md   -> que es ComexHub, su objetivo y arquitectura.
+   - memoria/bitacora-desarrollo.md -> registro cronologico: al terminar cada tarea,
+     anotar que se hizo, que archivos se crearon/modificaron y decisiones tomadas.
+   - memoria/estructura-bd.md       -> resumen de tablas y como se mapean a modelos.
+   - memoria/pendientes.md          -> lo que quedo pendiente o requiere al equipo.
+   Al INICIAR cada tarea, leer la carpeta memoria/ para retomar contexto.
+   Al TERMINAR cada tarea, actualizarla.
+
+2. CONEXION A LA BASE DE DATOS. La base ya existe en PostgreSQL. El agente debe:
+   - Configurar la conexion en .env y config/database.php (host, puerto, base,
+     usuario y contrasenia los entrega el equipo). search_path en "public".
+   - Para conocer la estructura: conectarse a la base (pgAdmin/PostgreSQL) o, si no
+     tiene acceso directo, LEER el archivo "estructura-bd.sql" que el equipo dejara
+     en la raiz del proyecto. Ese script es la referencia exacta del esquema.
+   - NO crear ni modificar las tablas del negocio ni del sistema: ya existen. Solo
+     crear modelos Eloquent que mapeen a ellas.
+   - Las tablas internas de Laravel (jobs, failed_jobs, cache, sessions) si se crean
+     con migraciones normales, sin tocar las tablas del negocio.
+
+3. NO AVANZAR a la siguiente tarea hasta cumplir los criterios de aceptacion de la
+   actual. Al cerrar cada tarea, reportar un resumen de lo hecho.
+
+4. NO INVENTAR nombres de columnas ni tablas. Respetar exactamente los del esquema.
+
+5. Las contrasenias se almacenan solo como HASH (bcrypt). Nunca en texto plano.
+
+
+==============================================================================
+ RESUMEN DEL ESQUEMA (39 tablas, todas en el esquema public)
+==============================================================================
+
+- Catalogo central y mapeo: organizacion, fuente_datos, perfil_mapeo, mapeo_columna.
+- Dimensiones del microdato: tiempo, tipo_operacion, flujo_comercial,
+  seccion_arancelaria, capitulo_arancelario, producto, clasificacion_cuci,
+  categoria_economica_gce, grupo_actividad, actividad_ciiu, clasificacion_tnt,
+  clasificacion_cuode, zona_geoeconomica, pais, pais_zona, departamento,
+  medio_transporte, via_comercio, aduana, despachante.
+- Sistema: rol, permiso, rol_permiso, usuario, usuario_rol, sesion, intento_acceso,
+  bitacora_auditoria, regla_validacion, configuracion, tipo_cambio, carga_archivo,
+  proceso_etl, incidencia_calidad.
+- Tabla de hechos (microdato): operacion_comercio_exterior (con organizacion_id,
+  carga_id, todas las FK de dimension, metricas y atributos_extra JSONB).
+
+Campos canonicos del microdato (destino del mapeo de columnas): gestion, mes,
+tipo_operacion, flujo, codigo_nandina, descripcion_producto, codigo_capitulo,
+codigo_seccion, codigo_pais, codigo_zona, codigo_medio, codigo_via,
+codigo_departamento, codigo_aduana, codigo_cuci, codigo_gce, codigo_ciiu,
+codigo_grupo_actividad, codigo_tnt, codigo_cuode, peso_bruto_kg, peso_neto_kg,
+peso_fino_kg, valor_fob_usd, valor_cif_frontera_usd, valor_cif_aduana_usd,
+gravamenes_pagados.
+
+
+==============================================================================
+ TAREA 1 - Preparacion del entorno, memoria y conexion
+==============================================================================
+
+OBJETIVO: dejar el proyecto listo para desarrollar, conectado a la base de datos,
+con la carpeta de memoria inicializada y el stack de frontend funcionando.
+
+ESPECIFICACIONES:
+1. Crear la carpeta memoria/ con los cuatro archivos descritos en las reglas
+   permanentes. Escribir contexto-proyecto.md (resumir la seccion CONTEXTO) y
+   estructura-bd.md (resumir el esquema).
+2. Configurar la conexion a PostgreSQL en .env. Verificar que conecta. search_path
+   en public.
+3. Instalar y configurar Inertia.js + Vue 3 + Tailwind CSS sobre Vite.
+4. Configurar el queue driver "database" y migrar solo las tablas internas de
+   Laravel (jobs, cache, sessions).
+5. Crear un layout base con barra superior, menu lateral y area de contenido, en
+   paleta azul corporativa y tipografia limpia.
+6. Crear una pagina protegida de prueba ("Inicio") que muestre "ComexHub".
+
+CRITERIOS DE ACEPTACION:
+- El proyecto levanta con "npm run dev" y "php artisan serve".
+- La conexion a la base funciona (probar consulta simple a organizacion).
+- Existe la carpeta memoria/ con sus archivos iniciales completados.
+- Se ve la pagina de inicio con el layout base.
+
+ACTUALIZAR MEMORIA: registrar en bitacora-desarrollo.md la configuracion usada y el
+estado del entorno.
+
+
+==============================================================================
+ TAREA 2 - Modelos Eloquent del esquema existente
+==============================================================================
+
+OBJETIVO: representar en Laravel todas las tablas existentes, sin crearlas.
+
+ESPECIFICACIONES:
+1. Un modelo Eloquent por cada tabla, con $table al nombre exacto y $primaryKey
+   correcto. Como las PK no se llaman "id", declarar $primaryKey, $incrementing y
+   $keyType segun corresponda.
+2. Definir relaciones: jerarquia de producto (seccion -> capitulo -> producto),
+   actividad (grupo_actividad -> actividad_ciiu), geografia (zona -> pais, y el
+   puente pais_zona), y todas las FK de operacion_comercio_exterior a sus dimensiones.
+3. Modelo Usuario: implementar Authenticatable, usar hash_contrasena como campo de
+   contrasenia (sobrescribir getAuthPassword()), y relaciones a roles.
+4. No crear migraciones para estas tablas (ya existen). Ajustar $timestamps segun
+   cada tabla tenga o no columnas de timestamp.
+
+CRITERIOS DE ACEPTACION:
+- Existe un modelo por tabla, con relaciones declaradas.
+- Consulta de prueba con relaciones (ej. producto con su capitulo y seccion) sin error.
+
+ACTUALIZAR MEMORIA: en estructura-bd.md, dejar la equivalencia tabla -> modelo -> PK.
+
+
+==============================================================================
+ TAREA 3 - Autenticacion, usuarios, roles y permisos
+==============================================================================
+
+OBJETIVO: controlar el acceso con roles y permisos granulares.
+
+ESPECIFICACIONES:
+1. Login/logout con Inertia. Registrar cada intento en intento_acceso (exito/fallo,
+   IP, motivo). Bloquear la cuenta tras N intentos fallidos, leyendo N del parametro
+   configuracion con clave max_intentos_login.
+2. Middleware y helper de permisos: verificar permiso por su codigo (ej.
+   reporte.exportar), derivado de los roles (usuario_rol -> rol_permiso -> permiso).
+3. CRUD de usuarios (solo administrador): listar, crear, editar, activar/desactivar,
+   asignar roles. Contrasenia siempre con bcrypt.
+4. Gestion de roles y matriz rol x permiso.
+5. Expiracion de sesion por inactividad segun configuracion.sesion_minutos_expira.
+6. Sembrar (seeder de Laravel, NO en el script SQL) roles base (administrador,
+   analista, consultor, invitado), permisos y un usuario administrador inicial.
+
+CRITERIOS DE ACEPTACION:
+- Login/logout funciona; los intentos quedan registrados.
+- El middleware bloquea rutas segun permisos.
+- El administrador gestiona usuarios, roles y permisos desde la interfaz.
+
+ACTUALIZAR MEMORIA: documentar el modelo de permisos y el usuario administrador creado.
+
+
+==============================================================================
+ TAREA 4 - Organizaciones y perfiles de mapeo de columnas
+==============================================================================
+
+OBJETIVO: aceptar cabeceras distintas segun organizacion y anio, traduciendolas a
+los campos canonicos.
+
+ESPECIFICACIONES:
+1. Modelos y CRUD de organizacion. Registrar al INE como primera organizacion.
+2. CRUD de perfil_mapeo (organizacion + tipo_flujo + etiqueta_version). Al editar un
+   perfil, mostrar una tabla editable de mapeo_columna: cada fila es [columna origen]
+   -> [campo canonico (select)] + [guardar (checkbox)] + [a extra (checkbox)] + [nota].
+3. La lista de campos canonicos disponibles es la del RESUMEN DEL ESQUEMA (arriba).
+4. Cargar los perfiles iniciales del INE (exportacion e importacion) con el mapeo
+   completo de columnas. El equipo entregara las cabeceras reales completas; usarlas
+   para poblar mapeo_columna, contemplando los alias conocidos (ej. KILBRU y KILOS ->
+   peso_bruto_kg; PFINO y FINO -> peso_fino_kg; CUCI3 y CUCIR3 -> codigo_cuci).
+5. Detector de perfil: dado el arreglo de cabeceras de un archivo, encontrar el
+   perfil_mapeo que mejor coincide (por interseccion de nombres de columnas) y proponerlo.
+
+CRITERIOS DE ACEPTACION:
+- Se crean y editan organizaciones y perfiles de mapeo desde la interfaz.
+- Dado un conjunto de cabeceras, el sistema sugiere el perfil correcto.
+
+ACTUALIZAR MEMORIA: documentar como funciona el mapeo y los perfiles del INE creados.
+
+
+==============================================================================
+ TAREA 5 - Carga de archivos con seleccion de columnas
+==============================================================================
+
+OBJETIVO: subir un Excel/CSV, previsualizarlo y elegir que columnas guardar antes de
+procesarlo.
+
+ESPECIFICACIONES:
+1. Pantalla de carga: seleccionar organizacion, tipo de flujo (exportacion/
+   importacion) y subir el archivo (.xlsx o .csv). Leer en streaming; no cargar todo
+   en memoria.
+2. Al subir, leer solo la fila de cabeceras y ~20 filas de muestra. Detectar el
+   perfil (Tarea 4) y mostrar previsualizacion: la muestra de datos y, por cada
+   columna del archivo, el campo canonico al que se mapeara (editable) y un checkbox
+   "guardar". Las no marcadas se ignoran; las marcadas como "extra" van al JSONB
+   atributos_extra.
+3. Si aparece una columna desconocida (no esta en el perfil), avisar y permitir
+   decidir: ignorar, mapear o enviar a extra.
+4. Al confirmar, registrar la carga en carga_archivo (estado PENDIENTE) y despachar
+   un Job en cola para procesarla (Tarea 6). Guardar el archivo en storage.
+
+CRITERIOS DE ACEPTACION:
+- Se sube un archivo, se ve la previsualizacion con el mapeo propuesto y se eligen
+  columnas.
+- La carga queda registrada en carga_archivo y encolada.
+
+ACTUALIZAR MEMORIA: documentar el flujo de carga y donde se guardan los archivos.
+
+
+==============================================================================
+ TAREA 6 - ETL: procesamiento por lotes e insercion del microdato
+==============================================================================
+
+OBJETIVO: procesar el archivo cargado y poblar operacion_comercio_exterior y sus
+dimensiones, soportando ~400.000 filas.
+
+ESPECIFICACIONES:
+1. Job ProcesarCargaArchivo que recibe el id de carga_archivo.
+2. Leer el archivo en streaming por lotes de ~1.000 filas (lector eficiente de
+   XLSX/CSV).
+3. Por cada fila, aplicar el perfil de mapeo: traducir columnas origen a campos
+   canonicos, descartar las no marcadas, acumular las "extra" para el JSONB.
+4. Resolver dimensiones con patron "buscar o crear" (find or create) y cache en
+   memoria dentro del Job para no repetir consultas (producto, pais, aduana, etc.).
+   Cada dimension se asocia a la fuente_datos correspondiente.
+5. Insertar en operacion_comercio_exterior por lotes (insert masivo), con
+   organizacion_id, carga_id, las FK de dimension, las metricas y atributos_extra.
+6. Aplicar las reglas de regla_validacion: las filas que violen una regla se registran
+   en incidencia_calidad. Las de severidad ERROR no se insertan; las de ADVERTENCIA
+   se insertan y se marcan.
+7. Actualizar carga_archivo con los contadores (leidas, validas, con error) y el
+   estado final (COMPLETADO/FALLIDO). Registrar el avance en proceso_etl.
+8. Idempotencia: si se reprocesa una carga, no debe duplicar registros.
+
+CRITERIOS DE ACEPTACION:
+- Un archivo real del INE se procesa completo y puebla la tabla de hechos y las
+  dimensiones.
+- Los contadores y el estado de la carga se actualizan correctamente.
+- Las filas con problemas quedan registradas en incidencia_calidad.
+
+ACTUALIZAR MEMORIA: documentar el proceso ETL, el tamanio de lote y como se resuelven
+las dimensiones.
+
+
+==============================================================================
+ TAREA 7 - Explorador con filtros dinamicos (estilo portal de datos)
+==============================================================================
+
+OBJETIVO: la pantalla principal para explorar el microdato con filtros facetados.
+
+ESPECIFICACIONES:
+1. Vista "Explorador" con panel lateral de filtros y area central de resultados.
+2. Filtros multi-seleccion, con buscador dentro de cada uno: organizacion, tipo de
+   operacion, anio (gestion), mes, pais, zona, departamento, medio de transporte,
+   seccion/capitulo/producto NANDINA (arbol jerarquico expandible), CUCI, CIIU, GCE,
+   TNT/CUODE.
+3. Filtrado facetado: al aplicar un filtro, recalcular los contadores de las demas
+   facetas (cuantos resultados quedan por opcion), con consultas agregadas eficientes.
+4. Busqueda por texto libre sobre descripciones de producto, pais y aduana.
+5. Area central: total de registros que cumplen los filtros, suma de valor y de peso,
+   y tabla paginada del lado servidor (nunca traer 400.000 filas al frontend).
+6. Filtro de organizacion por defecto en INE; mostrar siempre solo lo de la
+   organizacion seleccionada (WHERE organizacion_id = ...).
+
+CRITERIOS DE ACEPTACION:
+- Se filtra de forma combinada y los contadores se actualizan.
+- La tabla pagina en el servidor y el rendimiento es aceptable con datos reales.
+
+ACTUALIZAR MEMORIA: documentar los filtros y las consultas de agregacion usadas.
+
+
+==============================================================================
+ TAREA 8 - Dashboards, graficos e indicadores
+==============================================================================
+
+OBJETIVO: visualizaciones e indicadores que respetan los filtros activos.
+
+ESPECIFICACIONES:
+1. Dashboards tematicos: General, Exportaciones, Importaciones, Por pais, Por
+   producto, Balanza comercial, Logistico.
+2. Graficos (libreria de Vue, ej. vue-chartjs o ApexCharts): evolucion mensual/anual
+   de valor y peso; top 10 paises y top 10 productos; distribucion por zona; balanza
+   comercial (exportaciones vs importaciones); distribucion por departamento.
+3. Tarjetas de indicadores (KPIs): valor total, peso total, balanza comercial,
+   variacion interanual (%), participacion por pais, precio implicito por kilo
+   (valor/peso neto), con su tendencia.
+4. Todos los datos de graficos provienen de endpoints que devuelven agregaciones ya
+   calculadas en PostgreSQL (GROUP BY), no en el frontend.
+
+CRITERIOS DE ACEPTACION:
+- Los dashboards muestran graficos correctos y se sincronizan con los filtros.
+- Los indicadores calculan bien (verificar con datos reales del INE).
+
+ACTUALIZAR MEMORIA: documentar cada indicador y su formula.
+
+
+==============================================================================
+ TAREA 9 - Reportes y exportacion
+==============================================================================
+
+OBJETIVO: reportes parametrizables y descarga de resultados.
+
+ESPECIFICACIONES:
+1. Catalogo de reportes predefinidos: por seccion, por capitulo, por pais, por
+   departamento, balanza comercial mensual; cada uno con parametros (rango de fechas,
+   organizacion, flujo).
+2. Mostrar cada reporte como tabla con su resumen.
+3. Exportacion a Excel (.xlsx), CSV y PDF, respetando los filtros. Para volumenes
+   grandes, generar el archivo en un Job en cola y avisar cuando este listo.
+
+CRITERIOS DE ACEPTACION:
+- Se generan los reportes con parametros y se exportan en los tres formatos.
+
+ACTUALIZAR MEMORIA: documentar los reportes disponibles.
+
+
+==============================================================================
+ TAREA 10 - Bitacora, configuracion, catalogos y calidad
+==============================================================================
+
+OBJETIVO: administracion, auditoria y cierre.
+
+ESPECIFICACIONES:
+1. Bitacora (bitacora_auditoria): registrar automaticamente acciones relevantes
+   (login, carga, ETL, cambios en catalogos, cambios de configuracion, exportaciones),
+   con usuario, accion, entidad, valores anteriores/nuevos (JSONB) e IP. Pantalla de
+   consulta con filtros (solo administrador).
+2. Pantalla de configuracion: editar parametros del sistema.
+3. Gestion de catalogos: CRUD para revisar/corregir pais, producto, aduana,
+   clasificaciones, etc., con busqueda.
+4. Tablero de calidad: por cada carga, mostrar las incidencias de incidencia_calidad,
+   con opcion de marcarlas (corregido/aceptado/descartado).
+5. Revision final: confirmar que todas las rutas estan protegidas por el middleware
+   de permisos.
+
+CRITERIOS DE ACEPTACION:
+- La bitacora registra y se consulta.
+- La configuracion y los catalogos se editan.
+- El tablero de calidad funciona y los permisos estan aplicados en todas las rutas.
+
+ACTUALIZAR MEMORIA: cerrar bitacora-desarrollo.md con el estado final y dejar en
+pendientes.md lo que quede para una segunda etapa.
+
+
+==============================================================================
+ ORDEN Y ENTREGA
+==============================================================================
+
+Ejecutar de la Tarea 1 a la 10 en secuencia. Para un primer prototipo demostrable son
+imprescindibles las Tareas 1 a 8; las 9 y 10 elevan el nivel. Despues de cada tarea,
+actualizar la carpeta memoria/ y reportar el resumen antes de continuar.
+
+==============================================================================
+ FIN DEL DOCUMENTO
+==============================================================================

@@ -1,0 +1,265 @@
+==============================================================================
+ COMEXHUB - PLAN DE DESARROLLO DIRIGIDO (Segunda tanda: PORTAL PUBLICO)
+ Rol: Scrum Master (define requerimientos)  ->  Agente desarrollador (ejecuta)
+ Stack: Laravel 11 + Inertia.js + Vue 3 + Tailwind CSS (Vite) + PostgreSQL
+==============================================================================
+
+Continuacion del plan anterior (Tareas 1-10 ya completadas: panel de administracion
+funcionando con carga, ETL, validacion, usuarios, roles, etc.).
+
+Esta tanda agrega la CARA PUBLICA del sistema: un portal informativo y visual, abierto
+a cualquier persona sin necesidad de registrarse, donde se exploran los datos de
+comercio exterior mediante indicadores, rankings, graficos y tablas.
+
+Mantener TODAS las reglas permanentes del documento anterior (carpeta memoria/,
+conexion a la base existente, no inventar columnas, codigo y textos en espaniol,
+leer y actualizar memoria en cada tarea). Entregar UNA tarea por vez.
+
+
+==============================================================================
+ CONTEXTO DE ESTA TANDA (leer antes de empezar)
+==============================================================================
+
+Hasta ahora, lo primero que ve un visitante es el login. ESO DEBE CAMBIAR. El sistema
+tiene dos caras claramente separadas:
+
+A) PORTAL PUBLICO (nuevo): es lo primero que se ve al entrar al sitio. Abierto, sin
+   login. Cualquier persona puede ver indicadores, rankings, graficos y la tabla de
+   datos detallada, y filtrar a gusto. Es un sitio informativo: su meta es responder
+   preguntas como "que exporta Bolivia", "a que paises", "que importa", "quien lidera",
+   no mostrar tablas crudas sin contexto.
+
+B) PANEL DE ADMINISTRACION (ya existe): detras del login. Para administradores y
+   analistas que cargan y gestionan datos. No se elimina; solo deja de ser la entrada
+   principal y pasa a estar accesible mediante un enlace discreto de "Acceder" o
+   "Iniciar sesion".
+
+Inspiracion de estilo (portales de estadisticas de comercio exterior): paginas claras,
+con tarjetas de indicadores grandes, rankings visuales, graficos y buscadores
+intuitivos. La diferencia de ComexHub es que debe ser MAS intuitivo y libre para
+explorar (no es de pago, no esconde la informacion detras de formularios).
+
+Importante sobre la base de datos: para indicadores y rankings NO hace falta cambiar la
+estructura; todo sale de consultas de agregacion (GROUP BY, SUM, ORDER BY) sobre
+operacion_comercio_exterior. Para que el portal cargue rapido con grandes volumenes, se
+crearan VISTAS MATERIALIZADAS (resumenes precalculados). Eso se cubre en la Tarea 14.
+
+Todos los datos publicos se muestran SIEMPRE filtrados por organizacion (el visitante
+elige la organizacion; por defecto INE). Las cifras deben indicar la fuente y el periodo
+("Fuente: INE - Bolivia. Datos 2024").
+
+
+==============================================================================
+ TAREA 11 - Separar portal publico de panel privado (ruteo y layouts)
+==============================================================================
+
+OBJETIVO: que la entrada del sitio sea el portal publico, y el panel de administracion
+quede detras del login.
+
+ESPECIFICACIONES:
+1. Reorganizar el ruteo en dos grupos:
+   - Rutas PUBLICAS (sin autenticacion): la portada del portal y todas las vistas
+     publicas (inicio, explorador publico, rankings, fichas de detalle).
+   - Rutas PRIVADAS (con autenticacion y permisos, como ya estan): todo el panel de
+     administracion bajo un prefijo, por ejemplo /admin.
+2. Crear dos layouts Vue separados:
+   - LayoutPublico: barra superior simple con logo ComexHub, navegacion del portal
+     (Inicio, Explorar, Rankings, Acerca de) y un boton discreto "Acceder" arriba a la
+     derecha que lleva al login.
+   - LayoutAdmin: el layout actual con menu lateral (ya existe).
+3. La ruta raiz "/" ahora muestra la portada publica (Tarea 12), NO el login.
+4. El login pasa a "/acceder" (o /login). Tras iniciar sesion, redirigir al panel
+   /admin. Tras cerrar sesion, volver al portal publico.
+5. El portal publico debe verse bien en celular (responsive), porque es de cara al
+   publico general.
+
+CRITERIOS DE ACEPTACION:
+- Al entrar a "/", se ve el portal publico sin pedir login.
+- El panel de administracion sigue funcionando bajo /admin, protegido.
+- Existe un enlace claro para que un administrador acceda al login.
+
+ACTUALIZAR MEMORIA: documentar la nueva estructura de rutas (publicas vs privadas) y
+los dos layouts.
+
+
+==============================================================================
+ TAREA 12 - Portada publica: titulares automaticos e indicadores grandes
+==============================================================================
+
+OBJETIVO: la pagina de inicio del portal, que responde de un vistazo "que pasa con el
+comercio exterior de Bolivia".
+
+ESPECIFICACIONES:
+1. Un selector de organizacion y de gestion (anio) en la parte superior; por defecto la
+   organizacion INE y el anio mas reciente con datos.
+2. TITULARES AUTOMATICOS (lo primero y mas visible): frases generadas a partir de los
+   datos, en tarjetas grandes y legibles. Ejemplos (calcular dinamicamente, no
+   hardcodear):
+   - "En [anio], el producto mas exportado de Bolivia fue [producto] (USD [valor])."
+   - "El producto mas importado fue [producto] (USD [valor])."
+   - "El principal destino de las exportaciones fue [pais]."
+   - "El principal origen de las importaciones fue [pais]."
+   - "El departamento que mas exporto fue [departamento]."
+3. INDICADORES GRANDES (tarjetas tipo KPI):
+   - Valor total exportado en el anio (USD) y su variacion respecto al anio anterior (%).
+   - Valor total importado y su variacion.
+   - Balanza comercial (exportaciones - importaciones).
+   - Cantidad de paises destino y de productos distintos.
+4. Debajo, una seccion de RANKINGS DESTACADOS resumidos (top 5 productos exportados, top
+   5 paises destino), cada uno con un mini grafico de barras y un enlace "ver ranking
+   completo" que lleva a la Tarea 13.
+5. Un grafico de evolucion (linea) del valor exportado e importado por mes del anio
+   seleccionado.
+6. Cada bloque debe indicar la fuente y el periodo. Si no hay datos para el anio, mostrar
+   un mensaje amable.
+
+CRITERIOS DE ACEPTACION:
+- La portada calcula y muestra los titulares e indicadores reales segun la organizacion
+  y el anio seleccionados.
+- Cambiar el anio o la organizacion actualiza todo.
+- Carga rapido (apoyarse en las vistas de la Tarea 14 cuando esten).
+
+ACTUALIZAR MEMORIA: documentar cada titular e indicador con la consulta/formula que lo
+genera.
+
+
+==============================================================================
+ TAREA 13 - Rankings y comparadores (jugar con la informacion)
+==============================================================================
+
+OBJETIVO: paginas dedicadas a explorar la informacion en forma de rankings y
+comparaciones, que es la forma mas intuitiva de "jugar con los datos".
+
+ESPECIFICACIONES:
+1. Pagina de RANKINGS con pestanias o secciones para:
+   - Ranking de productos mas exportados / mas importados.
+   - Ranking de paises destino (exportacion) / origen (importacion).
+   - Ranking de departamentos por valor exportado.
+   - Ranking de productos por volumen (peso) ademas de por valor.
+   Cada ranking: tabla ordenada (posicion, nombre, valor, % del total, % acumulado) +
+   grafico de barras horizontales. Filtros: organizacion, anio, flujo (exportacion/
+   importacion), y cantidad de posiciones (top 10 / 20 / 50).
+2. COMPARADORES:
+   - Comparar dos anios (ej. 2023 vs 2024): variacion por producto o por pais.
+   - Comparar exportacion vs importacion de un mismo producto o pais.
+3. Todo exportable: boton para descargar cada ranking en Excel/CSV.
+4. Los rankings respetan SIEMPRE la organizacion seleccionada (WHERE organizacion_id).
+
+CRITERIOS DE ACEPTACION:
+- Los rankings se calculan bien y coinciden con los totales (la suma de los % da 100).
+- Los comparadores muestran variaciones correctas entre periodos.
+- Se puede descargar cada ranking.
+
+ACTUALIZAR MEMORIA: documentar los rankings y comparadores disponibles y sus consultas.
+
+
+==============================================================================
+ TAREA 14 - Vistas materializadas para rendimiento del portal
+==============================================================================
+
+OBJETIVO: que el portal publico cargue rapido aunque la tabla de hechos tenga millones
+de filas, precalculando los resumenes mas usados.
+
+IMPORTANTE: estas vistas son objetos de SOLO LECTURA derivados de los datos; NO cambian
+la estructura de las tablas base ni borran nada. Crear las vistas con migraciones de
+Laravel que ejecuten el CREATE MATERIALIZED VIEW (o, si el equipo prefiere, entregar el
+SQL al equipo para ejecutarlo en pgAdmin; consultar al Scrum Master).
+
+ESPECIFICACIONES:
+1. Crear vistas materializadas de agregacion, por ejemplo:
+   - resumen_anual_producto: por organizacion, anio, flujo y producto -> suma de valor y
+     de peso, cantidad de operaciones.
+   - resumen_anual_pais: por organizacion, anio, flujo y pais -> suma de valor y peso.
+   - resumen_anual_departamento: por organizacion, anio, flujo y departamento.
+   - resumen_mensual: por organizacion, anio, mes y flujo -> totales (para los graficos
+     de evolucion).
+2. Indexar las vistas materializadas por organizacion y anio.
+3. Crear un comando artisan "comexhub:refrescar-vistas" que ejecute REFRESH MATERIALIZED
+   VIEW de todas, y llamarlo automaticamente al final de cada ETL exitoso (Tarea 6) para
+   que los resumenes queden al dia tras cada carga.
+4. Las pantallas del portal (Tareas 12 y 13) deben leer de estas vistas cuando sea
+   posible, en lugar de agregar la tabla de hechos completa en cada visita.
+
+CRITERIOS DE ACEPTACION:
+- Las vistas existen y devuelven los mismos totales que la consulta directa.
+- El comando de refresco funciona y se dispara tras cada ETL.
+- La portada y los rankings cargan notablemente mas rapido usando las vistas.
+
+ACTUALIZAR MEMORIA: documentar cada vista materializada, su contenido y como/ cuando se
+refresca.
+
+
+==============================================================================
+ TAREA 15 - Explorador publico con detalle (indicadores + graficos + tabla)
+==============================================================================
+
+OBJETIVO: la version publica y visual del explorador, donde el visitante filtra a gusto
+y ve resultados como indicadores, graficos y la tabla detallada.
+
+ESPECIFICACIONES:
+1. Reutilizar la logica de filtros facetados del explorador privado (Tarea 7), pero en
+   el layout publico y mas visual.
+2. Panel de filtros: organizacion, anio, mes, flujo, pais, zona, departamento, medio de
+   transporte, seccion/capitulo/producto NANDINA (arbol), CUCI, CIIU, GCE, TNT/CUODE, y
+   busqueda por texto libre (producto, pais, aduana).
+3. Al aplicar filtros, mostrar arriba un RESUMEN VISUAL: indicadores (total valor, total
+   peso, n.o de operaciones) + 2 o 3 graficos que se adaptan a los filtros (ej. top
+   paises y top productos del subconjunto filtrado).
+4. Debajo, la TABLA DETALLADA (acceso publico permitido a todo el detalle): producto,
+   pais, via, medio, departamento, peso, valor, etc. Paginada del lado servidor. Permitir
+   descargar el resultado filtrado en Excel/CSV.
+5. Filtros reflejados en la URL (querystring) para poder compartir un enlace con la
+   busqueda ya hecha.
+6. Responsive: en celular, los filtros se colapsan en un panel desplegable.
+
+CRITERIOS DE ACEPTACION:
+- El visitante filtra libremente y ve indicadores, graficos y la tabla detallada.
+- El rendimiento es bueno (paginacion en servidor; resumenes apoyados en agregaciones).
+- Se puede compartir el enlace con los filtros aplicados y descargar el resultado.
+
+ACTUALIZAR MEMORIA: documentar el explorador publico y como se comparte/exporta.
+
+
+==============================================================================
+ TAREA 16 - Carga con arrastrar y soltar + correccion de errores del panel
+==============================================================================
+
+OBJETIVO: mejorar la experiencia de carga del administrador con arrastrar y soltar, y
+corregir los errores pendientes detectados en el panel.
+
+ESPECIFICACIONES:
+1. ARRASTRAR Y SOLTAR (drag and drop) en la pantalla de Nueva carga:
+   - Zona donde se puede soltar el archivo .xlsx o .csv, ademas del boton de seleccionar.
+   - Mostrar el nombre, tamanio y un indicador de progreso de la subida.
+   - Validar tipo y tamanio antes de aceptar; mensajes de error claros si no corresponde.
+   - Mantener todo el flujo posterior ya existente (deteccion de perfil, previsualizacion,
+     seleccion de columnas, encolado del ETL).
+2. CORRECCION DE ERRORES: el equipo entregara la lista de errores detectados en el panel
+   de administracion (por ejemplo, en cargas, validacion o visualizacion). Para cada uno:
+   reproducir, identificar la causa, corregir y dejar registrado en memoria que se
+   soluciono y como. (El Scrum Master pasara el detalle de cada error como subtarea.)
+3. Revisar que los contadores de la pantalla de Cargas (leidas, validas, error) y los
+   estados se muestren correctamente.
+
+CRITERIOS DE ACEPTACION:
+- Se puede cargar un archivo arrastrandolo y soltandolo, con barra de progreso.
+- Los errores reportados quedan corregidos y verificados.
+- La pantalla de Cargas refleja datos correctos.
+
+ACTUALIZAR MEMORIA: registrar la funcionalidad de arrastrar y soltar y la lista de
+errores corregidos con su causa y solucion.
+
+
+==============================================================================
+ ORDEN Y ENTREGA
+==============================================================================
+
+Orden sugerido: 11 (separar portal/panel) -> 12 (portada) -> 14 (vistas, para que 12 y
+13 vuelen) -> 13 (rankings) -> 15 (explorador publico) -> 16 (drag and drop y errores).
+Nota: si se prefiere ver resultados visibles antes, puede hacerse 11 -> 12 -> 13 -> 15
+y dejar 14 (vistas) en paralelo; pero lo ideal es 14 antes de exponer el portal a mucho
+volumen. Despues de cada tarea, actualizar memoria/ y reportar el resumen.
+
+==============================================================================
+ FIN DEL DOCUMENTO
+==============================================================================
