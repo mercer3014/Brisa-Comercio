@@ -1,59 +1,171 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# ComexHub
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Plataforma web que **centraliza datos de comercio exterior** (exportaciones e
+importaciones) de organizaciones estadisticas. Arranca con una sola organizacion:
+el **INE de Bolivia**. Tiene dos caras:
 
-## About Laravel
+- **Portal publico** (sin login): portada con titulares e indicadores, explorador,
+  rankings/comparadores y pagina informativa.
+- **Panel privado** (`/admin`, detras del login): carga de archivos, ETL, explorador
+  de microdatos, dashboards, reportes, catalogos, calidad, configuracion, bitacora,
+  usuarios, roles, organizaciones y perfiles de mapeo.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+> Proyecto academico — FCEE, UAGRM. Fuente de datos: INE Bolivia.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Backend**: Laravel 12 (PHP 8.2+)
+- **Frontend**: Inertia.js + Vue 3 (`<script setup>`) + Tailwind CSS v4 sobre Vite 7
+- **Base de datos**: PostgreSQL 14+ (probado en 18)
+- **Cola de trabajos**: driver `database` (cargas pesadas / ETL en segundo plano)
+- **Librerias clave**: openspout/openspout (lectura y exportacion en streaming),
+  barryvdh/laravel-dompdf (PDF), apexcharts + vue3-apexcharts (graficos)
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Requisitos
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- **PHP 8.2 o superior** con las extensiones `pdo_pgsql` y `pgsql` habilitadas
+  (en XAMPP, descomentar `extension=pdo_pgsql` y `extension=pgsql` en `php.ini`).
+- **Composer 2**
+- **Node.js 18+** y **npm**
+- **PostgreSQL 14+** corriendo y accesible.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Puesta en marcha desde cero
 
-### Premium Partners
+### 1. Clonar e instalar dependencias
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+git clone <url-del-repo> comexhub
+cd comexhub
+composer install
+npm install
+```
 
-## Contributing
+### 2. Configurar el entorno
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+cp .env.example .env          # en Windows: copy .env.example .env
+php artisan key:generate
+```
 
-## Code of Conduct
+Editar `.env` y ajustar la conexion a PostgreSQL y las credenciales del admin:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```env
+APP_NAME=ComexHub
+APP_URL=http://localhost:8000
+APP_LOCALE=es
 
-## Security Vulnerabilities
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=brisa
+DB_USERNAME=postgres
+DB_PASSWORD=tu_contrasena
+DB_SEARCH_PATH=public
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Administrador inicial (lo siembra el seeder)
+ADMIN_USUARIO=admin
+ADMIN_CORREO=admin@comexhub.local
+ADMIN_PASSWORD=Admin12345
+```
 
-## License
+Crear la base de datos vacia en PostgreSQL (una sola vez), p. ej. con pgAdmin o:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```sql
+CREATE DATABASE brisa;
+```
+
+### 3. Crear el esquema y los datos base
+
+```bash
+php artisan migrate --seed
+```
+
+Esto crea las **39 tablas del esquema** (mas las internas de Laravel) y siembra los
+**datos base**: roles, permisos, usuario administrador, la organizacion INE con sus
+perfiles de mapeo, la configuracion del sistema y las reglas de calidad. Las 4 vistas
+materializadas del portal se crean y pueblan en la misma corrida.
+
+> Para reconstruir todo desde cero (¡borra los datos!): `php artisan migrate:fresh --seed`.
+
+### 4. Compilar el frontend y levantar el servidor
+
+En desarrollo (todo a la vez: servidor, cola, logs y Vite):
+
+```bash
+composer dev
+```
+
+O por separado:
+
+```bash
+npm run dev            # Vite (frontend en caliente)
+php artisan serve      # http://localhost:8000
+php artisan queue:work # worker de la cola (procesa las cargas / ETL)
+```
+
+Para produccion: `npm run build` y servir `php artisan serve` (o un servidor web)
+junto con un worker de cola permanente (`php artisan queue:work`).
+
+---
+
+## Usuario administrador inicial
+
+| Campo       | Valor por defecto      |
+|-------------|------------------------|
+| Usuario     | `admin`                |
+| Contrasenia | `Admin12345`           |
+| Correo      | `admin@comexhub.local` |
+
+Configurables via `ADMIN_USUARIO`, `ADMIN_CORREO` y `ADMIN_PASSWORD` en `.env`.
+La contrasenia se guarda solo como **hash bcrypt** y el usuario nace con
+`debe_cambiar_pwd = true` (debe cambiarla en el primer ingreso). Ingreso por `/acceder`.
+
+---
+
+## La cola (ETL)
+
+Las cargas de archivos Excel/CSV se procesan en segundo plano mediante un Job en la
+cola. Es **imprescindible** tener un worker corriendo para que las cargas pasen de
+`PENDIENTE` a `COMPLETADO`:
+
+```bash
+php artisan queue:work
+```
+
+`composer dev` ya levanta un `queue:listen` para desarrollo.
+
+Tras cada ETL exitoso se refrescan automaticamente las vistas materializadas del
+portal. Tambien se pueden refrescar a mano:
+
+```bash
+php artisan comexhub:refrescar-vistas
+```
+
+---
+
+## Estructura de rutas (resumen)
+
+| Cara          | Middleware            | Rutas |
+|---------------|-----------------------|-------|
+| Portal publico| (ninguno)             | `/`, `/explorar`, `/rankings`, `/acerca` |
+| Acceso        | guest                 | `/acceder` (GET/POST) |
+| Panel privado | auth + prefix `admin` | `/admin` y `/admin/<modulo>...`; `/logout` |
+
+---
+
+## Documentacion del proyecto
+
+La carpeta [`memoria/`](memoria/) contiene el contexto y la bitacora de desarrollo:
+
+- `contexto-proyecto.md` — vision general, arquitectura de datos, reglas.
+- `estructura-bd.md` — resumen de las 39 tablas y su mapeo a modelos Eloquent.
+- `bitacora-desarrollo.md` — registro cronologico de cada tarea.
+- `pendientes.md` — pendientes y mejoras diferidas.
+- `sistema-disenio.md` — paleta institucional, tipografias y tokens visuales.
+
+El archivo `estructura-db.sql` (raiz) es la referencia exacta del esquema; las
+migraciones de `database/migrations/2026_06_05_*` lo reproducen tal cual.

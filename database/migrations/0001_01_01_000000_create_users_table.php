@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // ComexHub usa la tabla de negocio "usuario" para la autenticacion, por lo
+        // Ovxel usa la tabla de negocio "usuario" para la autenticacion, por lo
         // que NO se crea la tabla "users". Aqui solo se crea la tabla interna
         // "sessions" que necesita el driver de sesion de Laravel (SESSION_DRIVER=database).
         Schema::create('sessions', function (Blueprint $table) {

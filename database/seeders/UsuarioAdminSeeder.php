@@ -11,12 +11,19 @@ class UsuarioAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        // Usuario administrador inicial. La contrasenia se guarda SOLO como hash bcrypt.
+        // Credenciales del administrador inicial: configurables por variables de entorno
+        // (ADMIN_USUARIO, ADMIN_CORREO, ADMIN_PASSWORD). Si no se definen, se usan los
+        // valores por defecto documentados en el README. La contrasenia se guarda SOLO
+        // como hash bcrypt y se obliga a cambiarla en el primer ingreso (debe_cambiar_pwd).
+        $usuario = env('ADMIN_USUARIO', 'admin');
+        $correo  = env('ADMIN_CORREO', 'admin@comexhub.local');
+        $clave   = env('ADMIN_PASSWORD', 'Admin12345');
+
         $admin = Usuario::updateOrCreate(
-            ['nombre_usuario' => 'admin'],
+            ['nombre_usuario' => $usuario],
             [
-                'correo'          => 'admin@comexhub.local',
-                'hash_contrasena' => Hash::make('Admin12345'),
+                'correo'          => $correo,
+                'hash_contrasena' => Hash::make($clave),
                 'nombre_completo' => 'Administrador del Sistema',
                 'activo'          => true,
                 'debe_cambiar_pwd' => true,

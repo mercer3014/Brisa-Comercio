@@ -129,7 +129,9 @@ function guardarColumnas() {
                             <input v-model="f.nota" class="w-full rounded border border-slate-300 px-2 py-1 text-sm" />
                         </td>
                         <td class="px-3 py-2 text-center">
-                            <button @click="eliminarFila(i)" class="text-red-500 hover:text-red-700">✕</button>
+                            <button @click="eliminarFila(i)" class="inline-flex text-gris-400 hover:text-rojo-600 transition" aria-label="Eliminar fila">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
                         </td>
                     </tr>
                     <tr v-if="!filas.length">

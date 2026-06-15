@@ -119,23 +119,28 @@ function exportar(formato) {
 const fmt = (n) => new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtUsd = (n) => '$ ' + new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
 
-// Graficos (barras horizontales)
-function opcBarras(items, color) {
+// Graficos (barras horizontales estilizadas) — navy slate general, Top 1 crimson.
+function opcBarras(items) {
     return {
-        chart: { type: 'bar', toolbar: { show: false } },
-        plotOptions: { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } },
-        colors: [color],
+        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
+        plotOptions: { bar: { horizontal: true, borderRadius: 6, borderRadiusApplication: 'end', barHeight: '46%', distributed: true } },
+        colors: items.map((_, i) => (i === 0 ? '#e11d48' : '#334155')),
         dataLabels: { enabled: false },
-        xaxis: { categories: items.map((i) => i.label), labels: { formatter: (v) => Number(v).toLocaleString('es-BO', { notation: 'compact' }) } },
-        yaxis: { labels: { maxWidth: 150, style: { fontSize: '10px' } } },
+        legend: { show: false },
+        xaxis: {
+            categories: items.map((i) => i.label),
+            labels: { formatter: (v) => Number(v).toLocaleString('es-BO', { notation: 'compact' }), style: { colors: '#94a3b8' } },
+            axisBorder: { show: false }, axisTicks: { show: false },
+        },
+        yaxis: { labels: { maxWidth: 150, style: { fontSize: '10px', colors: '#475569' } } },
         tooltip: { y: { formatter: (v) => fmtUsd(v) } },
-        grid: { strokeDashArray: 3 },
+        grid: { strokeDashArray: 4, borderColor: '#f1f5f9', yaxis: { lines: { show: false } } },
     };
 }
 const seriePaises = computed(() => [{ name: 'Valor', data: graficos.value.top_paises.map((i) => Math.round(i.valor)) }]);
 const serieProductos = computed(() => [{ name: 'Valor', data: graficos.value.top_productos.map((i) => Math.round(i.valor)) }]);
-const opcPaises = computed(() => opcBarras(graficos.value.top_paises, '#2563eb'));
-const opcProductos = computed(() => opcBarras(graficos.value.top_productos, '#7c3aed'));
+const opcPaises = computed(() => opcBarras(graficos.value.top_paises));
+const opcProductos = computed(() => opcBarras(graficos.value.top_productos));
 
 onMounted(() => {
     leerUrl();
@@ -146,33 +151,40 @@ onMounted(() => {
 <template>
     <Head title="Explorar datos" />
 
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <div>
-                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800">Explorador de datos</h1>
-                <p class="text-slate-500 text-sm">Filtra a gusto y descarga el detalle. Fuente: INE - Bolivia.</p>
-            </div>
+    <!-- Encabezado luminoso -->
+    <section class="bg-white border-b border-gris-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4">
+                <span class="w-7 h-px bg-rojo-500"></span> Explorador
+            </p>
+            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Explora el detalle de las operaciones</h1>
+            <p class="text-institucional-500 mt-4 max-w-xl leading-relaxed text-lg">Filtra a gusto y descarga el resultado. Fuente: INE — Bolivia.</p>
+        </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="flex items-center justify-end">
             <button
                 @click="filtrosAbiertos = !filtrosAbiertos"
-                class="lg:hidden px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 bg-white"
+                class="lg:hidden btn btn-contorno"
             >
                 {{ filtrosAbiertos ? 'Ocultar filtros' : 'Mostrar filtros' }}
             </button>
         </div>
 
-        <div class="mt-5 flex flex-col lg:flex-row gap-5">
+        <div class="mt-3 flex flex-col lg:flex-row gap-5">
             <!-- Panel de filtros (colapsable en movil) -->
             <aside
-                class="w-full lg:w-72 shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col"
+                class="w-full lg:w-72 shrink-0 tarjeta flex flex-col overflow-hidden"
                 :class="{ 'hidden lg:flex': !filtrosAbiertos }"
             >
-                <div class="p-3 border-b border-slate-100 flex items-center justify-between">
-                    <h2 class="font-semibold text-slate-700">Filtros</h2>
-                    <button @click="limpiarTodo" class="text-xs text-marca-600 hover:underline">Limpiar todo</button>
+                <div class="px-4 py-3.5 border-b border-gris-100 flex items-center justify-between">
+                    <h2 class="font-bold text-sm text-institucional-900 tracking-tight">Filtros</h2>
+                    <button @click="limpiarTodo" class="text-xs font-semibold text-rojo-600 hover:text-rojo-700 transition-colors">Limpiar todo</button>
                 </div>
-                <div class="p-3 border-b border-slate-100">
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Organizacion</label>
-                    <select v-model="orgId" class="w-full rounded border border-slate-300 px-2 py-1.5 text-sm">
+                <div class="p-3 border-b border-gris-100">
+                    <label class="block text-xs font-semibold text-institucional-400 uppercase tracking-wide mb-1.5">Organización</label>
+                    <select v-model="orgId" class="campo">
                         <option v-for="o in opciones.organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.nombre }}</option>
                     </select>
                 </div>
@@ -190,86 +202,87 @@ onMounted(() => {
             <!-- Resultados -->
             <main class="flex-1 min-w-0">
                 <!-- Busqueda -->
-                <input v-model="busqueda" placeholder="Buscar por producto, pais o aduana..."
-                       class="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-marca-500 mb-4" />
+                <input v-model="busqueda" placeholder="Buscar por producto, país o aduana..."
+                       class="campo px-4 py-3 mb-4" />
 
                 <!-- Resumen visual: KPIs -->
                 <div class="grid grid-cols-3 gap-3 mb-4" :class="{ 'opacity-60': cargando }">
-                    <div class="bg-white rounded-xl border border-slate-200 p-4">
-                        <div class="text-xs text-slate-500">Operaciones</div>
-                        <div class="text-xl sm:text-2xl font-bold text-slate-800">{{ fmt(totales.total) }}</div>
+                    <div class="tarjeta p-4">
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">Operaciones</div>
+                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmt(totales.total) }}</div>
                     </div>
-                    <div class="bg-white rounded-xl border border-slate-200 p-4">
-                        <div class="text-xs text-slate-500">Valor total</div>
-                        <div class="text-xl sm:text-2xl font-bold text-marca-700">{{ fmtUsd(totales.valor) }}</div>
+                    <div class="tarjeta p-4">
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">Valor total</div>
+                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmtUsd(totales.valor) }}</div>
                     </div>
-                    <div class="bg-white rounded-xl border border-slate-200 p-4">
-                        <div class="text-xs text-slate-500">Peso bruto (kg)</div>
-                        <div class="text-xl sm:text-2xl font-bold text-slate-800">{{ fmt(totales.peso) }}</div>
+                    <div class="tarjeta p-4">
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">Peso bruto (kg)</div>
+                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmt(totales.peso) }}</div>
                     </div>
                 </div>
 
                 <!-- Resumen visual: graficos del subconjunto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div class="bg-white rounded-xl border border-slate-200 p-4">
-                        <h3 class="text-sm font-semibold text-slate-700 mb-1">Top paises (del filtro)</h3>
+                    <div class="tarjeta p-4">
+                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top paises (del filtro)</h3>
                         <apexchart v-if="seriePaises[0].data.length" type="bar" height="240" :options="opcPaises" :series="seriePaises" />
-                        <p v-else class="text-xs text-slate-400 py-8 text-center">Sin datos.</p>
+                        <p v-else class="text-xs text-gris-400 py-8 text-center">Sin datos.</p>
                     </div>
-                    <div class="bg-white rounded-xl border border-slate-200 p-4">
-                        <h3 class="text-sm font-semibold text-slate-700 mb-1">Top productos (del filtro)</h3>
+                    <div class="tarjeta p-4">
+                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top productos (del filtro)</h3>
                         <apexchart v-if="serieProductos[0].data.length" type="bar" height="240" :options="opcProductos" :series="serieProductos" />
-                        <p v-else class="text-xs text-slate-400 py-8 text-center">Sin datos.</p>
+                        <p v-else class="text-xs text-gris-400 py-8 text-center">Sin datos.</p>
                     </div>
                 </div>
 
                 <!-- Tabla detallada -->
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
-                        <span class="text-sm font-semibold text-slate-700">Detalle</span>
+                <div class="tarjeta overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-2.5 border-b border-gris-100">
+                        <span class="text-sm font-semibold text-institucional-900">Detalle</span>
                         <div class="flex gap-2">
-                            <button @click="exportar('xlsx')" class="text-xs px-2.5 py-1.5 rounded bg-green-50 text-green-700 hover:bg-green-100 font-medium">Excel</button>
-                            <button @click="exportar('csv')" class="text-xs px-2.5 py-1.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium">CSV</button>
+                            <button @click="exportar('xlsx')" class="text-xs px-2.5 py-1.5 rounded bg-positivo-suave text-positivo hover:opacity-80 font-semibold">Excel</button>
+                            <button @click="exportar('csv')" class="text-xs px-2.5 py-1.5 rounded bg-gris-100 text-gris-700 hover:bg-gris-200 font-semibold">CSV</button>
                         </div>
                     </div>
                     <div class="overflow-auto max-h-[60vh]">
                         <table class="w-full text-sm">
-                            <thead class="bg-slate-50 text-slate-600 sticky top-0">
+                            <thead class="bg-gris-50 sticky top-0 border-b border-gris-200">
                                 <tr>
-                                    <th class="text-left px-3 py-2 font-medium">Gestion</th>
-                                    <th class="text-left px-3 py-2 font-medium">Mes</th>
-                                    <th class="text-left px-3 py-2 font-medium">Tipo</th>
-                                    <th class="text-left px-3 py-2 font-medium">NANDINA</th>
-                                    <th class="text-left px-3 py-2 font-medium">Producto</th>
-                                    <th class="text-left px-3 py-2 font-medium">Pais</th>
-                                    <th class="text-left px-3 py-2 font-medium">Depto.</th>
-                                    <th class="text-right px-3 py-2 font-medium">Peso bruto</th>
-                                    <th class="text-right px-3 py-2 font-medium">Valor</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Gestión</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Mes</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Tipo</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">NANDINA</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Producto</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">País</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Depto.</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Peso bruto</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Valor</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <tr v-for="r in tabla.data" :key="r.operacion_id" class="hover:bg-slate-50">
-                                    <td class="px-3 py-1.5">{{ r.gestion }}</td>
-                                    <td class="px-3 py-1.5">{{ r.mes }}</td>
-                                    <td class="px-3 py-1.5">{{ r.tipo_operacion }}</td>
-                                    <td class="px-3 py-1.5 font-mono text-xs">{{ r.codigo_nandina }}</td>
-                                    <td class="px-3 py-1.5 truncate max-w-[200px]">{{ r.producto }}</td>
-                                    <td class="px-3 py-1.5">{{ r.pais }}</td>
-                                    <td class="px-3 py-1.5">{{ r.departamento }}</td>
-                                    <td class="px-3 py-1.5 text-right">{{ fmt(r.peso_bruto_kg) }}</td>
-                                    <td class="px-3 py-1.5 text-right">{{ fmtUsd(Number(r.valor_fob_usd || 0) + Number(r.valor_cif_frontera_usd || 0)) }}</td>
+                            <tbody class="divide-y divide-gris-100">
+                                <tr v-for="r in tabla.data" :key="r.operacion_id"
+                                    class="hover:bg-gris-50 transition-all duration-200 ease-out">
+                                    <td class="px-3 py-3 text-institucional-700">{{ r.gestion }}</td>
+                                    <td class="px-3 py-3 text-institucional-700">{{ r.mes }}</td>
+                                    <td class="px-3 py-3 text-institucional-700">{{ r.tipo_operacion }}</td>
+                                    <td class="px-3 py-3 font-mono text-xs text-institucional-500">{{ r.codigo_nandina }}</td>
+                                    <td class="px-3 py-3 truncate max-w-[200px] text-institucional-800">{{ r.producto }}</td>
+                                    <td class="px-3 py-3 text-institucional-700">{{ r.pais }}</td>
+                                    <td class="px-3 py-3 text-institucional-700">{{ r.departamento }}</td>
+                                    <td class="px-3 py-3 text-right text-institucional-600">{{ fmt(r.peso_bruto_kg) }}</td>
+                                    <td class="px-3 py-3 text-right font-semibold text-institucional-900">{{ fmtUsd(Number(r.valor_fob_usd || 0) + Number(r.valor_cif_frontera_usd || 0)) }}</td>
                                 </tr>
                                 <tr v-if="!tabla.data.length && !cargando">
-                                    <td colspan="9" class="px-4 py-10 text-center text-slate-400">Sin resultados para los filtros aplicados.</td>
+                                    <td colspan="9" class="px-4 py-12 text-center text-institucional-400">Sin resultados para los filtros aplicados.</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    <div class="flex items-center justify-between px-4 py-2.5 border-t border-slate-100 text-sm">
-                        <span class="text-slate-500">Pagina {{ tabla.pagina }} de {{ tabla.ultima_pagina || 1 }} · {{ fmt(tabla.total) }} registros</span>
+                    <div class="flex items-center justify-between px-4 py-2.5 border-t border-gris-100 text-sm">
+                        <span class="text-gris-500">Pagina {{ tabla.pagina }} de {{ tabla.ultima_pagina || 1 }} · {{ fmt(tabla.total) }} registros</span>
                         <div class="flex gap-2">
-                            <button @click="pagina = Math.max(1, pagina - 1)" :disabled="pagina <= 1" class="px-3 py-1 rounded border border-slate-200 disabled:opacity-40 hover:bg-slate-50">Anterior</button>
-                            <button @click="pagina = Math.min(tabla.ultima_pagina, pagina + 1)" :disabled="pagina >= tabla.ultima_pagina" class="px-3 py-1 rounded border border-slate-200 disabled:opacity-40 hover:bg-slate-50">Siguiente</button>
+                            <button @click="pagina = Math.max(1, pagina - 1)" :disabled="pagina <= 1" class="px-3 py-1 rounded border border-gris-200 disabled:opacity-40 hover:bg-gris-50">Anterior</button>
+                            <button @click="pagina = Math.min(tabla.ultima_pagina, pagina + 1)" :disabled="pagina >= tabla.ultima_pagina" class="px-3 py-1 rounded border border-gris-200 disabled:opacity-40 hover:bg-gris-50">Siguiente</button>
                         </div>
                     </div>
                 </div>

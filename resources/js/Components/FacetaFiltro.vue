@@ -34,33 +34,34 @@ function limpiar() {
 </script>
 
 <template>
-    <div class="border-b border-slate-100">
-        <button @click="abierto = !abierto" class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+    <div class="border-b border-gris-100">
+        <button @click="abierto = !abierto" class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-institucional-900 hover:bg-gris-50">
             <span>
                 {{ titulo }}
-                <span v-if="seleccionadas" class="ml-1 inline-flex items-center justify-center text-xs bg-marca-600 text-white rounded-full px-1.5">{{ seleccionadas }}</span>
+                <span v-if="seleccionadas" class="ml-1 inline-flex items-center justify-center text-xs bg-rojo-600 text-white rounded-full px-1.5">{{ seleccionadas }}</span>
             </span>
-            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': abierto }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 text-gris-400 transition-transform" :class="{ 'rotate-180': abierto }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
         </button>
 
         <div v-show="abierto" class="px-3 pb-3">
-            <input v-model="busqueda" placeholder="Buscar..." class="w-full mb-2 rounded border border-slate-200 px-2 py-1 text-xs focus:ring-1 focus:ring-marca-400" />
+            <input v-model="busqueda" placeholder="Buscar..." class="w-full mb-2 rounded border border-gris-200 px-2 py-1 text-xs focus:ring-1 focus:ring-institucional-400" />
             <div v-if="seleccionadas" class="text-right mb-1">
-                <button @click="limpiar" class="text-xs text-marca-600 hover:underline">Limpiar</button>
+                <button @click="limpiar" class="text-xs text-rojo-600 hover:underline">Limpiar</button>
             </div>
             <div class="max-h-52 overflow-y-auto space-y-0.5">
                 <label v-for="o in filtradas" :key="o.id"
-                       class="flex items-center justify-between gap-2 text-sm px-1 py-0.5 rounded hover:bg-slate-50 cursor-pointer"
-                       :class="{ 'opacity-40': o.n === 0 && !modelValue.includes(o.id) }">
+                       class="flex items-center justify-between gap-2 text-sm px-1 py-0.5 rounded cursor-pointer"
+                       :class="modelValue.includes(o.id) ? 'bg-rojo-50' : 'hover:bg-gris-50'"
+                       :style="o.n === 0 && !modelValue.includes(o.id) ? 'opacity:0.4' : ''">
                     <span class="flex items-center gap-2 min-w-0">
-                        <input type="checkbox" :checked="modelValue.includes(o.id)" @change="toggle(o.id)" class="rounded text-marca-600 shrink-0" />
-                        <span class="truncate">{{ o.label }}</span>
+                        <input type="checkbox" :checked="modelValue.includes(o.id)" @change="toggle(o.id)" class="rounded text-rojo-600 focus:ring-rojo-500 shrink-0" />
+                        <span class="truncate" :class="modelValue.includes(o.id) ? 'text-institucional-900 font-medium' : 'text-gris-700'">{{ o.label }}</span>
                     </span>
-                    <span class="text-xs text-slate-400 shrink-0">{{ o.n }}</span>
+                    <span class="text-xs text-gris-400 shrink-0">{{ o.n }}</span>
                 </label>
-                <div v-if="!filtradas.length" class="text-xs text-slate-400 py-1">Sin opciones.</div>
+                <div v-if="!filtradas.length" class="text-xs text-gris-400 py-1">Sin opciones.</div>
             </div>
         </div>
     </div>

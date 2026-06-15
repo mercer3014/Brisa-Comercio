@@ -6,20 +6,330 @@
 @source '../**/*.vue';
 @source '../**/*.js';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* ===========================================================================
+   SISTEMA DE DISENIO OVXEL  —  v3: Blanco + Navy Slate + Crimson (estilo AJE)
+   Blanco puro domina (60 %). NAVY SLATE industrial estructura texto y
+   superficies oscuras (30 %) — nunca negro puro. CRIMSON premium es el
+   acento de marca: CTAs, activos, destacados, logo (10 %).
+   Estetica: luminosa, espaciada, tipografia imponente, imagenes nitidas.
 
-    /* Paleta corporativa azul de ComexHub */
-    --color-marca-50: #eff6ff;
-    --color-marca-100: #dbeafe;
-    --color-marca-200: #bfdbfe;
-    --color-marca-300: #93c5fd;
-    --color-marca-400: #60a5fa;
-    --color-marca-500: #3b82f6;
-    --color-marca-600: #2563eb;
-    --color-marca-700: #1d4ed8;
-    --color-marca-800: #1e40af;
-    --color-marca-900: #1e3a8a;
-    --color-marca-950: #172554;
+   Compatibilidad de nombres de token:
+     institucional-*  ->  NAVY SLATE (texto fuerte y superficies oscuras)
+     gris-*           ->  NEUTRO SLATE tintado (fondos suaves, bordes)
+     rojo-*           ->  CRIMSON red  (marca / acento / CTA)
+     marca-*          ->  espejo de crimson (vistas legacy del panel)
+   =========================================================================== */
+@theme {
+    /* --- Tipografia: Plus Jakarta Sans (cuerpo + titulares) --- */
+    --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+    /* --- AZUL ROYAL INSTITUCIONAL (token institucional-*) — DOMINANTE: texto fuerte y superficies dark --- */
+    --color-institucional-50:  #eef4fb;
+    --color-institucional-100: #d6e4f4;
+    --color-institucional-200: #aec8e8;
+    --color-institucional-300: #7da5d6;
+    --color-institucional-400: #4d7fc0;
+    --color-institucional-500: #2c5e9e;
+    --color-institucional-600: #21487d;
+    --color-institucional-700: #1c3c68; /* azul industrial */
+    --color-institucional-800: #193153; /* ancla de marca */
+    --color-institucional-900: #15294a; /* azul profundo: titulares, sidebar */
+    --color-institucional-950: #10203a; /* navy hero, casi-negro azul */
+
+    /* --- ROJO VERDADERO (token rojo-*) — acento de marca y CTA --- */
+    --color-rojo-50:  #fef2f2;
+    --color-rojo-100: #fde0e1;
+    --color-rojo-200: #fbc7ca;
+    --color-rojo-300: #f79da2;
+    --color-rojo-400: #f06a72;
+    --color-rojo-500: #e63b45;
+    --color-rojo-600: #e10f1c; /* ancla de marca: CTA principal rojo vibrante */
+    --color-rojo-700: #bd0c17;
+    --color-rojo-800: #9c1119;
+    --color-rojo-900: #82151b;
+    --color-rojo-950: #47070b;
+
+    /* --- ORO (chispa puntual: destacados, estrellas, detalles) --- */
+    --color-oro-300: #fde68a;
+    --color-oro-400: #fcd34d;
+    --color-oro-500: #f59e0b;
+
+    /* --- Neutro SLATE tintado (cohesion con el navy de marca) --- */
+    --color-gris-50:  #f8fafc;
+    --color-gris-100: #f1f5f9;
+    --color-gris-200: #e2e8f0;
+    --color-gris-300: #cbd5e1;
+    --color-gris-400: #94a3b8;
+    --color-gris-500: #64748b;
+    --color-gris-600: #475569;
+    --color-gris-700: #334155;
+    --color-gris-800: #1e293b;
+    --color-gris-900: #0f172a;
+
+    /* --- Semanticos de variacion (sube verde / baja rojo) --- */
+    --color-positivo: #059669;
+    --color-positivo-suave: #d1fae5;
+    --color-negativo: #dc2626;
+    --color-negativo-suave: #fee2e2;
+
+    /* --- marca-* = espejo de crimson (panel legacy) --- */
+    --color-marca-50:  #fff1f2;
+    --color-marca-100: #ffe4e6;
+    --color-marca-200: #fecdd3;
+    --color-marca-300: #fda4af;
+    --color-marca-400: #fb7185;
+    --color-marca-500: #f43f5e;
+    --color-marca-600: #e11d48;
+    --color-marca-700: #be123c;
+    --color-marca-800: #9f1239;
+    --color-marca-900: #881337;
+    --color-marca-950: #4c0519;
+
+    /* --- Radios (contenidos, modernos) --- */
+    --radius-tarjeta: 0.75rem;    /* 12px */
+    --radius-panel: 1rem;         /* 16px */
+
+    /* --- Sombras casi invisibles, slate-tintadas (sin sombras pesadas de IA) --- */
+    --shadow-tarjeta: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 30px -14px rgb(15 23 42 / 0.08);
+    --shadow-flotante: 0 24px 60px -20px rgb(15 23 42 / 0.22);
+}
+
+/* ===========================================================================
+   COMPONENTES
+   =========================================================================== */
+@layer components {
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5
+               text-sm font-semibold transition-all duration-200
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+               disabled:cursor-not-allowed disabled:opacity-50;
+    }
+    /* CTA principal: esmeralda solida, hover mas profundo. */
+    .btn-primario {
+        @apply bg-rojo-600 text-white shadow-sm
+               hover:bg-rojo-700 hover:shadow-md focus-visible:ring-rojo-500;
+    }
+    /* Acento alternativo (mismo verde, util para variar). */
+    .btn-acento {
+        @apply bg-rojo-500 text-white shadow-sm hover:bg-rojo-600 focus-visible:ring-rojo-500;
+    }
+    /* Secundario: superficie blanca con borde neutro. */
+    .btn-secundario {
+        @apply bg-white text-institucional-800 border border-institucional-200
+               hover:border-institucional-300 hover:bg-institucional-50 focus-visible:ring-institucional-300;
+    }
+    .btn-contorno {
+        @apply border border-institucional-300 bg-white text-institucional-800
+               hover:bg-institucional-50 hover:border-rojo-400 hover:text-rojo-700 focus-visible:ring-rojo-400;
+    }
+    .btn-contorno-claro {
+        @apply border border-white/30 bg-white/5 text-white
+               hover:bg-white/15 hover:border-white/60 focus-visible:ring-white/60;
+    }
+
+    /* Campo de formulario: compacto, foco esmeralda. */
+    .campo {
+        @apply w-full rounded-lg border border-gris-300 bg-white px-3.5 py-2.5 text-sm text-institucional-800
+               placeholder:text-gris-400 transition-colors
+               focus:outline-none focus:border-rojo-500 focus:ring-2 focus:ring-rojo-500/25;
+    }
+    .campo-error { @apply border-negativo focus:border-negativo focus:ring-negativo/25; }
+
+    .pildora {
+        @apply inline-flex items-center gap-2 rounded-full px-3.5 py-1.5
+               text-xs font-semibold uppercase tracking-wider;
+    }
+
+    .tarjeta {
+        @apply rounded-tarjeta border border-gris-100 bg-white shadow-tarjeta;
+    }
+    .tarjeta-hover {
+        @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-flotante
+               hover:border-rojo-200;
+    }
+
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    }
+    .badge-ok    { @apply bg-positivo-suave text-positivo; }
+    .badge-error { @apply bg-negativo-suave text-negativo; }
+    .badge-info  { @apply bg-rojo-100 text-rojo-800; }
+    .badge-neutro{ @apply bg-gris-100 text-gris-600; }
+}
+
+/* Titulares: la misma sans en peso alto, tracking ajustado. */
+.titular-editorial {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+}
+
+/* Resaltado esmeralda suave para una palabra/linea de un titular. */
+.subrayado-rojo {
+    background-image: linear-gradient(transparent 62%, var(--color-rojo-200) 62%, var(--color-rojo-200) 94%, transparent 94%);
+    padding: 0 0.06em;
+}
+
+/* Encabezado de pagina admin (titulo + descripcion). */
+.page-header {
+    @apply mb-7;
+}
+.page-header h1 {
+    @apply text-2xl font-bold text-institucional-900 tracking-tight;
+}
+.page-header p {
+    @apply text-gris-500 text-sm mt-1;
+}
+
+/* Tabla admin estandar. */
+.tabla-admin {
+    @apply w-full text-sm;
+}
+.tabla-admin thead {
+    @apply bg-gris-50 border-b border-gris-200;
+}
+.tabla-admin thead th {
+    @apply text-left px-5 py-3 text-xs font-semibold text-gris-500 uppercase tracking-wider;
+}
+.tabla-admin thead th.centro {
+    @apply text-center;
+}
+.tabla-admin thead th.derecha {
+    @apply text-right;
+}
+.tabla-admin tbody tr {
+    @apply border-b border-gris-100 hover:bg-gris-50 transition-colors;
+}
+.tabla-admin tbody td {
+    @apply px-5 py-3.5 text-institucional-800;
+}
+.tabla-admin tbody td.muted {
+    @apply text-gris-500;
+}
+.tabla-admin tbody td.centro {
+    @apply text-center;
+}
+.tabla-admin tbody td.derecha {
+    @apply text-right;
+}
+
+/* Modal estandar. */
+.modal-overlay {
+    @apply fixed inset-0 bg-institucional-950/50 backdrop-blur-sm flex items-center justify-center p-4 z-50;
+}
+.modal-caja {
+    @apply bg-white rounded-2xl shadow-2xl w-full max-w-md p-7;
+}
+.modal-titulo {
+    @apply text-lg font-bold text-institucional-900 mb-5;
+}
+.modal-acciones {
+    @apply flex justify-end gap-2.5 mt-6 pt-5 border-t border-gris-100;
+}
+
+/* KPI icon container. */
+.kpi-icon {
+    @apply inline-flex w-10 h-10 items-center justify-center rounded-xl shrink-0;
+}
+
+/* ===========================================================================
+   PANELES DE TRANSPORTE — hero inmersivo estilo "expanding panels" (AJE)
+   Marítimo / Terrestre / Aéreo. En desktop se expanden al hover; en móvil
+   se apilan y muestran su contenido siempre.
+   =========================================================================== */
+.paneles-transporte {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;            /* hairline divisor estilo AJE */
+    background: rgba(255, 255, 255, 0.12);
+}
+.panel-modo {
+    position: relative;
+    overflow: hidden;
+    display: block;
+    min-height: 62vh;     /* banner alto en móvil */
+    border-radius: 0;     /* full-bleed, sin esquinas */
+    isolation: isolate;
+}
+.panel-modo__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+.panel-modo:hover .panel-modo__img,
+.panel-modo:focus-visible .panel-modo__img {
+    transform: scale(1.08);
+}
+/* Velo azul: oscurece para legibilidad y aclara al hover */
+.panel-modo__velo {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(16, 32, 58, 0.15) 0%, rgba(16, 32, 58, 0.55) 55%, rgba(16, 32, 58, 0.9) 100%);
+    transition: opacity 0.5s ease;
+}
+.panel-modo:hover .panel-modo__velo,
+.panel-modo:focus-visible .panel-modo__velo {
+    opacity: 0.7;
+}
+/* La descripción y el CTA aparecen al hover (en desktop) */
+.panel-modo__detalle {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(0.5rem);
+    transition: max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 768px) {
+    .paneles-transporte {
+        flex-direction: row;
+        height: 100dvh;                /* pantalla completa: el header se oculta en home */
+        min-height: 34rem;
+        gap: 2px;
+    }
+    .panel-modo {
+        flex: 1 1 0;
+        min-height: 0;
+        transition: flex-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    /* Al pasar el cursor por cualquier panel, los demás se encogen */
+    .paneles-transporte:hover .panel-modo {
+        flex-grow: 0.7;
+    }
+    .paneles-transporte .panel-modo:hover {
+        flex-grow: 2.6;
+    }
+    /* En desktop el detalle está oculto hasta el hover */
+    .panel-modo:hover .panel-modo__detalle,
+    .panel-modo:focus-visible .panel-modo__detalle {
+        max-height: 8rem;
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* En móvil/tablet el detalle siempre visible (no hay hover fiable) */
+@media (max-width: 767px) {
+    .panel-modo__detalle {
+        max-height: 8rem;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .panel-modo__img,
+    .panel-modo__velo,
+    .panel-modo__detalle,
+    .panel-modo {
+        transition: none !important;
+    }
+    .panel-modo:hover .panel-modo__img { transform: none; }
 }

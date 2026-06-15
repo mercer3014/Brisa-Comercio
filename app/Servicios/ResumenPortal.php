@@ -161,12 +161,17 @@ class ResumenPortal
             ->where('organizacion_id', $orgId)->where('gestion', $gestion)
             ->distinct()->count('producto_id');
 
+        $volumen = $this->volumenAnual($orgId, $gestion, self::FLUJO_EXPORTACION);
+        $volumenAnt = $this->volumenAnual($orgId, $gestion - 1, self::FLUJO_EXPORTACION);
+
         return [
             'valor_exportado'     => $expo,
             'variacion_expo'      => $this->variacion($expo, $expoAnt),
             'valor_importado'     => $impo,
             'variacion_impo'      => $this->variacion($impo, $impoAnt),
             'balanza_comercial'   => $expo - $impo,
+            'volumen_exportado'   => $volumen,
+            'variacion_volumen'   => $this->variacion($volumen, $volumenAnt),
             'paises_destino'      => $paisesDestino,
             'productos_distintos' => $productos,
             'gestion_anterior'    => $gestion - 1,
@@ -181,6 +186,16 @@ class ResumenPortal
         return (float) DB::table('resumen_mensual')
             ->where('organizacion_id', $orgId)->where('gestion', $gestion)->where('flujo_id', $flujo)
             ->sum('valor');
+    }
+
+    /**
+     * Volumen (peso bruto en kg) de un flujo en una gestion, desde resumen_mensual.
+     */
+    private function volumenAnual(int $orgId, int $gestion, int $flujo): float
+    {
+        return (float) DB::table('resumen_mensual')
+            ->where('organizacion_id', $orgId)->where('gestion', $gestion)->where('flujo_id', $flujo)
+            ->sum('peso_bruto');
     }
 
     private function variacion(float $actual, float $anterior): ?float

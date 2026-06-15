@@ -36,7 +36,17 @@
 - Librerias clave: inertiajs/inertia-laravel, openspout/openspout (ETL/exportacion),
   barryvdh/laravel-dompdf (PDF), apexcharts + vue3-apexcharts (graficos).
 
-## Estado: Tareas 1-10 COMPLETADAS (prototipo demostrable)
-- Admin inicial: usuario **admin** / **Admin12345**.
-- Para arrancar: `php artisan serve` + `npm run dev` (o `composer dev`). Sembrar con
-  `php artisan db:seed` si la base esta limpia.
+## Estado: Tareas 1-16 + tarea02 (reproducibilidad + redisenio) COMPLETADAS
+- Admin inicial: usuario **admin** / **Admin12345** (configurable via ADMIN_* en `.env`).
+- Arranque reproducible desde cero: `php artisan migrate --seed` (crea las 39 tablas +
+  vistas y siembra datos base), luego `composer dev` (o `serve` + `npm run dev` + `queue:work`).
+  Ver `README.md`. Las migraciones del esquema estan en `2026_06_05_*`.
+- Identidad visual institucional (azul #193153 / rojo #e10f1c, Inter+Fraunces) en
+  `resources/css/app.css` (@theme, Tailwind v4); guia en `memoria/sistema-disenio.md`.
+
+## Pendiente visual (placeholders a reemplazar por el equipo)
+- Escudo de la FCEE y logos institucionales: hoy son cajas con borde punteado en el header,
+  footer y login. Reemplazar por las imagenes reales.
+- Imagenes de fondo del hero: hoy se usa color + trama sutil; se pueden sustituir por foto.
+- "Ultima actualizacion" del header/footer: hoy muestra la fecha actual del navegador;
+  conectar a la fecha real de la ultima carga si se desea.

@@ -691,3 +691,120 @@ Portal publico de ComexHub completo y funcional, separado del panel privado:
 
 Datos: dataset demo (580 hechos, 2022-2024). Falta cargar archivos reales del INE y validar nombres de
 catalogos (placeholders "Pais 54"). Lista de errores del panel pendiente del equipo (T16).
+
+---
+
+# TERCERA TANDA (tarea02) — REPRODUCIBILIDAD + REDISENIO VISUAL
+
+## Tarea02 PARTE B — Migrations y seeders (reproducibilidad) (2026-06-09)
+
+### Estado: COMPLETADA (B1, B2, B3)
+
+### B1 — Migraciones de todo el esquema
+- 4 migraciones nuevas, agrupadas por modulo, con SQL crudo (`DB::unprepared`) copiado
+  EXACTAMENTE de `estructura-db.sql` para conservar `GENERATED ALWAYS AS IDENTITY`, los
+  tipos exactos (INT/SMALLINT/BIGINT), UNIQUE, CHECK, FK, JSONB e indice GIN:
+  - `2026_06_05_000001_crear_catalogo_central.php` (pgcrypto + organizacion, fuente_datos,
+    perfil_mapeo, mapeo_columna).
+  - `2026_06_05_000002_crear_dimensiones_microdato.php` (tiempo..despachante, 20 tablas + indices).
+  - `2026_06_05_000003_crear_modulo_sistema.php` (rol..incidencia_calidad, 14 tablas + indices).
+  - `2026_06_05_000004_crear_tabla_hechos_microdato.php` (operacion_comercio_exterior + 18 indices, incl. GIN).
+- Timestamps `2026_06_05_*` para que corran ANTES de la migracion de vistas materializadas
+  (`2026_06_08_000001`), que depende de la tabla de hechos.
+- Las tablas internas de Laravel siguen en sus propias migraciones (sessions/cache/jobs).
+  La de `users` se mantiene vaciada (la auth usa la tabla de negocio `usuario`).
+
+### Verificacion B1 (contra base NUEVA y vacia `brisa_test`, sin tocar `brisa`)
+- `php artisan migrate` levanta las 9 migraciones en orden sin error.
+- Comparacion estructural `brisa` (real) vs `brisa_test` via information_schema:
+  **39 tablas de negocio identicas**, 0 diferencias de columnas (nombre/tipo/longitud/nullable),
+  constraints (PK/UNIQUE/FK/CHECK) coinciden por tabla, 34 indices `idx_*`, indice GIN
+  `idx_oce_extras` presente, y 34 columnas `IDENTITY ALWAYS` en ambas. Estructura IDENTICA.
+
+### B2 — Seeders de datos base
+- Los seeders ya existian (Tareas 3/4/6): `ConfiguracionSeeder` (5 params), `RolPermisoSeeder`
+  (27 permisos / 4 roles / matriz), `UsuarioAdminSeeder`, `OrganizacionIneSeeder` (INE + 2
+  perfiles + 37 mapeos), `ReglaValidacionSeeder` (8 reglas), orquestados por `DatabaseSeeder`.
+- Mejora: `UsuarioAdminSeeder` ahora lee `ADMIN_USUARIO` / `ADMIN_CORREO` / `ADMIN_PASSWORD`
+  desde `.env` (con defaults documentados). Hash bcrypt, `debe_cambiar_pwd=true`.
+
+### Verificacion B2 (`migrate:fresh --seed` sobre `brisa_test`)
+- 4 roles, 27 permisos, 43 filas rol_permiso (admin = 27, todos), 1 usuario admin,
+  1 organizacion (INE), 2 perfiles, 37 mapeos, 5 config, 8 reglas.
+- `password_verify('Admin12345', hash)` = SI; `debe_cambiar_pwd=true`. Sistema operativo desde cero.
+
+### B3 — Documentacion de arranque
+- `README.md` reescrito (era el de Laravel) con pasos de arranque desde cero: requisitos,
+  composer/npm install, `.env`, `key:generate`, `migrate --seed`, `composer dev` / serve+queue+vite,
+  usuario admin inicial y obligacion de cambiar contrasenia, cola/ETL, refresco de vistas, rutas.
+- `.env.example` actualizado: PostgreSQL (pgsql/brisa/search_path), APP_NAME=ComexHub, locale es,
+  y variables ADMIN_*.
+
+### Decisiones
+- SQL crudo en las migraciones (en vez del schema builder) para garantizar reproduccion
+  byte a byte del esquema original (identity ALWAYS, tipos SMALLINT/INT exactos, CHECK, GIN).
+- La validacion se hizo en `brisa_test` (creada y eliminada via PDO); la base `brisa` de
+  desarrollo quedo intacta, como pedia la tarea.
+
+---
+
+## Tarea02 PARTE A — Redisenio visual editorial e institucional (2026-06-09)
+
+### Estado: COMPLETADA (A1..A5)
+
+### Identidad (regla de oro: el AZUL manda, el ROJO es acento puntual)
+- Azul institucional `#193153` (dominante), hero `#10203a`; rojo `#e10f1c` (acento).
+
+### A1 — Sistema de disenio (tokens y tipografia)
+- Tokens centralizados en `resources/css/app.css` via `@theme` (Tailwind v4; NO hay
+  `tailwind.config.js`, la config vive en CSS). Escalas `institucional-*`, `rojo-*`,
+  `gris-*`, semanticos `positivo`/`negativo`; radios `rounded-tarjeta/panel`; sombras
+  `shadow-tarjeta/flotante`. Se conserva `marca-*` solo por compatibilidad.
+- Tipografias: **Inter** (cuerpo, `font-sans`) y **Fraunces** (titulares, `font-display`),
+  cargadas desde bunny.net en `app.blade.php`. Helpers `.titular-editorial`, `.subrayado-rojo`.
+- Componentes en `@layer components`: `.btn` + variantes (`btn-primario` rojo, `btn-secundario`
+  azul, `btn-contorno`, `btn-contorno-claro`), `.pildora`, `.tarjeta`, badges (`.badge` + ok/error/
+  info/neutro). Documentado en `memoria/sistema-disenio.md`.
+
+### A2 — Header y footer del portal (LayoutPublico.vue)
+- Utility bar (azul muy oscuro): izq "PROYECTO ACADEMICO · FCEE · UAGRM", der "FUENTE: INE ·
+  ACTUAL. [fecha]" con punto rojo. Header amplio: logo + subtitulo + placeholder de escudo FCEE,
+  nav con LINEA/acento ROJO en el item activo, boton "Acceder" (primario rojo) / "Ir al panel".
+  Menu hamburguesa en movil (acento rojo en borde izq). Footer institucional en azul oscuro:
+  descripcion, navegacion, datos FCEE/UAGRM, enlace al INE, leyenda academica, ultima actualizacion,
+  espacio para logos.
+
+### A3 — Portada editorial (Portal/Inicio.vue)
+- HERO oscuro a dos columnas: pildora con periodo (+ punto rojo), TITULAR grande editorial
+  (Fraunces) con "claro y al alcance" subrayado en rojo, bajada, selectores org/gestion integrados
+  + boton rojo "Explorar datos"; a la derecha PANEL "RESUMEN DEL PERIODO" flotante translucido
+  (`shadow-flotante`) con 4 cifras: Exportaciones, Importaciones, Balanza, Volumen exportado (cada
+  una con variacion verde sube / rojo baja).
+- Debajo (fondo claro): KPIs, "Lo mas destacado" con set de iconos outline coherente (reemplaza
+  emojis), rankings top-5 (barras azules, 1er puesto en rojo, enlace a /rankings), evolucion mensual.
+- Backend: se anadio en `ResumenPortal::indicadores()` el campo read-only `volumen_exportado`
+  (+`variacion_volumen`) = SUM(peso_bruto) flujo=1 desde `resumen_mensual`. Cambio ADITIVO, no
+  rompe nada. Verificado: 2024 volumen=24,001,567.5 kg, variacion=-3.8%.
+
+### A4 — Explorar, Rankings, Acerca + FacetaFiltro
+- Explorar: encabezado oscuro, panel de filtros con cabecera azul, chip de acento rojo en
+  seleccionados (FacetaFiltro), tabla con ENCABEZADO AZUL y filas alternas gris claro, botones de
+  descarga secundarios. Rankings: tablas/graficos con identidad, 1er puesto resaltado en rojo
+  (fila + barra), barras azules; comparadores con verde/rojo de variacion. Acerca: rehecha editorial
+  (hero oscuro + bloques). Toda la LOGICA y endpoints intactos (solo clases y colores de chart).
+
+### A5 — Panel admin y login
+- LayoutAdmin: barra superior azul `institucional-900`, menu lateral `institucional-950` con acento
+  ROJO en el activo, boton Salir rojo, flash con badges semanticos. Login: split-screen (panel
+  lateral azul oscuro con logo + placeholder de escudo + titular editorial; formulario limpio a la
+  derecha), boton primario rojo, "Volver al portal publico". Logica del form intacta.
+
+### Verificacion A (build + servidor real)
+- `npm run build` OK en cada etapa (compilan portal, login y panel).
+- Servidor `php artisan serve`: `/`, `/explorar`, `/rankings`, `/acerca`, `/acceder` -> 200;
+  `/admin` sin sesion -> 302 a `/acceder` (proteccion intacta); `/` renderiza `Portal/Inicio` con
+  datos reales del INE; `/portal/datos` devuelve JSON correcto.
+
+### Nota
+- Imagenes y escudo FCEE quedan como placeholders (cajas con borde punteado), como pedia la tarea;
+  el equipo los reemplazara por los reales.

@@ -1,0 +1,248 @@
+==============================================================================
+ COMEXHUB - REDISENIO VISUAL + PREPARACION DEL PROYECTO (migrations y seeders)
+ Rol: Scrum Master (define requerimientos)  ->  Agente desarrollador (ejecuta)
+ Stack: Laravel 11 + Inertia.js + Vue 3 + Tailwind CSS (Vite) + PostgreSQL
+==============================================================================
+
+CONTEXTO
+--------
+El sistema ComexHub ya esta funcionando completo (portal publico: Inicio, Explorar,
+Rankings, Acerca de; y panel de administracion con todos sus modulos). Funciona bien,
+pero el DISENIO actual (azul generico, plano) no convence. Esta tanda tiene dos metas:
+
+  PARTE A - Rediseniar la identidad visual (portal publico, panel y login) hacia un
+            estilo mas editorial, institucional y moderno.
+  PARTE B - Preparar el proyecto para que sea reproducible: pasar la base de datos a
+            MIGRATIONS de Laravel y los datos base (permisos, roles, usuario admin) a
+            SEEDERS, para poder levantar todo con un comando.
+
+Mantener las reglas permanentes: carpeta memoria/ (leer al iniciar, actualizar al
+terminar), codigo y textos en espaniol, no romper funcionalidad existente.
+
+
+==============================================================================
+ PARTE A - REDISENIO VISUAL
+==============================================================================
+
+DIRECCION DE DISENIO (importante, leer con atencion)
+----------------------------------------------------
+El estilo objetivo combina dos referencias:
+1. Un estilo EDITORIAL OSCURO para el portal publico: fondo azul institucional muy
+   oscuro en las secciones principales (hero), titular grande tipo titular de prensa,
+   un panel de "resumen del periodo" flotante con las cifras clave, y tarjetas de
+   indicadores limpias debajo. Sensacion de "portal de datos serio y profesional".
+2. Un header y una estructura general mas trabajados y modernos (inspiracion: sitios
+   corporativos amplios, con menu claro, sensacion de espacio, sin saturar), usando
+   imagenes de fondo donde aporten.
+
+PALETA INSTITUCIONAL OBLIGATORIA (escudo FCEE - UAGRM):
+- Azul institucional:  #193153  (color dominante, estructura, fondos oscuros del hero)
+- Rojo institucional:  #e10f1c  (ACENTO, en dosis pequenias: subrayado del titular,
+                                 item de menu activo, boton principal, dato resaltado)
+- Blanco:              #ffffff  (contenido y tarjetas claras)
+- Derivar: un azul mas oscuro para fondos del hero (ej. casi navy), grises auxiliares
+  para textos secundarios y fondos alternos, verde sobrio para variaciones positivas y
+  el rojo institucional para variaciones negativas. Buen contraste (accesibilidad AA).
+
+Regla de oro del color: el AZUL manda, el ROJO es acento puntual. Nada de grandes
+areas rojas. El portal debe verse institucional y serio, no estridente.
+
+
+TAREA A1 - Sistema de disenio (tokens) y tipografia
+---------------------------------------------------
+OBJETIVO: centralizar la identidad antes de tocar pantallas.
+ESPECIFICACIONES:
+1. Definir en tailwind.config.js los colores institucionales con nombre semantico
+   (institucional-azul, institucional-azul-oscuro, institucional-rojo, grises, etc.).
+   Nada de hexadecimales sueltos repartidos por el codigo.
+2. Elegir tipografias: una SERIF o sans de peso fuerte para titulares grandes (estilo
+   editorial/prensa) y una sans-serif limpia para el cuerpo. Cargarlas correctamente.
+3. Definir tokens de espaciado, radios, sombras y estilos de boton (primario en rojo,
+   secundario en azul/contorno). Documentar todo en memoria/sistema-disenio.md.
+CRITERIOS DE ACEPTACION:
+- La paleta y tipografias estan centralizadas y disponibles como clases.
+- Existe el documento del sistema de disenio en memoria/.
+
+
+TAREA A2 - Header y footer del portal publico (estilo trabajado)
+----------------------------------------------------------------
+OBJETIVO: un encabezado moderno y un pie institucional consistentes.
+ESPECIFICACIONES:
+1. Barra superior delgada (utility bar) arriba del header, en azul muy oscuro, con un
+   texto a la izquierda tipo "PROYECTO ACADEMICO - FCEE - UAGRM" y a la derecha la
+   fuente y la fecha de ultima actualizacion ("FUENTE: INE - ACTUAL. [fecha]").
+2. Header principal: logo ComexHub + un espacio reservado para el escudo de la FCEE
+   (placeholder por ahora), navegacion (Inicio, Explorar, Rankings, Acerca de) con el
+   item activo marcado con una linea/acento ROJO debajo, y el boton "Acceder" como
+   accion destacada (contorno o solido segun se vea mejor).
+3. El header debe sentirse amplio y limpio; en celular, menu hamburguesa.
+4. Footer institucional en azul oscuro: nombre de la facultad y universidad, creditos
+   del proyecto, enlace a la fuente (INE), leyenda de uso academico y "ultima
+   actualizacion". Espacio para logos institucionales.
+CRITERIOS DE ACEPTACION:
+- Header con utility bar, navegacion con acento rojo en el activo y boton Acceder.
+- Footer institucional completo. Todo responsive.
+
+
+TAREA A3 - Portada publica estilo editorial (rehacer la vista Inicio)
+---------------------------------------------------------------------
+OBJETIVO: rehacer la pagina de inicio segun la direccion editorial oscura.
+ESPECIFICACIONES:
+1. HERO en azul institucional oscuro, a buena altura, con:
+   - Una etiqueta/pildora arriba (ej. "ENERO - MARZO 2025" o el periodo vigente), con
+     un punto rojo.
+   - Un TITULAR GRANDE tipo prensa (ej. "El comercio exterior de Bolivia, claro y al
+     alcance"), con una palabra o linea subrayada en rojo.
+   - Un parrafo de bajada explicando que es y para quien (analisis academico, datos INE).
+   - Los selectores (flujo/organizacion y gestion) integrados al hero, y un boton rojo
+     "Explorar datos".
+   - A la derecha, un PANEL "RESUMEN DEL PERIODO" (tipo tarjeta translucida sobre el
+     fondo oscuro) con 4 cifras clave: Exportaciones, Importaciones, Balanza comercial,
+     Volumen exportado, cada una con su variacion (verde sube / rojo baja).
+   (Ver la referencia visual que el equipo entrego: esa es la meta para el hero.)
+2. Debajo del hero, en fondo claro:
+   - Las tarjetas de indicadores grandes (KPIs) ya existentes, con el nuevo estilo.
+   - La seccion "Lo mas destacado" (titulares automaticos) con iconos de un set unico y
+     coherente, el dato clave resaltado.
+   - Rankings destacados (top productos/paises) con barras en azul y el primer puesto en
+     rojo, y enlace a la pagina de Rankings.
+   - El grafico de evolucion mensual.
+3. Conservar TODA la logica y los datos actuales; es un redisesnio visual, no funcional.
+CRITERIOS DE ACEPTACION:
+- La portada se ve editorial y profesional, fiel a la direccion (hero oscuro + panel de
+  resumen + tarjetas), con la paleta institucional.
+- Mantiene los datos reales y los selectores funcionando.
+
+
+TAREA A4 - Rediseniar Explorar, Rankings y Acerca de
+----------------------------------------------------
+OBJETIVO: llevar la identidad al resto del portal publico.
+ESPECIFICACIONES:
+1. Explorar: panel de filtros mas cuidado (encabezados en azul, seleccionados con chip
+   de acento), KPIs y graficos con la paleta, tabla con encabezado azul y filas alternas
+   en gris muy claro. Botones de descarga visibles pero secundarios.
+2. Rankings/comparadores: tablas y graficos con identidad; primer puesto resaltado en
+   rojo; barras en azul.
+3. Acerca de: rehacer con estilo editorial (buena tipografia, aire, quizas una imagen o
+   bloque de color), explicando el proyecto academico y la fuente.
+4. Estados de carga, vacio y error con estilo cuidado.
+CRITERIOS DE ACEPTACION:
+- Las tres vistas comparten la identidad; ninguna queda con el azul generico anterior.
+
+
+TAREA A5 - Rediseniar panel de administracion y login
+-----------------------------------------------------
+OBJETIVO: alinear el panel privado y el login a la identidad (sin cambiar su
+funcionalidad).
+ESPECIFICACIONES:
+1. Panel: menu lateral y barra superior con la paleta institucional; mejorar el aire,
+   los espaciados, los encabezados de tabla, los badges de estado (verde OK, rojo error,
+   azul informativo) y los botones. Que se vea ordenado y profesional, no plano.
+2. Login: rehacer con identidad institucional, mas cuidado que el actual: panel/imagen
+   lateral en azul oscuro con el logo y espacio para el escudo, formulario limpio, boton
+   de ingreso en la paleta, enlace "Volver al portal publico".
+3. Revisar consistencia de iconos y componentes en todo el panel.
+CRITERIOS DE ACEPTACION:
+- Panel y login se ven parte del mismo sistema que el portal publico, con identidad
+  institucional, sin restos del azul generico.
+
+NOTA sobre imagenes: por ahora usar imagenes de relleno (placeholders) o fondos de color
+donde haga falta una foto; el equipo reemplazara luego por imagenes reales y el escudo.
+
+
+==============================================================================
+ PARTE B - PREPARACION DEL PROYECTO (migrations y seeders)
+==============================================================================
+
+CONTEXTO: hoy las tablas se crearon ejecutando un script SQL a mano, y los datos base
+(roles, permisos, usuario admin) se sembraron sueltos. Para que el proyecto sea
+reproducible y profesional, hay que pasar todo a migrations y seeders de Laravel.
+
+IMPORTANTE: hacerlo con cuidado para no perder los datos ya cargados en la base de
+desarrollo. Coordinar con el equipo: lo ideal es validar las migraciones contra una base
+NUEVA y vacia, y dejar la base actual intacta hasta confirmar que todo reproduce igual.
+
+
+TAREA B1 - Migraciones de todo el esquema
+-----------------------------------------
+OBJETIVO: que las 39 tablas del sistema se puedan crear con "php artisan migrate".
+ESPECIFICACIONES:
+1. Crear una migracion por tabla (o agrupadas por modulo) que reproduzca EXACTAMENTE la
+   estructura actual: tipos, llaves primarias (identity), llaves foraneas, restricciones
+   UNIQUE y CHECK, indices, la columna JSONB atributos_extra y el indice GIN.
+   Referencia: el archivo estructura-bd.sql en la raiz del proyecto. Respetar nombres
+   EXACTOS de tablas y columnas.
+2. Respetar el orden de dependencias (tablas referenciadas antes que las que las usan; la
+   tabla de hechos al final). Para la FK de operacion_comercio_exterior hacia
+   carga_archivo, crear esa FK despues si hace falta, igual que en el script.
+3. Mantener las tablas internas de Laravel (jobs, cache, sessions) en sus propias
+   migraciones.
+4. Verificar ejecutando "php artisan migrate:fresh" sobre una base de prueba vacia: debe
+   crear las 39 tablas sin error y quedar identica a estructura-bd.sql.
+CRITERIOS DE ACEPTACION:
+- "php artisan migrate" levanta todo el esquema desde cero en una base vacia.
+- La estructura resultante coincide con la actual (mismos nombres, tipos y relaciones).
+
+
+TAREA B2 - Seeders de datos base
+--------------------------------
+OBJETIVO: sembrar los datos minimos para que el sistema arranque utilizable.
+ESPECIFICACIONES:
+1. Seeder de ROLES: administrador, analista, consultor, invitado.
+2. Seeder de PERMISOS: todos los codigos de permiso usados por el sistema (los mismos que
+   ya existen: bitacora.ver, calidad.tratar, calidad.ver, carga.crear, carga.procesar,
+   carga.ver, catalogo.editar, catalogo.ver, configuracion.editar, configuracion.ver, y
+   los demas que el panel de Roles ya muestra). Revisar el sistema para listarlos todos.
+3. Seeder de ROL-PERMISO: asignar al rol administrador TODOS los permisos; a analista,
+   consultor e invitado los que correspondan (analista: cargas, ETL, calidad, catalogos;
+   consultor: ver/explorar/dashboards/reportes/exportar; invitado: solo lectura basica).
+4. Seeder de USUARIO ADMIN: crear un usuario administrador inicial con su contrasenia
+   hasheada (bcrypt) y asignarle el rol administrador. Las credenciales por defecto se
+   definen en variables de entorno o se documentan claramente para el equipo (y se obliga
+   a cambiarla en el primer ingreso mediante el campo debe_cambiar_pwd = true).
+5. Seeder de ORGANIZACION: registrar al INE como organizacion 1 (con su fuente_datos y
+   los perfiles de mapeo iniciales INE-EXP e INE-IMP si corresponde).
+6. Seeder de CONFIGURACION y REGLAS DE VALIDACION: los parametros base (moneda_base,
+   sesion_minutos_expira, max_intentos_login, etc.) y las reglas de calidad iniciales.
+7. Registrar todos en DatabaseSeeder en el orden correcto, de modo que "php artisan
+   db:seed" (o "migrate:fresh --seed") deje el sistema listo para usar.
+CRITERIOS DE ACEPTACION:
+- Tras "php artisan migrate:fresh --seed" sobre una base vacia, se puede iniciar sesion
+  con el usuario administrador sembrado y el sistema queda operativo (roles, permisos,
+  INE registrado, configuracion y reglas presentes).
+
+NOTA: NO incluir en seeders los microdatos de comercio (esos se cargan por la interfaz/
+ETL). Los seeders son solo catalogos del sistema y datos base.
+
+
+TAREA B3 - Documentacion de arranque (README)
+---------------------------------------------
+OBJETIVO: que cualquiera pueda levantar el proyecto desde cero.
+ESPECIFICACIONES:
+1. Escribir/actualizar el README con los pasos: requisitos (PHP 8.3, Node, PostgreSQL),
+   clonar, "composer install", "npm install", configurar .env (incluida la conexion a
+   PostgreSQL y las credenciales del admin), "php artisan key:generate", "php artisan
+   migrate --seed", "npm run dev" y "php artisan serve". Incluir como correr la cola
+   (queue:work) para el ETL.
+2. Documentar el usuario administrador inicial y la obligacion de cambiar su contrasenia.
+3. Actualizar memoria/ con el procedimiento de arranque.
+CRITERIOS DE ACEPTACION:
+- Siguiendo el README, el proyecto se levanta desde cero en una maquina limpia y queda
+  operativo.
+
+
+==============================================================================
+ ORDEN SUGERIDO Y ENTREGA
+==============================================================================
+
+Sugerencia: hacer primero la PARTE B (B1 -> B2 -> B3), para dejar el proyecto solido y
+reproducible, y luego la PARTE A de disenio (A1 -> A2 -> A3 -> A4 -> A5). Asi el
+rediseanio se construye sobre una base ordenada. Si el equipo prefiere ver los cambios
+visuales antes, puede invertirse, pero la Parte B no deberia quedar pendiente mucho
+tiempo.
+
+Entregar de a una tarea, validar, actualizar memoria/ y reportar antes de continuar.
+
+==============================================================================
+ FIN DEL DOCUMENTO
+==============================================================================
