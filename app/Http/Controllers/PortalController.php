@@ -75,6 +75,56 @@ class PortalController extends Controller
     }
 
     /**
+     * Indice de organizaciones (las 4 fuentes). La pagina consume la API Fase 3.
+     */
+    public function organizaciones(): Response
+    {
+        return Inertia::render('Portal/Organizaciones', $this->opcionesBase());
+    }
+
+    /**
+     * Detalle de una organizacion: todos sus indicadores. Recibe el id por ruta.
+     */
+    public function organizacionDetalle(int $id): Response
+    {
+        return Inertia::render('Portal/OrganizacionDetalle', array_merge($this->opcionesBase(), [
+            'organizacionId' => $id,
+        ]));
+    }
+
+    /**
+     * Comparador de paises / productos / anios.
+     */
+    public function comparador(): Response
+    {
+        return Inertia::render('Portal/Comparador', $this->opcionesBase());
+    }
+
+    /**
+     * Mapa comercial (choropleth mundial + departamentos).
+     */
+    public function mapaComercial(): Response
+    {
+        return Inertia::render('Portal/MapaComercial', $this->opcionesBase());
+    }
+
+    /**
+     * Scorecard de indicadores transversales.
+     */
+    public function indicadores(): Response
+    {
+        return Inertia::render('Portal/Indicadores', $this->opcionesBase());
+    }
+
+    /**
+     * Linea de tiempo 1992-2026 con variacion anual e hitos.
+     */
+    public function lineaDeTiempo(): Response
+    {
+        return Inertia::render('Portal/LineaDeTiempo', $this->opcionesBase());
+    }
+
+    /**
      * Opciones compartidas por las pantallas publicas: organizaciones activas,
      * gestiones disponibles y la organizacion por defecto (INE).
      */

@@ -28,9 +28,14 @@ class ProcesarCargaArchivo implements ShouldQueue
             return;
         }
 
-        // La implementacion del ETL (lectura por lotes, mapeo, find-or-create de
-        // dimensiones, insercion masiva, validaciones e idempotencia) se realiza
-        // en la Tarea 6 mediante el servicio ProcesadorEtl.
-        app(\App\Servicios\ProcesadorEtl::class)->procesar($carga);
+        // Ruteo por organización / tipo de flujo al cargador correspondiente.
+        match (true) {
+            $carga->organizacion_id === 1 => app(\App\Servicios\CargadorIne::class)->cargar($carga),
+            $carga->organizacion_id === 2 => app(\App\Servicios\CargadorAladi::class)->cargar($carga),
+            $carga->organizacion_id === 3 && $carga->tipo_flujo === 'MERCOSUR_ITEM' => app(\App\Servicios\CargadorMercosurItem::class)->cargar($carga),
+            $carga->organizacion_id === 3 => app(\App\Servicios\CargadorMercosurPais::class)->cargar($carga),
+            $carga->organizacion_id === 4 => app(\App\Servicios\CargadorFaostat::class)->cargar($carga),
+            default => app(\App\Servicios\ProcesadorEtl::class)->procesar($carga),
+        };
     }
 }

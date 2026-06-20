@@ -37,6 +37,13 @@ Route::get('/rankings', [PortalController::class, 'rankings'])->name('portal.ran
 Route::get('/rankings/datos', [RankingController::class, 'datos'])->name('portal.rankings.datos');
 Route::get('/rankings/comparar', [RankingController::class, 'comparar'])->name('portal.rankings.comparar');
 Route::get('/rankings/exportar', [RankingController::class, 'exportar'])->name('portal.rankings.exportar');
+Route::get('/organizaciones', [PortalController::class, 'organizaciones'])->name('portal.organizaciones');
+Route::get('/organizaciones/{id}', [PortalController::class, 'organizacionDetalle'])
+    ->whereNumber('id')->name('portal.organizaciones.detalle');
+Route::get('/comparador', [PortalController::class, 'comparador'])->name('portal.comparador');
+Route::get('/mapa-comercial', [PortalController::class, 'mapaComercial'])->name('portal.mapa-comercial');
+Route::get('/indicadores', [PortalController::class, 'indicadores'])->name('portal.indicadores');
+Route::get('/linea-de-tiempo', [PortalController::class, 'lineaDeTiempo'])->name('portal.linea-de-tiempo');
 Route::get('/acerca', [PortalController::class, 'acerca'])->name('portal.acerca');
 
 /*

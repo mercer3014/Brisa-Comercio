@@ -102,30 +102,36 @@ const serieDestinos = computed(() => [{ name: 'Exportado', data: (datos.value.to
 const opcProductos = computed(() => opcionesBarras(datos.value.top_productos ?? []));
 const opcDestinos = computed(() => opcionesBarras(datos.value.top_destinos ?? []));
 
-// --- Grafico de evolucion mensual (area) ---
+// --- Grafico de Comercio Exterior estilo INE: lineas exp/imp + barras de saldo ---
 const serieEvolucion = computed(() => {
     const ev = datos.value.evolucion ?? [];
     return [
-        { name: 'Exportaciones', data: ev.map((e) => Math.round(e.expo)) },
-        { name: 'Importaciones', data: ev.map((e) => Math.round(e.impo)) },
+        { name: 'Exportaciones', type: 'line', data: ev.map((e) => Math.round(e.expo)) },
+        { name: 'Importaciones', type: 'line', data: ev.map((e) => Math.round(e.impo)) },
+        { name: 'Saldo Comercial', type: 'column', data: ev.map((e) => Math.round((e.expo ?? 0) - (e.impo ?? 0))) },
     ];
 });
 const opcEvolucion = computed(() => ({
-    chart: { type: 'area', toolbar: { show: false }, height: 340, fontFamily: 'Plus Jakarta Sans, sans-serif' },
-    colors: ['#1e293b', '#e11d48'],
-    stroke: { curve: 'smooth', width: 2.5 },
-    fill: { type: 'gradient', gradient: { opacityFrom: 0.18, opacityTo: 0.01 } },
+    chart: { type: 'line', stacked: false, toolbar: { show: false }, height: 420, fontFamily: 'Plus Jakarta Sans, sans-serif' },
+    colors: ['#2E7D32', '#C62828', '#A8D0E6'], // verde expo, rojo impo, celeste saldo (estilo INE)
+    stroke: { curve: 'straight', width: [3, 3, 0] },
+    markers: { size: [4.5, 4.5, 0], strokeWidth: 0, hover: { size: 6 } },
+    plotOptions: { bar: { columnWidth: '60%', borderRadius: 2 } },
+    fill: { opacity: [1, 1, 0.9] },
     dataLabels: { enabled: false },
     xaxis: {
         categories: (datos.value.evolucion ?? []).map((e) => MESES[e.mes]),
-        labels: { style: { colors: '#94a3b8' } },
-        axisBorder: { show: false },
+        labels: { style: { colors: '#64748b', fontSize: '11px' }, rotate: -45, rotateAlways: false },
+        axisBorder: { show: true, color: '#e2e8f0' },
         axisTicks: { show: false },
     },
-    yaxis: { labels: { formatter: (v) => fmtUsd(v), style: { colors: '#94a3b8' } } },
-    tooltip: { y: { formatter: (v) => fmtUsd(v) } },
-    legend: { position: 'top', horizontalAlign: 'left', fontWeight: 600, labels: { colors: '#334155' }, markers: { radius: 12 } },
-    grid: { strokeDashArray: 4, borderColor: '#f1f5f9' },
+    yaxis: {
+        title: { text: 'En millones de dólares', style: { color: '#64748b', fontWeight: 600, fontSize: '12px' } },
+        labels: { formatter: (v) => fmtUsd(v), style: { colors: '#94a3b8' } },
+    },
+    tooltip: { shared: true, intersect: false, y: { formatter: (v) => fmtUsd(v) } },
+    legend: { position: 'bottom', horizontalAlign: 'center', fontWeight: 600, labels: { colors: '#334155' }, markers: { radius: 12 } },
+    grid: { strokeDashArray: 4, borderColor: '#eef2f7' },
 }));
 
 // --- Modos de transporte del hero inmersivo (paneles estilo AJE) ---
@@ -182,7 +188,7 @@ const modos = [
                 Comercio exterior · Bolivia
             </p>
             <p class="titular-editorial mt-4 text-3xl sm:text-5xl lg:text-[3.4rem] text-white max-w-2xl leading-[1.05] [text-shadow:0_2px_18px_rgba(16,32,58,0.5)]">
-                La <span class="text-rojo-500">brújula</span> del comercio exterior
+                Comercio exterior de Bolivia <span class="text-rojo-500">de un vistazo</span>
             </p>
         </div>
 
@@ -191,9 +197,9 @@ const modos = [
             <Link
                 v-for="m in modos"
                 :key="m.clave"
-                href="/explorar"
+                href="/organizaciones"
                 class="panel-modo group"
-                :aria-label="`Explorar comercio por vía ${m.titulo}`"
+                :aria-label="`Ver comercio por vía ${m.titulo}`"
             >
                 <img :src="m.img" :alt="`Vista aérea de transporte ${m.titulo.toLowerCase()}`" class="panel-modo__img" :loading="m.clave === 'maritimo' ? 'eager' : 'lazy'" />
                 <div class="panel-modo__velo"></div>
@@ -226,16 +232,16 @@ const modos = [
 
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
                     <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-white/80">
-                        <Link href="/explorar" class="hover:text-white transition-colors">Explorar</Link>
+                        <Link href="/organizaciones" class="hover:text-white transition-colors">Organizaciones</Link>
                         <Link href="/rankings" class="hover:text-white transition-colors">Rankings</Link>
                     </nav>
                     <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-white/80">
-                        <Link href="/acerca" class="hover:text-white transition-colors">Metodología</Link>
+                        <Link href="/indicadores" class="hover:text-white transition-colors">Indicadores</Link>
                         <Link href="/acceder" class="hover:text-white transition-colors">Acceder</Link>
                     </nav>
                     <!-- Móvil: enlace único centrado bajo el logo -->
-                    <Link href="/explorar" class="md:hidden ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-                        Explorar
+                    <Link href="/organizaciones" class="md:hidden ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-white">
+                        Organizaciones
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                     </Link>
                 </div>
@@ -406,28 +412,28 @@ const modos = [
                 </div>
             </section>
 
-            <!-- EVOLUCION MENSUAL -->
+            <!-- COMERCIO EXTERIOR DE BOLIVIA (estilo INE) -->
             <section class="pb-16">
                 <div class="tarjeta p-7">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">Evolución mensual {{ meta.gestion }}</h3>
-                        <span class="text-xs text-institucional-400">{{ meta.fuente }}</span>
+                    <div class="text-center mb-4">
+                        <h3 class="font-bold text-lg sm:text-xl text-institucional-900 tracking-wide uppercase">Comercio Exterior de Bolivia</h3>
+                        <span class="text-xs text-institucional-400">{{ meta.fuente }} · {{ meta.gestion }}</span>
                     </div>
-                    <apexchart v-if="serieEvolucion[0].data.length" type="area" height="340" :options="opcEvolucion" :series="serieEvolucion" />
-                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos mensuales.</p>
+                    <apexchart v-if="serieEvolucion[0].data.length" type="line" height="420" :options="opcEvolucion" :series="serieEvolucion" />
+                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos mensuales para esta gestión.</p>
                 </div>
             </section>
 
             <!-- ACCESOS RAPIDOS (tarjetas claras premium) -->
             <section class="pb-20 grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <Link href="/explorar" class="group tarjeta tarjeta-hover p-7 flex flex-col">
+                <Link href="/organizaciones" class="group tarjeta tarjeta-hover p-7 flex flex-col">
                     <span class="kpi-icon w-11 h-11 bg-rojo-50 text-rojo-600 group-hover:bg-rojo-600 group-hover:text-white transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
                     </span>
                     <h4 class="font-bold text-lg text-institucional-900 mt-5 group-hover:text-rojo-700 transition-colors">Explorar los datos</h4>
-                    <p class="text-sm text-institucional-500 mt-1.5 leading-relaxed">Filtra y descarga el detalle de operaciones.</p>
+                    <p class="text-sm text-institucional-500 mt-1.5 leading-relaxed">Conoce las 4 fuentes y sus indicadores.</p>
                     <span class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-rojo-600">
-                        Ir a Explorar
+                        Ir a Organizaciones
                         <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                     </span>
                 </Link>

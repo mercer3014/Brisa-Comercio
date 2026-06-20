@@ -9,10 +9,14 @@ const nombreApp = computed(() => page.props.app?.nombre ?? 'Geodata');
 
 // Menu de navegacion del portal publico.
 const navegacion = [
-    { titulo: 'Inicio',       ruta: '/' },
-    { titulo: 'Explorar',     ruta: '/explorar' },
-    { titulo: 'Rankings',     ruta: '/rankings' },
-    { titulo: 'Metodología',  ruta: '/acerca' },
+    { titulo: 'Inicio',         ruta: '/' },
+    { titulo: 'Organizaciones', ruta: '/organizaciones' },
+    { titulo: 'Rankings',       ruta: '/rankings' },
+    { titulo: 'Comparador',     ruta: '/comparador' },
+    { titulo: 'Mapa Comercial', ruta: '/mapa-comercial' },
+    { titulo: 'Indicadores',    ruta: '/indicadores' },
+    { titulo: 'Línea de Tiempo', ruta: '/linea-de-tiempo' },
+    { titulo: 'Acerca de',      ruta: '/acerca' },
 ];
 
 const rutaActual = computed(() => page.url);
@@ -27,20 +31,12 @@ function esActivo(ruta) {
     return rutaActual.value.startsWith(ruta);
 }
 
-// --- Header auto-ocultable: se esconde al bajar, reaparece al subir ---
+// --- Header fijo siempre visible. Solo cambia de transparente a sólido al hacer scroll. ---
 const headerVisible = ref(true);
 const scrolleado = ref(false);
-let ultimoScroll = 0;
 
 function alHacerScroll() {
-    const y = window.scrollY;
-    scrolleado.value = y > 24;
-    if (y > ultimoScroll && y > 90) {
-        headerVisible.value = false;        // bajando → ocultar
-    } else {
-        headerVisible.value = true;         // subiendo → mostrar
-    }
-    ultimoScroll = y;
+    scrolleado.value = window.scrollY > 24;
 }
 
 // Header sólido (fondo blanco) salvo en la portada cuando estamos arriba del todo.
@@ -165,15 +161,10 @@ const anioActual = new Date().getFullYear();
                         </div>
                     </div>
 
-                    <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-                        <Link v-for="item in navegacion" :key="item.ruta" :href="item.ruta" class="hover:text-white transition-colors">
-                            {{ item.titulo }}
-                        </Link>
-                        <a href="https://www.ine.gob.bo" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-rojo-400 hover:text-rojo-300 transition-colors">
-                            Fuente: INE
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                        </a>
-                    </nav>
+                    <a href="https://www.ine.gob.bo" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-rojo-400 hover:text-rojo-300 transition-colors text-sm">
+                        Fuente: INE
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                    </a>
                 </div>
 
                 <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/30">
