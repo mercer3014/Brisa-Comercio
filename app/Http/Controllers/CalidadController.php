@@ -14,17 +14,17 @@ use Inertia\Response;
 
 class CalidadController extends Controller
 {
-    public function index(): Response
+public function index(): Response
     {
         // Cargas con su conteo de incidencias por severidad.
         $cargas = CargaArchivo::query()
+            ->has('incidencias')
             ->with('organizacion:organizacion_id,sigla')
             ->withCount([
                 'incidencias',
                 'incidencias as incidencias_error_count' => fn ($q) => $q->where('severidad', 'ERROR'),
                 'incidencias as incidencias_pendientes_count' => fn ($q) => $q->where('estado_tratamiento', 'PENDIENTE'),
             ])
-            ->having('incidencias_count', '>', 0)
             ->orderByDesc('carga_id')
             ->paginate(15);
 
