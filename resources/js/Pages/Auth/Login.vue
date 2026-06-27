@@ -7,7 +7,7 @@ defineOptions({ layout: null });
 
 const page = usePage();
 const flash = computed(() => page.props.flash ?? {});
-const nombreApp = computed(() => page.props.app?.nombre ?? 'Ovxel');
+const nombreApp = computed(() => page.props.app?.nombre ?? 'Geodata');
 
 const form = useForm({
     nombre_usuario: '',
@@ -58,7 +58,7 @@ function enviar() {
             </div>
 
             <!-- Copyright -->
-            <div class="relative text-xs text-institucional-400">© {{ new Date().getFullYear() }} Ovxel</div>
+            <div class="relative text-xs text-institucional-400">© {{ new Date().getFullYear() }} Geodata</div>
         </div>
 
         <!-- ===== Formulario ===== -->

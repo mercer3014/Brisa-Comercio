@@ -1,11 +1,11 @@
-<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ovxel">
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Geodata">
   <defs>
-    <linearGradient id="ovxelGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+    <linearGradient id="geodataGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
       <stop stop-color="#10b981"/>
       <stop offset="1" stop-color="#059669"/>
     </linearGradient>
   </defs>
-  <rect width="48" height="48" rx="12" fill="url(#ovxelGrad)"/>
+  <rect width="48" height="48" rx="12" fill="url(#geodataGrad)"/>
   <!-- Globo (meridianos) -->
   <circle cx="24" cy="24" r="12.5" stroke="#ffffff" stroke-width="2" opacity="0.95"/>
   <path d="M24 11.5c4 3.4 4 21.6 0 25M24 11.5c-4 3.4-4 21.6 0 25" stroke="#ffffff" stroke-width="1.6" opacity="0.85"/>

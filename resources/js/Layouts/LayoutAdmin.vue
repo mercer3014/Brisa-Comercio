@@ -5,7 +5,7 @@ import { Link, usePage, router } from '@inertiajs/vue3';
 const page = usePage();
 const usuario = computed(() => page.props.auth?.usuario ?? null);
 const flash = computed(() => page.props.flash ?? {});
-const nombreApp = computed(() => page.props.app?.nombre ?? 'Ovxel');
+const nombreApp = computed(() => page.props.app?.nombre ?? 'Geodata');
 
 // Sidebar colapsado (riel de iconos) vs expandido.
 const colapsado = ref(false);
@@ -81,6 +81,9 @@ function alternarGrupo(titulo) {
     expandido[titulo] = !expandido[titulo];
 }
 
+const paises = computed(() => page.props.paises ?? []);
+const paisesExpandido = ref(true);
+
 const rutaActual = computed(() => page.url);
 function esActivo(ruta) {
     if (ruta === '/admin') return rutaActual.value === '/admin';
@@ -98,7 +101,7 @@ const iniciales = computed(() => {
 </script>
 
 <template>
-    <div class="min-h-full flex bg-gris-50">
+    <div class="h-screen flex bg-gris-50">
         <!-- ===================== SIDEBAR ===================== -->
         <!-- Overlay movil -->
         <div v-if="movilAbierto" class="fixed inset-0 z-30 bg-institucional-950/50 lg:hidden" @click="movilAbierto = false"></div>
@@ -125,7 +128,6 @@ const iniciales = computed(() => {
                     </div>
                     <span v-if="!colapsado" class="flex flex-col leading-none min-w-0">
                         <span class="font-bold text-base tracking-tight text-white truncate">{{ nombreApp }}</span>
-                        <span class="text-[10px] font-medium text-institucional-300 uppercase tracking-wider">Panel</span>
                     </span>
                 </Link>
                 <button
@@ -141,7 +143,7 @@ const iniciales = computed(() => {
             </div>
 
             <!-- Navegacion -->
-            <nav class="flex-1 overflow-y-auto py-4 px-2.5 space-y-5">
+            <nav class="flex-1 overflow-y-auto scrollbar-hidden py-4 px-2.5 space-y-5">
                 <div v-for="g in gruposVisibles" :key="g.titulo">
                     <!-- Encabezado de grupo -->
                     <button
@@ -183,6 +185,38 @@ const iniciales = computed(() => {
                         </Link>
                     </div>
                     </Transition>
+                </div>
+
+                <!-- Por países -->
+                <div v-if="paises.length">
+                    <div v-if="!colapsado" class="h-px bg-white/10 mx-0 mb-3"></div>
+                    <div v-else class="h-px bg-white/10 mx-2 my-1"></div>
+
+                    <button
+                        v-if="!colapsado"
+                        class="w-full flex items-center justify-between px-2.5 py-1 mb-1 text-[10px] font-bold uppercase tracking-widest text-institucional-400 hover:text-institucional-200 transition"
+                        @click="paisesExpandido = !paisesExpandido"
+                    >
+                        Por países
+                        <svg class="w-3 h-3 transition-transform" :class="paisesExpandido ? '' : '-rotate-90'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <div v-show="!colapsado && paisesExpandido" class="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
+                        <Link
+                            v-for="p in paises"
+                            :key="p.id"
+                            :href="`/admin/paises/${p.id}`"
+                            class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all text-institucional-300 hover:bg-white/8 hover:text-white"
+                            @click="movilAbierto = false"
+                        >
+                            <svg class="w-3.5 h-3.5 shrink-0 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/>
+                            </svg>
+                            <span class="truncate">{{ p.nombre }}</span>
+                        </Link>
+                    </div>
                 </div>
             </nav>
 

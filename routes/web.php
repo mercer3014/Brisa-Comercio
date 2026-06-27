@@ -15,6 +15,7 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\OrganizacionController;
 use App\Http\Controllers\PerfilMapeoController;
 use App\Http\Controllers\RolController;
+use App\Http\Controllers\PaisDashboardController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -202,5 +203,8 @@ Route::middleware('auth')->group(function () {
             ->middleware('permiso:catalogo.ver')->name('catalogos.index');
         Route::put('/catalogos/{catalogo}/{id}', [CatalogoController::class, 'update'])
             ->middleware('permiso:catalogo.editar')->name('catalogos.update');
+
+        Route::get('/paises/{pais_id}', [PaisDashboardController::class, 'show'])
+            ->name('paises.dashboard');
     });
 });

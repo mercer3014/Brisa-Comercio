@@ -221,7 +221,7 @@ const modos = [
                     <span class="inline-flex w-7 h-7 items-center justify-center rounded-lg bg-rojo-600">
                         <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>
                     </span>
-                    <span class="font-bold text-[15px] tracking-tight text-institucional-900">Ovxel</span>
+                    <span class="font-bold text-[15px] tracking-tight text-institucional-900">Geodata</span>
                 </Link>
 
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">

@@ -127,7 +127,7 @@ const k = computed(() => d.value?.kpis ?? {});
 <template>
     <Head title="Dashboards" />
 
-    <div>
+    <div class="max-w-7xl mx-auto">
         <div class="flex items-center justify-between mb-5">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Dashboards</h1>

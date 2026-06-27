@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title inertia>{{ config('app.name', 'Ovxel') }}</title>
+    <title inertia>{{ config('app.name', 'Geodata') }}</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     {{-- Plus Jakarta Sans: familia unica del sistema (cuerpo + titulares en pesos altos). --}}

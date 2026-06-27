@@ -20,7 +20,7 @@
 </head>
 <body>
     <h1>{{ $reporte['titulo'] }}</h1>
-    <div class="sub">Ovxel · Generado el {{ now()->format('d/m/Y H:i') }}</div>
+    <div class="sub">Geodata · Generado el {{ now()->format('d/m/Y H:i') }}</div>
 
     <table>
         <thead>

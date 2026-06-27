@@ -2,7 +2,7 @@
 
 /*
 |--------------------------------------------------------------------------
-| Configuracion de dominio de Ovxel
+| Configuracion de dominio de Geodata
 |--------------------------------------------------------------------------
 | Campos canonicos del microdato (destino del mapeo de columnas). Cada
 | columna de un archivo se traduce a uno de estos campos por NOMBRE.

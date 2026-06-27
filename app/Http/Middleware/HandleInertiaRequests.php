@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -50,6 +51,16 @@ class HandleInertiaRequests extends Middleware
             'app' => [
                 'nombre' => config('app.name'),
             ],
+            'paises' => function () {
+                try {
+                    return DB::table('pais_panel')
+                        ->where('activo', true)
+                        ->orderBy('nombre')
+                        ->get(['pais_panel_id as id', 'nombre']);
+                } catch (\Throwable) {
+                    return [];
+                }
+            },
         ]);
     }
 }

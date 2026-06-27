@@ -8,7 +8,7 @@ import VueApexCharts from 'vue3-apexcharts';
 import LayoutAdmin from './Layouts/LayoutAdmin.vue';
 import LayoutPublico from './Layouts/LayoutPublico.vue';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Ovxel';
+const appName = import.meta.env.VITE_APP_NAME || 'Geodata';
 
 createInertiaApp({
     title: (title) => (title ? `${title} — ${appName}` : appName),

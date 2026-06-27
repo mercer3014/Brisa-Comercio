@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+/* Scroll sin barra visible */
+.scrollbar-hidden {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* IE/Edge */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+    display: none;                /* Chrome/Safari */
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
@@ -7,7 +16,7 @@
 @source '../**/*.js';
 
 /* ===========================================================================
-   SISTEMA DE DISENIO OVXEL  —  v3: Blanco + Navy Slate + Crimson (estilo AJE)
+   SISTEMA DE DISENIO GEODATA  —  v3: Blanco + Navy Slate + Crimson (estilo AJE)
    Blanco puro domina (60 %). NAVY SLATE industrial estructura texto y
    superficies oscuras (30 %) — nunca negro puro. CRIMSON premium es el
    acento de marca: CTAs, activos, destacados, logo (10 %).

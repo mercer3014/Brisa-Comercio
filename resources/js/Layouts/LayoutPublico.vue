@@ -5,7 +5,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 const page = usePage();
 const usuario = computed(() => page.props.auth?.usuario ?? null);
 const flash = computed(() => page.props.flash ?? {});
-const nombreApp = computed(() => page.props.app?.nombre ?? 'Ovxel');
+const nombreApp = computed(() => page.props.app?.nombre ?? 'Geodata');
 
 // Menu de navegacion del portal publico.
 const navegacion = [

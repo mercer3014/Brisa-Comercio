@@ -11,7 +11,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Portal publico de Ovxel: la cara abierta del sistema, sin login.
+ * Portal publico de Geodata: la cara abierta del sistema, sin login.
  *
  * Reune las vistas informativas (portada, explorador publico, rankings y "acerca de").
  * El contenido analitico real se construye en las Tareas 12, 13 y 15; aqui se deja la

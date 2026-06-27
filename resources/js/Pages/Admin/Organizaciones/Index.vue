@@ -58,7 +58,7 @@ function guardar() {
         <div class="flex items-start justify-between mb-7">
             <div>
                 <h1 class="text-2xl font-bold text-institucional-900 tracking-tight">Organizaciones</h1>
-                <p class="text-gris-500 text-sm mt-1">Fuentes estadísticas centralizadas en Ovxel.</p>
+                <p class="text-gris-500 text-sm mt-1">Fuentes estadísticas centralizadas en Geodata.</p>
             </div>
             <button @click="abrirCrear" class="btn btn-primario shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

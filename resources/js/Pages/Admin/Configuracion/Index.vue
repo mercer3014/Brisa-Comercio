@@ -17,7 +17,7 @@ function guardar() {
     <div class="max-w-3xl mx-auto">
         <div class="mb-7">
             <h1 class="text-2xl font-bold text-institucional-900 tracking-tight">Configuración del sistema</h1>
-            <p class="text-gris-500 text-sm mt-1">Parámetros que controlan el comportamiento de Ovxel.</p>
+            <p class="text-gris-500 text-sm mt-1">Parámetros que controlan el comportamiento de Geodata.</p>
         </div>
 
         <div class="tarjeta overflow-hidden divide-y divide-gris-100">

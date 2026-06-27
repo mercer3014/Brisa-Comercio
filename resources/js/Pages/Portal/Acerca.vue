@@ -23,7 +23,7 @@ import { Head, Link } from '@inertiajs/vue3';
             </h1>
             <p class="text-white/70 text-lg mt-5 max-w-xl leading-relaxed">
                 Todo lo que necesitas saber sobre el origen, procesamiento y alcance
-                de los datos publicados en Ovxel.
+                de los datos publicados en Geodata.
             </p>
         </div>
     </section>
@@ -31,7 +31,7 @@ import { Head, Link } from '@inertiajs/vue3';
     <!-- Secciones de contenido -->
     <section class="max-w-5xl mx-auto px-4 sm:px-6 py-16 space-y-16">
 
-        <!-- Qué es Ovxel -->
+        <!-- Qué es Geodata -->
         <div class="grid md:grid-cols-2 gap-10 items-center">
             <div>
                 <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-institucional-900 mb-5">
@@ -39,9 +39,9 @@ import { Head, Link } from '@inertiajs/vue3';
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/>
                     </svg>
                 </div>
-                <h2 class="font-display font-bold text-3xl text-institucional-900 mb-4">¿Qué es Ovxel?</h2>
+                <h2 class="font-display font-bold text-3xl text-institucional-900 mb-4">¿Qué es Geodata?</h2>
                 <p class="text-gris-600 leading-relaxed text-lg">
-                    <strong class="text-institucional-900">Ovxel</strong> centraliza y pone a disposición del
+                    <strong class="text-institucional-900">Geodata</strong> centraliza y pone a disposición del
                     público los datos de comercio exterior (exportaciones e importaciones) de Bolivia. Su objetivo
                     es responder, de forma clara y visual, preguntas como: ¿qué exporta el país?, ¿a qué destinos?,
                     ¿qué importa? y ¿quién lidera cada mercado?
