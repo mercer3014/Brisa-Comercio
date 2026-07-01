@@ -139,6 +139,13 @@ class CargadorMercosurPais
 
         $isoStr  = trim((string) ($iso ?? ''));
         $nomStr  = trim((string) ($nombre ?? ''));
+        if ($isoStr === '' && $nomStr === '') {
+            // Ni ISO 3166 ni Pais: no es realmente una fila "por pais" (p.ej. un
+            // archivo con formato de item/NCM mal ubicado en la carpeta "Por Paises").
+            // Sin esto, todas esas filas caerian en un unico pais generado por hash
+            // y contaminarian el total de la zona.
+            return null;
+        }
         $paisId  = $this->resolverPais($isoStr, $nomStr);
 
         return [
@@ -334,10 +341,13 @@ class CargadorMercosurPais
     private function zonaDesdeNombre(string $nombreArchivo): string
     {
         $n = strtolower(str_replace(['_', '-'], ' ', pathinfo($nombreArchivo, PATHINFO_FILENAME)));
-        // Quitar prefijos comunes de los archivos MERCOSUR
-        $n = preg_replace('/^(exp e imp ?\d{4} ?\d{4} ?|exportaciones importaciones ?\d+ ?)/i', '', $n);
+        $n = trim(preg_replace('/\s+/', ' ', $n));
+        // Quitar prefijos comunes de los archivos MERCOSUR (acepta cualquier cantidad
+        // de espacios entre los anios, ej. "2000   2026" tras normalizar el guion).
+        $n = preg_replace('/^(exp e imp ?\d{4} *\d{4} ?|exportaciones importaciones ?\d+ ?)/i', '', $n);
 
         $mapa = [
+            'asociacion europea'     => 'AELC (Asociación Europea de Libre Comercio)',
             'union europea'          => 'Unión Europea',
             'europa oriental'        => 'Europa Oriental',
             'oriente medio'          => 'Oriente Medio',
