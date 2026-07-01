@@ -12,14 +12,14 @@ const navegacion = [
     { titulo: 'Inicio',       ruta: '/' },
     { titulo: 'Explorar',     ruta: '/explorar' },
     { titulo: 'Rankings',     ruta: '/rankings' },
-    { titulo: 'Metodología',  ruta: '/acerca' },
+    { titulo: 'Metodologia',  ruta: '/acerca' },
 ];
 
 const rutaActual = computed(() => page.url);
 const menuMovilAbierto = ref(false);
 
 // En la portada el hero es full-screen estilo AJE: el header va transparente
-// y flotante encima, volviéndose sólido al hacer scroll.
+// y flotante encima, volviendose solido al hacer scroll.
 const esInicio = computed(() => rutaActual.value === '/' || rutaActual.value.startsWith('/?'));
 
 function esActivo(ruta) {
@@ -36,14 +36,14 @@ function alHacerScroll() {
     const y = window.scrollY;
     scrolleado.value = y > 24;
     if (y > ultimoScroll && y > 90) {
-        headerVisible.value = false;        // bajando → ocultar
+        headerVisible.value = false;        // bajando: ocultar
     } else {
-        headerVisible.value = true;         // subiendo → mostrar
+        headerVisible.value = true;         // subiendo: mostrar
     }
     ultimoScroll = y;
 }
 
-// Header sólido (fondo blanco) salvo en la portada cuando estamos arriba del todo.
+// Header solido (fondo blanco) salvo en la portada cuando estamos arriba del todo.
 const headerSolido = computed(() => !esInicio.value || scrolleado.value);
 
 onMounted(() => window.addEventListener('scroll', alHacerScroll, { passive: true }));
@@ -177,7 +177,7 @@ const anioActual = new Date().getFullYear();
                 </div>
 
                 <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/30">
-                    © {{ anioActual }} {{ nombreApp }} · Datos con fines informativos y educativos.
+                    (c) {{ anioActual }} {{ nombreApp }} - Datos con fines informativos y educativos.
                 </div>
             </div>
         </footer>

@@ -6,14 +6,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Calcula los titulares automaticos, indicadores grandes, rankings destacados y la
- * evolucion mensual que alimentan la PORTADA PUBLICA (Tarea 12).
+ * evolucion que alimentan la portada publica.
  *
- * Desde la Tarea 14 lee de las VISTAS MATERIALIZADAS de resumen (resumen_anual_producto,
- * resumen_anual_pais, resumen_anual_departamento, resumen_mensual), que precalculan las
- * agregaciones por organizacion + gestion + flujo. Esas vistas guardan ya un campo `valor`
- * (FOB para exportacion, CIF frontera para importacion) coherente con AgregadorDashboard.
- *
- * Todo se filtra SIEMPRE por organizacion y, normalmente, por gestion.
+ * INE usa microdatos resumidos en vistas materializadas. MERCOSUR usa series
+ * agregadas anuales, manteniendo separadas las formas de dato.
  */
 class ResumenPortal
 {
@@ -25,6 +21,12 @@ class ResumenPortal
      */
     public function gestionMasReciente(int $orgId): ?int
     {
+        if ($this->esMercosur($orgId)) {
+            $g = DB::table('serie_comercio_zona')->where('organizacion_id', $orgId)->max('gestion');
+
+            return $g !== null ? (int) $g : null;
+        }
+
         $g = DB::table('resumen_mensual')->where('organizacion_id', $orgId)->max('gestion');
 
         return $g !== null ? (int) $g : null;
@@ -36,11 +38,17 @@ class ResumenPortal
     public function portada(int $orgId, ?int $gestion): array
     {
         $org = DB::table('organizacion')->where('organizacion_id', $orgId)->first();
+
+        if ($this->esMercosur($orgId)) {
+            return $this->portadaMercosur($orgId, $gestion, $org);
+        }
+
         $hayDatos = $gestion !== null && DB::table('resumen_mensual')
             ->where('organizacion_id', $orgId)->where('gestion', $gestion)->exists();
 
         return [
             'meta' => [
+                'modo'         => 'microdato',
                 'organizacion' => $org?->nombre,
                 'sigla'        => $org?->sigla,
                 'gestion'      => $gestion,
@@ -64,6 +72,58 @@ class ResumenPortal
         $periodo = $gestion ? " Datos {$gestion}." : '';
 
         return "Fuente: {$sigla} - Bolivia.{$periodo}";
+    }
+
+    private function fuenteMercosur(?int $gestion): string
+    {
+        $periodo = $gestion ? " Datos {$gestion}." : '';
+
+        return "Fuente: MERCOSUR - series agregadas.{$periodo}";
+    }
+
+    private function esMercosur(int $orgId): bool
+    {
+        return DB::table('organizacion')
+            ->where('organizacion_id', $orgId)
+            ->where('sigla', 'MERCOSUR')
+            ->exists();
+    }
+
+    private function portadaMercosur(int $orgId, ?int $gestion, $org): array
+    {
+        $hayDatos = $gestion !== null && $this->serieZonaMundo($orgId, $gestion)->exists();
+
+        return [
+            'meta' => [
+                'modo'         => 'series_mercosur',
+                'organizacion' => $org?->nombre,
+                'sigla'        => $org?->sigla,
+                'gestion'      => $gestion,
+                'fuente'       => $this->fuenteMercosur($gestion),
+                'hay_datos'    => $hayDatos,
+            ],
+            'titulares'     => $hayDatos ? $this->titularesMercosur($orgId, $gestion) : [],
+            'indicadores'   => $hayDatos ? $this->indicadoresMercosur($orgId, $gestion) : null,
+            'top_productos' => $hayDatos ? $this->topProductosExportadosMercosur($orgId, $gestion, 5) : [],
+            'top_destinos'  => $hayDatos ? $this->topDestinosExportacionMercosur($orgId, $gestion, 5) : [],
+            'evolucion'     => $hayDatos ? $this->evolucionAnualMercosur($orgId) : [],
+        ];
+    }
+
+    private function serieZonaMundo(int $orgId, int $gestion)
+    {
+        return DB::table('serie_comercio_zona')
+            ->where('serie_comercio_zona.organizacion_id', $orgId)
+            ->where('serie_comercio_zona.gestion', $gestion)
+            ->whereNull('serie_comercio_zona.zona_id');
+    }
+
+    private function serieProductoMundo(int $orgId, int $gestion)
+    {
+        return DB::table('serie_comercio_producto_zona')
+            ->where('serie_comercio_producto_zona.organizacion_id', $orgId)
+            ->where('serie_comercio_producto_zona.gestion', $gestion)
+            ->whereNull('serie_comercio_producto_zona.zona_id');
     }
 
     /**
@@ -92,6 +152,30 @@ class ResumenPortal
         if ($dep = $this->liderDepartamento($orgId, $gestion)) {
             $titulares[] = $this->titular('departamento_exportador',
                 "El departamento que mas exporto fue {$dep->label}.", $dep);
+        }
+
+        return $titulares;
+    }
+
+    private function titularesMercosur(int $orgId, int $gestion): array
+    {
+        $titulares = [];
+
+        if ($p = $this->liderProductoMercosur($orgId, $gestion, 'exportaciones_usd')) {
+            $titulares[] = $this->titular('producto_exportado',
+                "En {$gestion}, el producto mas exportado en MERCOSUR fue {$p->label} (USD " . $this->fmt($p->valor) . ').', $p);
+        }
+        if ($p = $this->liderProductoMercosur($orgId, $gestion, 'importaciones_cif_usd')) {
+            $titulares[] = $this->titular('producto_importado',
+                "El producto mas importado en MERCOSUR fue {$p->label} (USD " . $this->fmt($p->valor) . ').', $p);
+        }
+        if ($d = $this->liderPaisMercosur($orgId, $gestion, 'exportaciones_usd')) {
+            $titulares[] = $this->titular('destino_exportacion',
+                "El principal pais por exportaciones fue {$d->label}.", $d);
+        }
+        if ($o = $this->liderPaisMercosur($orgId, $gestion, 'importaciones_cif_usd')) {
+            $titulares[] = $this->titular('origen_importacion',
+                "El principal pais por importaciones fue {$o->label}.", $o);
         }
 
         return $titulares;
@@ -143,6 +227,27 @@ class ResumenPortal
             ->first();
     }
 
+    private function liderProductoMercosur(int $orgId, int $gestion, string $campo)
+    {
+        return $this->serieProductoMundo($orgId, $gestion)
+            ->selectRaw("COALESCE(NULLIF(ncm_descripcion, ''), ncm_codigo, 'Sin producto') as label")
+            ->selectRaw("SUM(COALESCE({$campo},0)) as valor")
+            ->groupByRaw("COALESCE(NULLIF(ncm_descripcion, ''), ncm_codigo, 'Sin producto')")
+            ->orderByDesc('valor')
+            ->first();
+    }
+
+    private function liderPaisMercosur(int $orgId, int $gestion, string $campo)
+    {
+        return $this->serieZonaMundo($orgId, $gestion)
+            ->leftJoin('pais as p', 'p.pais_id', '=', 'serie_comercio_zona.pais_id')
+            ->selectRaw("COALESCE(p.nombre, serie_comercio_zona.pais_nombre_original, 'Sin pais') as label")
+            ->selectRaw("SUM(COALESCE(serie_comercio_zona.{$campo},0)) as valor")
+            ->groupByRaw("COALESCE(p.nombre, serie_comercio_zona.pais_nombre_original, 'Sin pais')")
+            ->orderByDesc('valor')
+            ->first();
+    }
+
     /**
      * Indicadores grandes (KPIs) con variacion interanual.
      */
@@ -175,6 +280,50 @@ class ResumenPortal
             'paises_destino'      => $paisesDestino,
             'productos_distintos' => $productos,
             'gestion_anterior'    => $gestion - 1,
+        ];
+    }
+
+    private function indicadoresMercosur(int $orgId, int $gestion): array
+    {
+        $actual = $this->totalesMercosurGestion($orgId, $gestion);
+        $anterior = $this->totalesMercosurGestion($orgId, $gestion - 1);
+
+        $paisesDestino = (int) $this->serieZonaMundo($orgId, $gestion)
+            ->whereNotNull('pais_id')
+            ->distinct()
+            ->count('pais_id');
+
+        $productos = (int) $this->serieProductoMundo($orgId, $gestion)
+            ->whereNotNull('ncm_codigo')
+            ->distinct()
+            ->count('ncm_codigo');
+
+        return [
+            'valor_exportado'     => $actual['expo'],
+            'variacion_expo'      => $this->variacion($actual['expo'], $anterior['expo']),
+            'valor_importado'     => $actual['impo'],
+            'variacion_impo'      => $this->variacion($actual['impo'], $anterior['impo']),
+            'balanza_comercial'   => $actual['expo'] - $actual['impo'],
+            'volumen_exportado'   => $actual['volumen_expo'],
+            'variacion_volumen'   => $this->variacion($actual['volumen_expo'], $anterior['volumen_expo']),
+            'paises_destino'      => $paisesDestino,
+            'productos_distintos' => $productos,
+            'gestion_anterior'    => $gestion - 1,
+        ];
+    }
+
+    private function totalesMercosurGestion(int $orgId, int $gestion): array
+    {
+        $row = $this->serieZonaMundo($orgId, $gestion)
+            ->selectRaw('COALESCE(SUM(exportaciones_usd),0) as expo')
+            ->selectRaw('COALESCE(SUM(importaciones_cif_usd),0) as impo')
+            ->selectRaw('COALESCE(SUM(volumen_export_kg),0) as volumen_expo')
+            ->first();
+
+        return [
+            'expo' => (float) ($row->expo ?? 0),
+            'impo' => (float) ($row->impo ?? 0),
+            'volumen_expo' => (float) ($row->volumen_expo ?? 0),
         ];
     }
 
@@ -227,6 +376,21 @@ class ResumenPortal
             ])->all();
     }
 
+    private function topProductosExportadosMercosur(int $orgId, int $gestion, int $n): array
+    {
+        return $this->serieProductoMundo($orgId, $gestion)
+            ->selectRaw("COALESCE(NULLIF(ncm_descripcion, ''), ncm_codigo, 'Sin producto') as label")
+            ->selectRaw('SUM(COALESCE(exportaciones_usd,0)) as valor')
+            ->groupByRaw("COALESCE(NULLIF(ncm_descripcion, ''), ncm_codigo, 'Sin producto')")
+            ->orderByDesc('valor')
+            ->limit($n)
+            ->get()
+            ->map(fn ($r) => [
+                'label' => mb_strimwidth((string) $r->label, 0, 45, '...'),
+                'valor' => (float) $r->valor,
+            ])->all();
+    }
+
     /**
      * Top N paises destino de exportacion (ranking destacado).
      */
@@ -238,6 +402,19 @@ class ResumenPortal
             ->selectRaw('pa.nombre as label')
             ->selectRaw('SUM(r.valor) as valor')
             ->groupBy('pa.nombre')
+            ->orderByDesc('valor')
+            ->limit($n)
+            ->get()
+            ->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
+    }
+
+    private function topDestinosExportacionMercosur(int $orgId, int $gestion, int $n): array
+    {
+        return $this->serieZonaMundo($orgId, $gestion)
+            ->leftJoin('pais as p', 'p.pais_id', '=', 'serie_comercio_zona.pais_id')
+            ->selectRaw("COALESCE(p.nombre, serie_comercio_zona.pais_nombre_original, 'Sin pais') as label")
+            ->selectRaw('SUM(COALESCE(serie_comercio_zona.exportaciones_usd,0)) as valor')
+            ->groupByRaw("COALESCE(p.nombre, serie_comercio_zona.pais_nombre_original, 'Sin pais')")
             ->orderByDesc('valor')
             ->limit($n)
             ->get()
@@ -261,6 +438,24 @@ class ResumenPortal
                 'mes'  => (int) $r->mes,
                 'expo' => (float) $r->expo,
                 'impo' => (float) $r->impo,
+            ])->all();
+    }
+
+    private function evolucionAnualMercosur(int $orgId): array
+    {
+        return DB::table('serie_comercio_zona')
+            ->where('organizacion_id', $orgId)
+            ->whereNull('zona_id')
+            ->selectRaw('gestion')
+            ->selectRaw('SUM(COALESCE(exportaciones_usd,0)) as expo')
+            ->selectRaw('SUM(COALESCE(importaciones_cif_usd,0)) as impo')
+            ->groupBy('gestion')
+            ->orderBy('gestion')
+            ->get()
+            ->map(fn ($r) => [
+                'periodo' => (string) $r->gestion,
+                'expo'    => (float) $r->expo,
+                'impo'    => (float) $r->impo,
             ])->all();
     }
 

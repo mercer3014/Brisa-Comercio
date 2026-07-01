@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
 use App\Servicios\ConsultaExplorador;
+use App\Servicios\ConsultaExploradorMercosur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +41,7 @@ class ExploradorPublicoController extends Controller
     /**
      * Totales + tabla paginada + facetas + graficos del subconjunto filtrado.
      */
-    public function consultar(Request $request, ConsultaExplorador $consulta): JsonResponse
+    public function consultar(Request $request, ConsultaExplorador $consulta, ConsultaExploradorMercosur $mercosur): JsonResponse
     {
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer'],
@@ -51,12 +52,15 @@ class ExploradorPublicoController extends Controller
 
         $org = (int) $datos['organizacion_id'];
         $filtros = $this->normalizarFiltros($datos['filtros'] ?? []);
+        $servicio = $this->esMercosur($org) ? $mercosur : $consulta;
+        $modo = $this->esMercosur($org) ? 'series_mercosur' : 'microdato';
 
         return response()->json([
-            'totales'  => $consulta->totales($org, $filtros),
-            'tabla'    => $consulta->tabla($org, $filtros, $datos['por_pagina'] ?? 25, $datos['pagina'] ?? 1),
-            'facetas'  => $consulta->facetas($org, $filtros),
-            'graficos' => $consulta->graficos($org, $filtros, 10),
+            'modo'     => $modo,
+            'totales'  => $servicio->totales($org, $filtros),
+            'tabla'    => $servicio->tabla($org, $filtros, $datos['por_pagina'] ?? 25, $datos['pagina'] ?? 1),
+            'facetas'  => $servicio->facetas($org, $filtros),
+            'graficos' => $servicio->graficos($org, $filtros, 10),
         ]);
     }
 
@@ -107,6 +111,13 @@ class ExploradorPublicoController extends Controller
     /**
      * Limpia los filtros recibidos (arreglos de ids enteros + busqueda).
      */
+    private function esMercosur(int $orgId): bool
+    {
+        return DB::table('organizacion')
+            ->where('organizacion_id', $orgId)
+            ->where('sigla', 'MERCOSUR')
+            ->exists();
+    }
     private function normalizarFiltros(array $filtros): array
     {
         $limpio = [];

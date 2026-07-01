@@ -50,7 +50,7 @@ Route::middleware('guest')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| PANEL DE ADMINISTRACION (requiere autenticacion) — prefijo /admin
+| PANEL DE ADMINISTRACION (requiere autenticacion) - prefijo /admin
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {

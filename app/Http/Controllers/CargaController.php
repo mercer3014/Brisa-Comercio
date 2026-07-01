@@ -11,6 +11,7 @@ use App\Servicios\LectorArchivo;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,9 @@ use Inertia\Response;
 
 class CargaController extends Controller
 {
+    private const FLUJOS_COMERCIO_EXTERIOR = ['EXPORTACION', 'IMPORTACION'];
+    private const FLUJOS_MERCOSUR = ['MERCOSUR_PAIS', 'MERCOSUR_ITEM'];
+
     public function index(): Response
     {
         $cargas = CargaArchivo::with([
@@ -36,9 +40,13 @@ class CargaController extends Controller
 
     public function create(): Response
     {
+        $mercosurId = Organizacion::where('sigla', 'MERCOSUR')->value('organizacion_id');
+
         return Inertia::render('Cargas/Create', [
             'organizaciones' => Organizacion::where('activo', true)->orderBy('nombre')->get(['organizacion_id', 'nombre', 'sigla']),
             'perfiles'       => PerfilMapeo::where('activo', true)->get(['perfil_id', 'organizacion_id', 'tipo_flujo', 'etiqueta_version']),
+            'mercosurPaises' => $mercosurId ? $this->paisesReportantesMercosur((int) $mercosurId) : [],
+            'mercosurZonas'  => $mercosurId ? $this->zonasMercosur((int) $mercosurId) : [],
         ]);
     }
 
@@ -50,7 +58,7 @@ class CargaController extends Controller
     {
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer', 'exists:organizacion,organizacion_id'],
-            'tipo_flujo'      => ['required', Rule::in(['EXPORTACION', 'IMPORTACION'])],
+            'tipo_flujo'      => ['required', Rule::in($this->flujosPermitidos())],
             'archivo'         => ['required', 'file', 'mimes:xlsx,xlsm,csv,txt', 'max:512000'], // 500 MB
         ]);
 
@@ -66,6 +74,18 @@ class CargaController extends Controller
         // Lee cabeceras + 20 filas de muestra (streaming).
         $lectura = $lector->leerCabecerasYMuestra($rutaAbs, $ext, 20);
         $cabeceras = $lectura['cabeceras'];
+
+        if ($this->esFlujoMercosur($datos['tipo_flujo'])) {
+            return response()->json([
+                'token'          => $token,
+                'extension'      => $ext,
+                'cabeceras'      => $cabeceras,
+                'muestra'        => $lectura['muestra'],
+                'deteccion'      => ['mejor' => null, 'candidatos' => []],
+                'perfil_id'      => null,
+                'propuesta'      => [],
+            ]);
+        }
 
         // Detecta el perfil por las cabeceras.
         $deteccion = $detector->detectar($cabeceras, $datos['organizacion_id'], $datos['tipo_flujo']);
@@ -126,19 +146,31 @@ class CargaController extends Controller
         $campos = array_keys(config('comexhub.campos_canonicos'));
 
         $datos = $request->validate([
-            'token'           => ['required', 'string', 'regex:/^[a-f0-9\-]+\.(xlsx|xlsm|csv|txt)$/i'],
-            'organizacion_id' => ['required', 'integer', 'exists:organizacion,organizacion_id'],
-            'perfil_id'       => ['nullable', 'integer', 'exists:perfil_mapeo,perfil_id'],
-            'tipo_flujo'      => ['required', Rule::in(['EXPORTACION', 'IMPORTACION'])],
-            'nombre_archivo'  => ['required', 'string', 'max:255'],
-            'gestion'         => ['nullable', 'integer', 'min:1900', 'max:2100'],
-            'mes'             => ['nullable', 'integer', 'min:1', 'max:12'],
-            'columnas'                          => ['required', 'array', 'min:1'],
+            'token'              => ['required', 'string', 'regex:/^[a-f0-9\-]+\.(xlsx|xlsm|csv|txt)$/i'],
+            'organizacion_id'    => ['required', 'integer', 'exists:organizacion,organizacion_id'],
+            'perfil_id'          => ['nullable', 'integer', 'exists:perfil_mapeo,perfil_id'],
+            'tipo_flujo'         => ['required', Rule::in($this->flujosPermitidos())],
+            'pais_reportante_id' => ['nullable', 'integer', 'exists:pais,pais_id'],
+            'zona_id'            => ['nullable', 'integer', 'exists:zona_geoeconomica,zona_id'],
+            'nombre_archivo'     => ['required', 'string', 'max:255'],
+            'gestion'            => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'mes'                => ['nullable', 'integer', 'min:1', 'max:12'],
+            'columnas'                          => ['nullable', 'array'],
             'columnas.*.origen'                 => ['required', 'string'],
             'columnas.*.campo_canonico'         => ['nullable', Rule::in($campos)],
             'columnas.*.guardar'                => ['boolean'],
             'columnas.*.a_extra'                => ['boolean'],
         ]);
+
+        $esMercosur = $this->esFlujoMercosur($datos['tipo_flujo']);
+
+        if (! $esMercosur && empty($datos['columnas'])) {
+            return back()->with('error', 'Debe confirmar el mapeo de columnas.');
+        }
+
+        if ($esMercosur && empty($datos['pais_reportante_id'])) {
+            return back()->with('error', 'Seleccione el pais reportante para la carga MERCOSUR.');
+        }
 
         $rutaTmp = 'cargas_tmp/'.$datos['token'];
         if (! Storage::disk('local')->exists($rutaTmp)) {
@@ -164,25 +196,37 @@ class CargaController extends Controller
         Storage::disk('local')->makeDirectory("cargas/{$carga->carga_id}");
         Storage::disk('local')->move($rutaTmp, $rutaDestino);
 
-        // 3) Guardar el mapeo resuelto (solo columnas marcadas) para el ETL.
-        $mapeoResuelto = collect($datos['columnas'])
-            ->filter(fn ($c) => ($c['guardar'] ?? false) || ($c['a_extra'] ?? false))
-            ->map(fn ($c) => [
-                'origen'         => $c['origen'],
-                'campo_canonico' => $c['campo_canonico'] ?? null,
-                'guardar'        => (bool) ($c['guardar'] ?? false),
-                'a_extra'        => (bool) ($c['a_extra'] ?? false),
-            ])
-            ->values()
-            ->all();
+        if ($esMercosur) {
+            Storage::disk('local')->put(
+                "cargas/{$carga->carga_id}/mercosur.json",
+                json_encode([
+                    'extension'          => $ext,
+                    'tipo_archivo'       => $datos['tipo_flujo'] === 'MERCOSUR_PAIS' ? 'POR_PAISES' : 'ITEMS_NCM',
+                    'pais_reportante_id' => (int) $datos['pais_reportante_id'],
+                    'zona_id'            => isset($datos['zona_id']) ? (int) $datos['zona_id'] : null,
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+            );
+        } else {
+            // 3) Guardar el mapeo resuelto (solo columnas marcadas) para el ETL.
+            $mapeoResuelto = collect($datos['columnas'])
+                ->filter(fn ($c) => ($c['guardar'] ?? false) || ($c['a_extra'] ?? false))
+                ->map(fn ($c) => [
+                    'origen'         => $c['origen'],
+                    'campo_canonico' => $c['campo_canonico'] ?? null,
+                    'guardar'        => (bool) ($c['guardar'] ?? false),
+                    'a_extra'        => (bool) ($c['a_extra'] ?? false),
+                ])
+                ->values()
+                ->all();
 
-        Storage::disk('local')->put(
-            "cargas/{$carga->carga_id}/mapeo.json",
-            json_encode([
-                'extension' => $ext,
-                'columnas'  => $mapeoResuelto,
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
-        );
+            Storage::disk('local')->put(
+                "cargas/{$carga->carga_id}/mapeo.json",
+                json_encode([
+                    'extension' => $ext,
+                    'columnas'  => $mapeoResuelto,
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+            );
+        }
 
         // 4) Despachar el Job de ETL (Tarea 6).
         ProcesarCargaArchivo::dispatch($carga->carga_id);
@@ -194,5 +238,37 @@ class CargaController extends Controller
 
         return redirect()->route('cargas.index')
             ->with('exito', "Carga #{$carga->carga_id} registrada y encolada para procesamiento.");
+    }
+
+    private function paisesReportantesMercosur(int $mercosurId): array
+    {
+        return DB::table('pais as p')
+            ->join('fuente_datos as f', 'f.fuente_id', '=', 'p.fuente_id')
+            ->where('f.organizacion_id', $mercosurId)
+            ->whereIn('p.codigo_pais', [32, 76, 858, 862])
+            ->orderBy('p.nombre')
+            ->get(['p.pais_id', 'p.codigo_pais', 'p.nombre'])
+            ->all();
+    }
+
+    private function zonasMercosur(int $mercosurId): array
+    {
+        return DB::table('zona_geoeconomica as z')
+            ->join('fuente_datos as f', 'f.fuente_id', '=', 'z.fuente_id')
+            ->where('f.organizacion_id', $mercosurId)
+            ->where('f.version_nomenclatura', 'MERCOSUR_2026')
+            ->orderBy('z.codigo_zona')
+            ->get(['z.zona_id', 'z.codigo_zona', 'z.descripcion'])
+            ->all();
+    }
+
+    private function flujosPermitidos(): array
+    {
+        return array_merge(self::FLUJOS_COMERCIO_EXTERIOR, self::FLUJOS_MERCOSUR);
+    }
+
+    private function esFlujoMercosur(string $tipoFlujo): bool
+    {
+        return in_array($tipoFlujo, self::FLUJOS_MERCOSUR, true);
     }
 }

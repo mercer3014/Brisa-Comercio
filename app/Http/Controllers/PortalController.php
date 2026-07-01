@@ -90,8 +90,11 @@ class PortalController extends Controller
                 ->orderBy('nombre')
                 ->get(['organizacion_id', 'nombre', 'sigla']);
 
-            $gestiones = DB::table('tiempo')
-                ->distinct()
+            $gestiones = DB::query()
+                ->fromSub(function ($q) {
+                    $q->from('tiempo')->distinct()->select('gestion')
+                        ->union(DB::table('serie_comercio_zona')->distinct()->select('gestion'));
+                }, 'g')
                 ->orderByDesc('gestion')
                 ->pluck('gestion');
         } catch (\Throwable $e) {
