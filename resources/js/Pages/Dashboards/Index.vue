@@ -122,6 +122,12 @@ const distMedio = computed(() => {
 });
 
 const k = computed(() => d.value?.kpis ?? {});
+
+// Este dashboard solo lee el microdato del INE (operacion_comercio_exterior).
+// MERCOSUR/ALADI/FAOSTAT guardan sus datos en tablas propias y tienen su
+// propio panel en el portal publico.
+const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
+const sinMicrodato = computed(() => orgId.value !== 1 && d.value && !k.value?.valor_total);
 </script>
 
 <template>
@@ -154,6 +160,17 @@ const k = computed(() => d.value?.kpis ?? {});
         </div>
 
         <div v-if="!d" class="text-center py-20 text-slate-400">Cargando indicadores...</div>
+
+        <div v-else-if="sinMicrodato" class="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+            <p class="text-amber-800 font-medium">
+                Este dashboard solo lee el microdato del INE. {{ orgActual?.nombre ?? 'Esta organizacion' }} guarda sus
+                datos en un panel propio, con sus graficos y KPIs.
+            </p>
+            <a :href="`/organizaciones/${orgId}`" target="_blank"
+               class="inline-block mt-3 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700">
+                Ver panel de {{ orgActual?.sigla ?? orgActual?.nombre }}
+            </a>
+        </div>
 
         <div v-else class="space-y-5">
             <!-- KPIs (siempre visibles) -->

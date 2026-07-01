@@ -20,6 +20,11 @@ const hayDatos = computed(() => datos.value?.meta?.hay_datos);
 const meta = computed(() => datos.value?.meta ?? {});
 const ind = computed(() => datos.value?.indicadores ?? null);
 
+// Esta portada solo lee el microdato del INE. MERCOSUR/ALADI/FAOSTAT tienen
+// su propio panel con graficos reales en /organizaciones/{id}.
+const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
+const tienePanelPropio = computed(() => orgId.value !== 1);
+
 // Refresca la portada al cambiar organizacion o gestion.
 async function refrescar() {
     cargando.value = true;
@@ -319,10 +324,23 @@ const modos = [
                 <div class="w-14 h-14 rounded-2xl bg-gris-50 flex items-center justify-center mx-auto mb-5">
                     <svg class="w-7 h-7 text-institucional-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h12M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-12 0L21 3"/></svg>
                 </div>
-                <p class="titular-editorial text-2xl text-institucional-900">No hay datos publicados</p>
-                <p class="text-institucional-500 mt-2 leading-relaxed">
-                    Para este periodo aún no hay operaciones cargadas. Selecciona otra gestión en la barra superior.
-                </p>
+                <template v-if="tienePanelPropio">
+                    <p class="titular-editorial text-2xl text-institucional-900">{{ orgActual?.nombre ?? 'Esta organización' }} tiene su propio panel</p>
+                    <p class="text-institucional-500 mt-2 leading-relaxed">
+                        Esta portada muestra el resumen del INE. Para ver los indicadores y gráficos completos de
+                        {{ orgActual?.sigla ?? orgActual?.nombre }}, entra a su panel dedicado.
+                    </p>
+                    <Link :href="`/organizaciones/${orgId}`" class="inline-flex items-center gap-1.5 mt-5 rounded-lg bg-rojo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rojo-700 transition-colors">
+                        Ver panel de {{ orgActual?.sigla ?? orgActual?.nombre }}
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    </Link>
+                </template>
+                <template v-else>
+                    <p class="titular-editorial text-2xl text-institucional-900">No hay datos publicados</p>
+                    <p class="text-institucional-500 mt-2 leading-relaxed">
+                        Para este periodo aún no hay operaciones cargadas. Selecciona otra gestión en la barra superior.
+                    </p>
+                </template>
             </div>
         </div>
 
