@@ -19,6 +19,7 @@ const cargando = ref(false);
 const hayDatos = computed(() => datos.value?.meta?.hay_datos);
 const meta = computed(() => datos.value?.meta ?? {});
 const ind = computed(() => datos.value?.indicadores ?? null);
+const esSeriesMercosur = computed(() => meta.value?.modo === 'series_mercosur');
 
 // Refresca la portada al cambiar organizacion o gestion.
 async function refrescar() {
@@ -117,7 +118,7 @@ const opcEvolucion = computed(() => ({
     fill: { type: 'gradient', gradient: { opacityFrom: 0.18, opacityTo: 0.01 } },
     dataLabels: { enabled: false },
     xaxis: {
-        categories: (datos.value.evolucion ?? []).map((e) => MESES[e.mes]),
+        categories: (datos.value.evolucion ?? []).map((e) => e.periodo ?? MESES[e.mes] ?? e.mes),
         labels: { style: { colors: '#94a3b8' } },
         axisBorder: { show: false },
         axisTicks: { show: false },
@@ -315,7 +316,7 @@ const modos = [
                 </div>
                 <p class="titular-editorial text-2xl text-institucional-900">No hay datos publicados</p>
                 <p class="text-institucional-500 mt-2 leading-relaxed">
-                    Para este periodo aún no hay operaciones cargadas. Selecciona otra gestión en la barra superior.
+                    Para este periodo aun no hay datos cargados. Selecciona otra gestion en la barra superior.
                 </p>
             </div>
         </div>
@@ -410,11 +411,11 @@ const modos = [
             <section class="pb-16">
                 <div class="tarjeta p-7">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">Evolución mensual {{ meta.gestion }}</h3>
+                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">{{ esSeriesMercosur ? 'Evolucion anual' : `Evolucion mensual ${meta.gestion}` }}</h3>
                         <span class="text-xs text-institucional-400">{{ meta.fuente }}</span>
                     </div>
                     <apexchart v-if="serieEvolucion[0].data.length" type="area" height="340" :options="opcEvolucion" :series="serieEvolucion" />
-                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos mensuales.</p>
+                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos para graficar.</p>
                 </div>
             </section>
 

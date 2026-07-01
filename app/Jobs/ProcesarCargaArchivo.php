@@ -7,8 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**
- * Procesa un archivo cargado y puebla operacion_comercio_exterior y sus
- * dimensiones. La logica completa del ETL se implementa en la Tarea 6.
+ * Procesa un archivo cargado y delega al ETL correspondiente segun el flujo.
  */
 class ProcesarCargaArchivo implements ShouldQueue
 {
@@ -28,9 +27,11 @@ class ProcesarCargaArchivo implements ShouldQueue
             return;
         }
 
-        // La implementacion del ETL (lectura por lotes, mapeo, find-or-create de
-        // dimensiones, insercion masiva, validaciones e idempotencia) se realiza
-        // en la Tarea 6 mediante el servicio ProcesadorEtl.
+        if (in_array($carga->tipo_flujo, ['MERCOSUR_PAIS', 'MERCOSUR_ITEM'], true)) {
+            app(\App\Servicios\ProcesadorMercosur::class)->procesar($carga);
+            return;
+        }
+
         app(\App\Servicios\ProcesadorEtl::class)->procesar($carga);
     }
 }

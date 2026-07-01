@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
 use App\Servicios\ConsultaExplorador;
+use App\Servicios\ConsultaExploradorMercosur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,11 @@ use Inertia\Response;
 
 class ExploradorController extends Controller
 {
+    private array $clavesFiltro = [
+        'tipo_operacion', 'gestion', 'mes', 'pais', 'zona', 'departamento',
+        'medio', 'via', 'seccion', 'capitulo', 'producto', 'cuci', 'ciiu', 'gce', 'tnt', 'cuode',
+    ];
+
     public function index(): Response
     {
         $orgDefecto = (int) Configuracion::obtener('organizacion_por_defecto', 1);
@@ -25,7 +31,7 @@ class ExploradorController extends Controller
     /**
      * Devuelve totales, tabla paginada y conteos facetados para los filtros dados.
      */
-    public function consultar(Request $request, ConsultaExplorador $consulta): JsonResponse
+    public function consultar(Request $request, ConsultaExplorador $consulta, ConsultaExploradorMercosur $mercosur): JsonResponse
     {
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer'],
@@ -34,13 +40,16 @@ class ExploradorController extends Controller
             'filtros'         => ['nullable', 'array'],
         ]);
 
-        $org = $datos['organizacion_id'];
+        $org = (int) $datos['organizacion_id'];
         $filtros = $this->normalizarFiltros($datos['filtros'] ?? []);
+        $esMercosur = $this->esMercosur($org);
+        $servicio = $esMercosur ? $mercosur : $consulta;
 
         return response()->json([
-            'totales' => $consulta->totales($org, $filtros),
-            'tabla'   => $consulta->tabla($org, $filtros, $datos['por_pagina'] ?? 25, $datos['pagina'] ?? 1),
-            'facetas' => $consulta->facetas($org, $filtros),
+            'modo'    => $esMercosur ? 'series_mercosur' : 'microdato',
+            'totales' => $servicio->totales($org, $filtros),
+            'tabla'   => $servicio->tabla($org, $filtros, $datos['por_pagina'] ?? 25, $datos['pagina'] ?? 1),
+            'facetas' => $servicio->facetas($org, $filtros),
         ]);
     }
 
@@ -50,7 +59,7 @@ class ExploradorController extends Controller
     private function normalizarFiltros(array $filtros): array
     {
         $limpio = [];
-        foreach (['tipo_operacion', 'gestion', 'mes', 'pais', 'zona', 'departamento', 'medio', 'via', 'seccion', 'capitulo', 'producto', 'cuci', 'ciiu', 'gce', 'tnt', 'cuode'] as $k) {
+        foreach ($this->clavesFiltro as $k) {
             if (! empty($filtros[$k]) && is_array($filtros[$k])) {
                 $limpio[$k] = array_values(array_filter(array_map('intval', $filtros[$k]), fn ($v) => $v !== null));
             }
@@ -62,6 +71,14 @@ class ExploradorController extends Controller
         return $limpio;
     }
 
+    private function esMercosur(int $orgId): bool
+    {
+        return DB::table('organizacion')
+            ->where('organizacion_id', $orgId)
+            ->where('sigla', 'MERCOSUR')
+            ->exists();
+    }
+
     /**
      * Opciones de cada faceta (id => etiqueta). Solo dimensiones presentes en hechos.
      */
@@ -69,10 +86,20 @@ class ExploradorController extends Controller
     {
         $meses = [1 => 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+        $gestiones = DB::query()
+            ->fromSub(function ($q) {
+                $q->from('tiempo')->distinct()->select('gestion')
+                    ->union(DB::table('serie_comercio_zona')->distinct()->select('gestion'));
+            }, 'g')
+            ->orderByDesc('gestion')
+            ->pluck('gestion')
+            ->map(fn ($g) => ['id' => $g, 'label' => (string) $g])
+            ->all();
+
         return [
             'organizaciones' => DB::table('organizacion')->where('activo', true)->orderBy('nombre')->get(['organizacion_id', 'nombre', 'sigla']),
             'tipo_operacion' => DB::table('tipo_operacion')->orderBy('nombre')->get(['tipo_operacion_id as id', 'nombre as label']),
-            'gestion'        => DB::table('tiempo')->distinct()->orderByDesc('gestion')->pluck('gestion')->map(fn ($g) => ['id' => $g, 'label' => (string) $g])->all(),
+            'gestion'        => $gestiones,
             'mes'            => collect($meses)->map(fn ($n, $i) => ['id' => $i, 'label' => $n])->values()->all(),
             'pais'           => DB::table('pais')->orderBy('nombre')->get(['pais_id as id', 'nombre as label']),
             'zona'           => DB::table('zona_geoeconomica')->orderBy('descripcion')->get(['zona_id as id', 'descripcion as label']),

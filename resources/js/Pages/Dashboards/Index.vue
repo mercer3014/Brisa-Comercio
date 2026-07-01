@@ -15,7 +15,7 @@ const tab = ref('general');
 const cargando = ref(false);
 const d = ref(null); // datos
 
-const tabs = [
+const baseTabs = [
     { key: 'general', label: 'General' },
     { key: 'exportaciones', label: 'Exportaciones' },
     { key: 'importaciones', label: 'Importaciones' },
@@ -24,6 +24,9 @@ const tabs = [
     { key: 'balanza', label: 'Balanza comercial' },
     { key: 'logistico', label: 'Logistico' },
 ];
+const organizacionActual = computed(() => props.organizaciones?.find((o) => Number(o.organizacion_id) === Number(orgId.value)));
+const esMercosur = computed(() => organizacionActual.value?.sigla === 'MERCOSUR');
+const tabs = computed(() => esMercosur.value ? baseTabs.filter((t) => t.key !== 'logistico') : baseTabs);
 
 async function cargar() {
     cargando.value = true;
@@ -39,6 +42,9 @@ async function cargar() {
 }
 
 watch([orgId, gestion], cargar);
+watch(esMercosur, (activo) => {
+    if (activo && tab.value === 'logistico') tab.value = 'general';
+});
 onMounted(cargar);
 
 const fmt = (n) => new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
@@ -144,6 +150,10 @@ const k = computed(() => d.value?.kpis ?? {});
             </div>
         </div>
 
+        <div v-if="esMercosur" class="mb-5 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
+            MERCOSUR se visualiza desde series anuales agregadas. No incluye dimensiones logisticas como medio de transporte o departamento.
+        </div>
+
         <!-- Tabs -->
         <div class="flex gap-1 mb-5 border-b border-slate-200 overflow-x-auto">
             <button v-for="t in tabs" :key="t.key" @click="tab = t.key"
@@ -176,13 +186,13 @@ const k = computed(() => d.value?.kpis ?? {});
                 </div>
                 <div class="bg-white rounded-xl border border-slate-200 p-4">
                     <div class="text-xs text-slate-500">Precio implicito $/kg</div>
-                    <div class="text-xl font-bold text-slate-800">{{ k.precio_implicito ?? '—' }}</div>
+                    <div class="text-xl font-bold text-slate-800">{{ k.precio_implicito ?? 'N/D' }}</div>
                 </div>
                 <div class="bg-white rounded-xl border border-slate-200 p-4">
                     <div class="text-xs text-slate-500">Var. interanual</div>
                     <div class="text-xl font-bold" :class="(k.variacion_interanual ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'">
                         <span v-if="k.variacion_interanual !== null">{{ k.variacion_interanual > 0 ? '+' : '' }}{{ k.variacion_interanual }}%</span>
-                        <span v-else>—</span>
+                        <span v-else>N/D</span>
                     </div>
                 </div>
             </div>

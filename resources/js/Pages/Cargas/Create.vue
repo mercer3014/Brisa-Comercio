@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import axios from 'axios';
 
 const props = defineProps({
     organizaciones: Array,
     perfiles: Array,
+    mercosurPaises: { type: Array, default: () => [] },
+    mercosurZonas: { type: Array, default: () => [] },
 });
 
 const paso = ref(1);
@@ -14,9 +16,20 @@ const errorMsg = ref('');
 const arrastrando = ref(false);
 const progreso = ref(0); // % de subida (0-100)
 
+const mercosurOrganizacion = computed(() =>
+    props.organizaciones.find((o) => o.sigla === 'MERCOSUR')
+);
+
+const mercosurPaises = computed(() => props.mercosurPaises ?? []);
+const mercosurZonas = computed(() => props.mercosurZonas ?? []);
+
 const seleccion = ref({
     organizacion_id: props.organizaciones[0]?.organizacion_id ?? null,
+    tipo_carga: 'COMERCIO_EXTERIOR',
     tipo_flujo: 'EXPORTACION',
+    mercosur_tipo: 'MERCOSUR_PAIS',
+    pais_reportante_id: props.mercosurPaises?.[0]?.pais_id ?? null,
+    zona_id: null,
     archivo: null,
     nombre_archivo: '',
     tamano: 0,
@@ -31,6 +44,20 @@ const mes = ref('');
 const EXTENSIONES = ['xlsx', 'xlsm', 'csv', 'txt'];
 const MAX_BYTES = 512000 * 1024; // 500 MB
 
+const esMercosur = computed(() => seleccion.value.tipo_carga === 'MERCOSUR');
+const flujoActual = computed(() => esMercosur.value ? seleccion.value.mercosur_tipo : seleccion.value.tipo_flujo);
+const destinoMercosur = computed(() =>
+    seleccion.value.mercosur_tipo === 'MERCOSUR_PAIS'
+        ? 'serie_comercio_zona'
+        : 'serie_comercio_producto_zona'
+);
+const paisReportanteSeleccionado = computed(() =>
+    mercosurPaises.value.find((p) => p.pais_id === seleccion.value.pais_reportante_id)
+);
+const zonaSeleccionada = computed(() =>
+    mercosurZonas.value.find((z) => z.zona_id === seleccion.value.zona_id)
+);
+
 function formatoTamano(bytes) {
     if (!bytes) return '';
     const u = ['B', 'KB', 'MB', 'GB'];
@@ -38,6 +65,34 @@ function formatoTamano(bytes) {
     while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
     return `${n.toLocaleString('es-BO', { maximumFractionDigits: 1 })} ${u[i]}`;
 }
+
+function reiniciarPreview() {
+    preview.value = null;
+    columnas.value = [];
+    if (paso.value !== 1) paso.value = 1;
+}
+
+watch(() => seleccion.value.tipo_carga, (tipo) => {
+    if (tipo === 'MERCOSUR') {
+        if (mercosurOrganizacion.value) {
+            seleccion.value.organizacion_id = mercosurOrganizacion.value.organizacion_id;
+        }
+        seleccion.value.tipo_flujo = seleccion.value.mercosur_tipo;
+        if (!seleccion.value.pais_reportante_id && mercosurPaises.value.length) {
+            seleccion.value.pais_reportante_id = mercosurPaises.value[0].pais_id;
+        }
+    } else if (!['EXPORTACION', 'IMPORTACION'].includes(seleccion.value.tipo_flujo)) {
+        seleccion.value.tipo_flujo = 'EXPORTACION';
+    }
+    reiniciarPreview();
+});
+
+watch(() => seleccion.value.mercosur_tipo, (tipo) => {
+    if (esMercosur.value) {
+        seleccion.value.tipo_flujo = tipo;
+        reiniciarPreview();
+    }
+});
 
 /**
  * Valida tipo y tamanio. Devuelve un mensaje de error o null si es valido.
@@ -65,6 +120,7 @@ function asignarArchivo(f) {
     seleccion.value.archivo = f;
     seleccion.value.nombre_archivo = f.name;
     seleccion.value.tamano = f.size;
+    reiniciarPreview();
 }
 
 function onArchivo(e) {
@@ -82,11 +138,16 @@ function quitarArchivo() {
     seleccion.value.nombre_archivo = '';
     seleccion.value.tamano = 0;
     progreso.value = 0;
+    reiniciarPreview();
 }
 
 async function previsualizar() {
     if (!seleccion.value.archivo) {
         errorMsg.value = 'Seleccione o arrastre un archivo.';
+        return;
+    }
+    if (esMercosur.value && !seleccion.value.pais_reportante_id) {
+        errorMsg.value = 'Seleccione el pais reportante para MERCOSUR.';
         return;
     }
     errorMsg.value = '';
@@ -95,7 +156,7 @@ async function previsualizar() {
     try {
         const fd = new FormData();
         fd.append('organizacion_id', seleccion.value.organizacion_id);
-        fd.append('tipo_flujo', seleccion.value.tipo_flujo);
+        fd.append('tipo_flujo', flujoActual.value);
         fd.append('archivo', seleccion.value.archivo);
         const { data } = await axios.post('/admin/cargas/previsualizar', fd, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -131,21 +192,29 @@ const desconocidasSinDecidir = computed(() =>
 
 function confirmar() {
     cargando.value = true;
-    router.post('/admin/cargas', {
+
+    const payload = {
         token: preview.value.token,
         organizacion_id: seleccion.value.organizacion_id,
-        perfil_id: preview.value.perfil_id,
-        tipo_flujo: seleccion.value.tipo_flujo,
+        perfil_id: esMercosur.value ? null : preview.value.perfil_id,
+        tipo_flujo: flujoActual.value,
         nombre_archivo: seleccion.value.nombre_archivo,
-        gestion: gestion.value || null,
-        mes: mes.value || null,
-        columnas: columnas.value.map((c) => ({
+        gestion: esMercosur.value ? null : (gestion.value || null),
+        mes: esMercosur.value ? null : (mes.value || null),
+        columnas: esMercosur.value ? [] : columnas.value.map((c) => ({
             origen: c.origen,
             campo_canonico: c.a_extra ? null : (c.campo_canonico || null),
             guardar: !!c.guardar && !c.a_extra,
             a_extra: !!c.a_extra,
         })),
-    }, {
+    };
+
+    if (esMercosur.value) {
+        payload.pais_reportante_id = seleccion.value.pais_reportante_id;
+        payload.zona_id = seleccion.value.zona_id || null;
+    }
+
+    router.post('/admin/cargas', payload, {
         onFinish: () => (cargando.value = false),
     });
 }
@@ -162,21 +231,54 @@ function confirmar() {
 
         <!-- PASO 1: seleccion -->
         <div v-if="paso === 1" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-2xl">
-            <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Organizacion</label>
-                    <select v-model="seleccion.organizacion_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <select v-model="seleccion.organizacion_id" :disabled="esMercosur" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500">
                         <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.nombre }}</option>
                     </select>
+                    <p v-if="esMercosur" class="text-xs text-slate-400 mt-1">MERCOSUR usa su organizacion propia para no mezclar fuentes.</p>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Tipo de carga</label>
+                    <select v-model="seleccion.tipo_carga" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option value="COMERCIO_EXTERIOR">Comercio exterior</option>
+                        <option value="MERCOSUR">MERCOSUR</option>
+                    </select>
+                </div>
+                <div v-if="!esMercosur">
                     <label class="block text-sm font-medium text-slate-700 mb-1">Tipo de flujo</label>
                     <select v-model="seleccion.tipo_flujo" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                         <option value="EXPORTACION">EXPORTACION</option>
                         <option value="IMPORTACION">IMPORTACION</option>
                     </select>
                 </div>
+                <div v-if="esMercosur">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Tipo de archivo MERCOSUR</label>
+                    <select v-model="seleccion.mercosur_tipo" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option value="MERCOSUR_PAIS">Por paises</option>
+                        <option value="MERCOSUR_ITEM">Items NCM</option>
+                    </select>
+                </div>
+                <div v-if="esMercosur">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Pais reportante</label>
+                    <select v-model="seleccion.pais_reportante_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option v-for="p in mercosurPaises" :key="p.pais_id" :value="p.pais_id">{{ p.nombre }}</option>
+                    </select>
+                </div>
+                <div v-if="esMercosur">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Zona comercial</label>
+                    <select v-model="seleccion.zona_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <option :value="null">Inferir desde el nombre del archivo</option>
+                        <option v-for="z in mercosurZonas" :key="z.zona_id" :value="z.zona_id">{{ z.descripcion }}</option>
+                    </select>
+                </div>
             </div>
+
+            <div v-if="esMercosur" class="mb-5 px-4 py-3 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 text-sm">
+                Esta carga usa el ETL MERCOSUR. No requiere mapeo manual: guardara los datos en <span class="font-mono">{{ destinoMercosur }}</span>.
+            </div>
+
             <div class="mb-5">
                 <label class="block text-sm font-medium text-slate-700 mb-1">Archivo (.xlsx, .xlsm, .csv o .txt)</label>
 
@@ -199,7 +301,7 @@ function confirmar() {
                             <input type="file" accept=".xlsx,.xlsm,.csv,.txt" @change="onArchivo" class="hidden" />
                         </label>
                     </p>
-                    <p class="text-xs text-slate-400 mt-1">Formatos: .xlsx, .xlsm, .csv, .txt · maximo 500 MB</p>
+                    <p class="text-xs text-slate-400 mt-1">Formatos: .xlsx, .xlsm, .csv, .txt - maximo 500 MB</p>
                 </div>
 
                 <!-- Archivo seleccionado + progreso -->
@@ -226,63 +328,79 @@ function confirmar() {
 
         <!-- PASO 2: previsualizacion + mapeo -->
         <div v-if="paso === 2 && preview" class="space-y-5">
-            <!-- Deteccion -->
-            <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+            <template v-if="!esMercosur">
+                <!-- Deteccion -->
+                <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm text-slate-500">Perfil detectado</div>
+                        <div class="font-medium text-marca-800">
+                            <template v-if="preview.deteccion.mejor">
+                                Perfil #{{ preview.deteccion.mejor.perfil_id }} -
+                                score {{ preview.deteccion.mejor.score }}% -
+                                {{ preview.deteccion.mejor.coincidencias }}/{{ preview.deteccion.mejor.total_perfil }} columnas
+                            </template>
+                            <template v-else>Ningun perfil coincidente (mapeo manual)</template>
+                        </div>
+                    </div>
+                    <button @click="paso = 1" class="text-sm text-slate-500 hover:underline">Cambiar archivo</button>
+                </div>
+
+                <!-- Aviso columnas desconocidas -->
+                <div v-if="columnas.some(c => c.desconocida)" class="px-4 py-3 rounded bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                    Hay columnas que no estan en el perfil. Decide para cada una: mapear a un campo, enviar a "extra" o ignorar (desmarcar guardar).
+                </div>
+
+                <!-- Tabla de mapeo -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-slate-600">
+                            <tr>
+                                <th class="text-left px-3 py-2 font-medium">Columna del archivo</th>
+                                <th class="text-left px-3 py-2 font-medium">Campo canonico</th>
+                                <th class="text-center px-3 py-2 font-medium">Guardar</th>
+                                <th class="text-center px-3 py-2 font-medium">A extra (JSON)</th>
+                                <th class="text-left px-3 py-2 font-medium">Muestra</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="(c, i) in columnas" :key="i" :class="c.desconocida ? 'bg-amber-50/40' : ''">
+                                <td class="px-3 py-2 font-mono text-xs text-slate-700">
+                                    {{ c.origen }}
+                                    <span v-if="c.desconocida" class="ml-1 text-amber-600" title="No esta en el perfil">*</span>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <select v-model="c.campo_canonico" :disabled="c.a_extra" class="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100">
+                                        <option :value="null">-- (sin mapear) --</option>
+                                        <option v-for="campo in camposOpciones" :key="campo" :value="campo">{{ campo }}</option>
+                                    </select>
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <input type="checkbox" v-model="c.guardar" :disabled="c.a_extra" class="rounded text-marca-600" />
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <input type="checkbox" v-model="c.a_extra" class="rounded text-marca-600" />
+                                </td>
+                                <td class="px-3 py-2 text-slate-500 text-xs truncate max-w-[160px]">
+                                    {{ (preview.muestra[0] && preview.muestra[0][i]) ?? '' }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+
+            <div v-else class="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
                 <div>
-                    <div class="text-sm text-slate-500">Perfil detectado</div>
+                    <div class="text-sm text-slate-500">Carga MERCOSUR</div>
                     <div class="font-medium text-marca-800">
-                        <template v-if="preview.deteccion.mejor">
-                            Perfil #{{ preview.deteccion.mejor.perfil_id }} ·
-                            score {{ preview.deteccion.mejor.score }}% ·
-                            {{ preview.deteccion.mejor.coincidencias }}/{{ preview.deteccion.mejor.total_perfil }} columnas
-                        </template>
-                        <template v-else>Ningun perfil coincidente (mapeo manual)</template>
+                        {{ seleccion.mercosur_tipo === 'MERCOSUR_PAIS' ? 'Por paises' : 'Items NCM' }} -> {{ destinoMercosur }}
+                    </div>
+                    <div class="text-sm text-slate-500 mt-1">
+                        Pais reportante: {{ paisReportanteSeleccionado?.nombre ?? 'No seleccionado' }}.
+                        Zona: {{ zonaSeleccionada?.descripcion ?? 'Se inferira desde el nombre del archivo' }}.
                     </div>
                 </div>
                 <button @click="paso = 1" class="text-sm text-slate-500 hover:underline">Cambiar archivo</button>
-            </div>
-
-            <!-- Aviso columnas desconocidas -->
-            <div v-if="columnas.some(c => c.desconocida)" class="px-4 py-3 rounded bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-                Hay columnas que no estan en el perfil. Decide para cada una: mapear a un campo, enviar a "extra" o ignorar (desmarcar guardar).
-            </div>
-
-            <!-- Tabla de mapeo -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-slate-50 text-slate-600">
-                        <tr>
-                            <th class="text-left px-3 py-2 font-medium">Columna del archivo</th>
-                            <th class="text-left px-3 py-2 font-medium">Campo canonico</th>
-                            <th class="text-center px-3 py-2 font-medium">Guardar</th>
-                            <th class="text-center px-3 py-2 font-medium">A extra (JSON)</th>
-                            <th class="text-left px-3 py-2 font-medium">Muestra</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr v-for="(c, i) in columnas" :key="i" :class="c.desconocida ? 'bg-amber-50/40' : ''">
-                            <td class="px-3 py-2 font-mono text-xs text-slate-700">
-                                {{ c.origen }}
-                                <span v-if="c.desconocida" class="ml-1 text-amber-600" title="No esta en el perfil">●</span>
-                            </td>
-                            <td class="px-3 py-2">
-                                <select v-model="c.campo_canonico" :disabled="c.a_extra" class="w-full rounded border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-100">
-                                    <option :value="null">— (sin mapear) —</option>
-                                    <option v-for="campo in camposOpciones" :key="campo" :value="campo">{{ campo }}</option>
-                                </select>
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <input type="checkbox" v-model="c.guardar" :disabled="c.a_extra" class="rounded text-marca-600" />
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <input type="checkbox" v-model="c.a_extra" class="rounded text-marca-600" />
-                            </td>
-                            <td class="px-3 py-2 text-slate-500 text-xs truncate max-w-[160px]">
-                                {{ (preview.muestra[0] && preview.muestra[0][i]) ?? '' }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
 
             <!-- Muestra de datos -->
@@ -306,13 +424,18 @@ function confirmar() {
 
             <!-- Metadatos opcionales + confirmar -->
             <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-end gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Gestion (opcional)</label>
-                    <input v-model="gestion" type="number" placeholder="2024" class="w-28 rounded border border-slate-300 px-3 py-2 text-sm" />
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Mes (opcional)</label>
-                    <input v-model="mes" type="number" min="1" max="12" placeholder="1-12" class="w-24 rounded border border-slate-300 px-3 py-2 text-sm" />
+                <template v-if="!esMercosur">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Gestion (opcional)</label>
+                        <input v-model="gestion" type="number" placeholder="2024" class="w-28 rounded border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Mes (opcional)</label>
+                        <input v-model="mes" type="number" min="1" max="12" placeholder="1-12" class="w-24 rounded border border-slate-300 px-3 py-2 text-sm" />
+                    </div>
+                </template>
+                <div v-else class="text-sm text-slate-500">
+                    El anio se leera desde la columna correspondiente del Excel y se guardara como periodo anual.
                 </div>
                 <div class="ml-auto">
                     <button @click="confirmar" :disabled="cargando" class="bg-marca-700 hover:bg-marca-800 text-white px-6 py-2.5 rounded-lg text-sm font-medium disabled:opacity-60">

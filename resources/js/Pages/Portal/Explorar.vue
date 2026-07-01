@@ -14,7 +14,8 @@ const busqueda = ref('');
 const pagina = ref(1);
 const porPagina = ref(25);
 const cargando = ref(false);
-const filtrosAbiertos = ref(false); // panel movil
+const filtrosAbiertos = ref(false);
+const modo = ref('microdato');
 
 const filtros = reactive({
     flujo: [], tipo_operacion: [], gestion: [], mes: [], pais: [], zona: [], departamento: [],
@@ -26,7 +27,9 @@ const tabla = ref({ data: [], total: 0, pagina: 1, ultima_pagina: 1 });
 const facetas = ref({});
 const graficos = ref({ top_paises: [], top_productos: [] });
 
-const panel = [
+const esSeriesMercosur = computed(() => modo.value === 'series_mercosur');
+
+const panelMicrodato = [
     { key: 'flujo', titulo: 'Flujo' },
     { key: 'tipo_operacion', titulo: 'Tipo de operacion' },
     { key: 'gestion', titulo: 'Gestion (anio)' },
@@ -45,7 +48,14 @@ const panel = [
     { key: 'cuode', titulo: 'CUODE' },
 ];
 
-// --- Sincronizacion con la URL (para compartir el enlace) ---
+const panelMercosur = [
+    { key: 'gestion', titulo: 'Gestion (anio)' },
+    { key: 'zona', titulo: 'Zona comercial' },
+    { key: 'pais', titulo: 'Pais' },
+];
+
+const panel = computed(() => esSeriesMercosur.value ? panelMercosur : panelMicrodato);
+
 function sincronizarUrl() {
     const p = new URLSearchParams();
     p.set('org', orgId.value);
@@ -78,6 +88,7 @@ async function consultar() {
             por_pagina: porPagina.value,
             filtros: { ...filtros, busqueda: busqueda.value },
         });
+        modo.value = data.modo ?? 'microdato';
         totales.value = data.totales;
         tabla.value = data.tabla;
         facetas.value = data.facetas;
@@ -97,7 +108,10 @@ watch(busqueda, () => {
     clearTimeout(debounce);
     debounce = setTimeout(consultarDesdeFiltro, 350);
 });
-watch(orgId, consultarDesdeFiltro);
+watch(orgId, () => {
+    limpiarTodo();
+    consultarDesdeFiltro();
+});
 watch(pagina, consultar);
 
 function limpiarTodo() {
@@ -106,6 +120,8 @@ function limpiarTodo() {
 }
 
 function exportar(formato) {
+    if (esSeriesMercosur.value) return;
+
     const p = new URLSearchParams();
     p.set('organizacion_id', orgId.value);
     p.set('formato', formato);
@@ -119,7 +135,6 @@ function exportar(formato) {
 const fmt = (n) => new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtUsd = (n) => '$ ' + new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
 
-// Graficos (barras horizontales estilizadas) — navy slate general, Top 1 crimson.
 function opcBarras(items) {
     return {
         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
@@ -137,6 +152,7 @@ function opcBarras(items) {
         grid: { strokeDashArray: 4, borderColor: '#f1f5f9', yaxis: { lines: { show: false } } },
     };
 }
+
 const seriePaises = computed(() => [{ name: 'Valor', data: graficos.value.top_paises.map((i) => Math.round(i.valor)) }]);
 const serieProductos = computed(() => [{ name: 'Valor', data: graficos.value.top_productos.map((i) => Math.round(i.valor)) }]);
 const opcPaises = computed(() => opcBarras(graficos.value.top_paises));
@@ -151,39 +167,39 @@ onMounted(() => {
 <template>
     <Head title="Explorar datos" />
 
-    <!-- Encabezado luminoso -->
     <section class="bg-white border-b border-gris-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4">
                 <span class="w-7 h-px bg-rojo-500"></span> Explorador
             </p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Explora el detalle de las operaciones</h1>
-            <p class="text-institucional-500 mt-4 max-w-xl leading-relaxed text-lg">Filtra a gusto y descarga el resultado. Fuente: INE — Bolivia.</p>
+            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">
+                {{ esSeriesMercosur ? 'Explora las series agregadas' : 'Explora el detalle de las operaciones' }}
+            </h1>
+            <p class="text-institucional-500 mt-4 max-w-xl leading-relaxed text-lg">
+                {{ esSeriesMercosur ? 'MERCOSUR se muestra como series anuales agregadas, sin mezclarse con microdatos.' : 'Filtra a gusto y descarga el resultado. Fuente: INE - Bolivia.' }}
+            </p>
         </div>
     </section>
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div class="flex items-center justify-end">
-            <button
-                @click="filtrosAbiertos = !filtrosAbiertos"
-                class="lg:hidden btn btn-contorno"
-            >
+            <button @click="filtrosAbiertos = !filtrosAbiertos" class="lg:hidden btn btn-contorno">
                 {{ filtrosAbiertos ? 'Ocultar filtros' : 'Mostrar filtros' }}
             </button>
         </div>
 
+        <div v-if="esSeriesMercosur" class="mt-3 rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
+            Estas no son operaciones individuales: son series agregadas de MERCOSUR. Si no eliges zona, se usa la serie Mundo para evitar doble conteo por zonas superpuestas.
+        </div>
+
         <div class="mt-3 flex flex-col lg:flex-row gap-5">
-            <!-- Panel de filtros (colapsable en movil) -->
-            <aside
-                class="w-full lg:w-72 shrink-0 tarjeta flex flex-col overflow-hidden"
-                :class="{ 'hidden lg:flex': !filtrosAbiertos }"
-            >
+            <aside class="w-full lg:w-72 shrink-0 tarjeta flex flex-col overflow-hidden" :class="{ 'hidden lg:flex': !filtrosAbiertos }">
                 <div class="px-4 py-3.5 border-b border-gris-100 flex items-center justify-between">
                     <h2 class="font-bold text-sm text-institucional-900 tracking-tight">Filtros</h2>
                     <button @click="limpiarTodo" class="text-xs font-semibold text-rojo-600 hover:text-rojo-700 transition-colors">Limpiar todo</button>
                 </div>
                 <div class="p-3 border-b border-gris-100">
-                    <label class="block text-xs font-semibold text-institucional-400 uppercase tracking-wide mb-1.5">Organización</label>
+                    <label class="block text-xs font-semibold text-institucional-400 uppercase tracking-wide mb-1.5">Organizacion</label>
                     <select v-model="orgId" class="campo">
                         <option v-for="o in opciones.organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.nombre }}</option>
                     </select>
@@ -199,16 +215,16 @@ onMounted(() => {
                 </div>
             </aside>
 
-            <!-- Resultados -->
             <main class="flex-1 min-w-0">
-                <!-- Busqueda -->
-                <input v-model="busqueda" placeholder="Buscar por producto, país o aduana..."
-                       class="campo px-4 py-3 mb-4" />
+                <input
+                    v-model="busqueda"
+                    :placeholder="esSeriesMercosur ? 'Buscar pais, codigo ISO, producto o NCM...' : 'Buscar por producto, pais o aduana...'"
+                    class="campo px-4 py-3 mb-4"
+                />
 
-                <!-- Resumen visual: KPIs -->
                 <div class="grid grid-cols-3 gap-3 mb-4" :class="{ 'opacity-60': cargando }">
                     <div class="tarjeta p-4">
-                        <div class="text-xs text-gris-500 uppercase tracking-wide">Operaciones</div>
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">{{ esSeriesMercosur ? 'Series' : 'Operaciones' }}</div>
                         <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmt(totales.total) }}</div>
                     </div>
                     <div class="tarjeta p-4">
@@ -216,30 +232,28 @@ onMounted(() => {
                         <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmtUsd(totales.valor) }}</div>
                     </div>
                     <div class="tarjeta p-4">
-                        <div class="text-xs text-gris-500 uppercase tracking-wide">Peso bruto (kg)</div>
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">Volumen kg</div>
                         <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmt(totales.peso) }}</div>
                     </div>
                 </div>
 
-                <!-- Resumen visual: graficos del subconjunto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="tarjeta p-4">
-                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top paises (del filtro)</h3>
+                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top paises</h3>
                         <apexchart v-if="seriePaises[0].data.length" type="bar" height="240" :options="opcPaises" :series="seriePaises" />
                         <p v-else class="text-xs text-gris-400 py-8 text-center">Sin datos.</p>
                     </div>
                     <div class="tarjeta p-4">
-                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top productos (del filtro)</h3>
+                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top productos</h3>
                         <apexchart v-if="serieProductos[0].data.length" type="bar" height="240" :options="opcProductos" :series="serieProductos" />
                         <p v-else class="text-xs text-gris-400 py-8 text-center">Sin datos.</p>
                     </div>
                 </div>
 
-                <!-- Tabla detallada -->
                 <div class="tarjeta overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-2.5 border-b border-gris-100">
-                        <span class="text-sm font-semibold text-institucional-900">Detalle</span>
-                        <div class="flex gap-2">
+                        <span class="text-sm font-semibold text-institucional-900">{{ esSeriesMercosur ? 'Series agregadas' : 'Detalle' }}</span>
+                        <div v-if="!esSeriesMercosur" class="flex gap-2">
                             <button @click="exportar('xlsx')" class="text-xs px-2.5 py-1.5 rounded bg-positivo-suave text-positivo hover:opacity-80 font-semibold">Excel</button>
                             <button @click="exportar('csv')" class="text-xs px-2.5 py-1.5 rounded bg-gris-100 text-gris-700 hover:bg-gris-200 font-semibold">CSV</button>
                         </div>
@@ -247,31 +261,56 @@ onMounted(() => {
                     <div class="overflow-auto max-h-[60vh]">
                         <table class="w-full text-sm">
                             <thead class="bg-gris-50 sticky top-0 border-b border-gris-200">
-                                <tr>
-                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Gestión</th>
+                                <tr v-if="esSeriesMercosur">
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Gestion</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Zona</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Pais</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">ISO</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Exportaciones</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Importaciones CIF</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Balanza</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Vol. exp.</th>
+                                    <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Vol. imp.</th>
+                                </tr>
+                                <tr v-else>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Gestion</th>
                                     <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Mes</th>
                                     <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Tipo</th>
                                     <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">NANDINA</th>
                                     <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Producto</th>
-                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">País</th>
+                                    <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Pais</th>
                                     <th class="text-left px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Depto.</th>
                                     <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Peso bruto</th>
                                     <th class="text-right px-3 py-3 text-xs font-semibold text-institucional-500 uppercase tracking-wider">Valor</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gris-100">
-                                <tr v-for="r in tabla.data" :key="r.operacion_id"
-                                    class="hover:bg-gris-50 transition-all duration-200 ease-out">
-                                    <td class="px-3 py-3 text-institucional-700">{{ r.gestion }}</td>
-                                    <td class="px-3 py-3 text-institucional-700">{{ r.mes }}</td>
-                                    <td class="px-3 py-3 text-institucional-700">{{ r.tipo_operacion }}</td>
-                                    <td class="px-3 py-3 font-mono text-xs text-institucional-500">{{ r.codigo_nandina }}</td>
-                                    <td class="px-3 py-3 truncate max-w-[200px] text-institucional-800">{{ r.producto }}</td>
-                                    <td class="px-3 py-3 text-institucional-700">{{ r.pais }}</td>
-                                    <td class="px-3 py-3 text-institucional-700">{{ r.departamento }}</td>
-                                    <td class="px-3 py-3 text-right text-institucional-600">{{ fmt(r.peso_bruto_kg) }}</td>
-                                    <td class="px-3 py-3 text-right font-semibold text-institucional-900">{{ fmtUsd(Number(r.valor_fob_usd || 0) + Number(r.valor_cif_frontera_usd || 0)) }}</td>
-                                </tr>
+                                <template v-if="esSeriesMercosur">
+                                    <tr v-for="r in tabla.data" :key="r.serie_zona_id" class="hover:bg-gris-50 transition-all duration-200 ease-out">
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.gestion }}</td>
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.zona }}</td>
+                                        <td class="px-3 py-3 text-institucional-800 font-medium">{{ r.pais }}</td>
+                                        <td class="px-3 py-3 font-mono text-xs text-institucional-500">{{ r.pais_iso3166 }}</td>
+                                        <td class="px-3 py-3 text-right font-semibold text-institucional-900">{{ fmtUsd(r.exportaciones_usd) }}</td>
+                                        <td class="px-3 py-3 text-right text-institucional-700">{{ fmtUsd(r.importaciones_cif_usd) }}</td>
+                                        <td class="px-3 py-3 text-right font-semibold" :class="Number(r.balanza_comercial_usd || 0) >= 0 ? 'text-positivo' : 'text-negativo'">{{ fmtUsd(r.balanza_comercial_usd) }}</td>
+                                        <td class="px-3 py-3 text-right text-institucional-600">{{ fmt(r.volumen_export_kg) }}</td>
+                                        <td class="px-3 py-3 text-right text-institucional-600">{{ fmt(r.volumen_import_kg) }}</td>
+                                    </tr>
+                                </template>
+                                <template v-else>
+                                    <tr v-for="r in tabla.data" :key="r.operacion_id" class="hover:bg-gris-50 transition-all duration-200 ease-out">
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.gestion }}</td>
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.mes }}</td>
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.tipo_operacion }}</td>
+                                        <td class="px-3 py-3 font-mono text-xs text-institucional-500">{{ r.codigo_nandina }}</td>
+                                        <td class="px-3 py-3 truncate max-w-[200px] text-institucional-800">{{ r.producto }}</td>
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.pais }}</td>
+                                        <td class="px-3 py-3 text-institucional-700">{{ r.departamento }}</td>
+                                        <td class="px-3 py-3 text-right text-institucional-600">{{ fmt(r.peso_bruto_kg) }}</td>
+                                        <td class="px-3 py-3 text-right font-semibold text-institucional-900">{{ fmtUsd(Number(r.valor_fob_usd || 0) + Number(r.valor_cif_frontera_usd || 0)) }}</td>
+                                    </tr>
+                                </template>
                                 <tr v-if="!tabla.data.length && !cargando">
                                     <td colspan="9" class="px-4 py-12 text-center text-institucional-400">Sin resultados para los filtros aplicados.</td>
                                 </tr>
@@ -279,7 +318,7 @@ onMounted(() => {
                         </table>
                     </div>
                     <div class="flex items-center justify-between px-4 py-2.5 border-t border-gris-100 text-sm">
-                        <span class="text-gris-500">Pagina {{ tabla.pagina }} de {{ tabla.ultima_pagina || 1 }} · {{ fmt(tabla.total) }} registros</span>
+                        <span class="text-gris-500">Pagina {{ tabla.pagina }} de {{ tabla.ultima_pagina || 1 }} - {{ fmt(tabla.total) }} registros</span>
                         <div class="flex gap-2">
                             <button @click="pagina = Math.max(1, pagina - 1)" :disabled="pagina <= 1" class="px-3 py-1 rounded border border-gris-200 disabled:opacity-40 hover:bg-gris-50">Anterior</button>
                             <button @click="pagina = Math.min(tabla.ultima_pagina, pagina + 1)" :disabled="pagina >= tabla.ultima_pagina" class="px-3 py-1 rounded border border-gris-200 disabled:opacity-40 hover:bg-gris-50">Siguiente</button>
