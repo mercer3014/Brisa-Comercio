@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
 use App\Servicios\ResumenPortal;
+use App\Servicios\ResumenPortalMercosur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,15 +26,15 @@ class PortalController extends Controller
      * destacados y evolucion mensual (Tarea 12). Se renderiza con datos iniciales
      * para la organizacion por defecto (INE) y su gestion mas reciente con datos.
      */
-    public function inicio(ResumenPortal $resumen): Response
+    public function inicio(ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur): Response
     {
         $base = $this->opcionesBase();
         $orgId = $base['organizacionDefecto'];
-        $gestion = $resumen->gestionMasReciente($orgId);
+        $gestion = $this->gestionMasReciente($orgId, $resumen, $resumenMercosur);
 
         return Inertia::render('Portal/Inicio', array_merge($base, [
             'gestionInicial' => $gestion,
-            'portada'        => $resumen->portada($orgId, $gestion),
+            'portada'        => $this->portada($orgId, $gestion, $resumen, $resumenMercosur),
         ]));
     }
 
@@ -41,7 +42,7 @@ class PortalController extends Controller
      * Datos de la portada en JSON, para refrescar al cambiar organizacion o gestion.
      * Publico (sin autenticacion), respetando SIEMPRE la organizacion seleccionada.
      */
-    public function datos(Request $request, ResumenPortal $resumen): JsonResponse
+    public function datos(Request $request, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur): JsonResponse
     {
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer'],
@@ -49,9 +50,24 @@ class PortalController extends Controller
         ]);
 
         $orgId = (int) $datos['organizacion_id'];
-        $gestion = $datos['gestion'] ?? $resumen->gestionMasReciente($orgId);
+        $gestion = $datos['gestion'] ?? $this->gestionMasReciente($orgId, $resumen, $resumenMercosur);
 
-        return response()->json($resumen->portada($orgId, $gestion));
+        return response()->json($this->portada($orgId, $gestion, $resumen, $resumenMercosur));
+    }
+
+    /**
+     * INE y MERCOSUR guardan sus datos con arquitecturas distintas (microdato
+     * vs series por zona/producto): se elige el servicio segun la organizacion,
+     * pero ambos devuelven exactamente la misma forma de respuesta.
+     */
+    private function gestionMasReciente(int $orgId, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur): ?int
+    {
+        return $orgId === 3 ? $resumenMercosur->gestionMasReciente() : $resumen->gestionMasReciente($orgId);
+    }
+
+    private function portada(int $orgId, ?int $gestion, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur): array
+    {
+        return $orgId === 3 ? $resumenMercosur->portada($gestion) : $resumen->portada($orgId, $gestion);
     }
 
     /**

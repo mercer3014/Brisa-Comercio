@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Configuracion;
 use App\Servicios\AgregadorDashboard;
+use App\Servicios\AgregadorDashboardMercosur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +26,14 @@ class DashboardController extends Controller
 
     /**
      * Devuelve KPIs y todas las series agregadas para los dashboards.
+     *
+     * Cada organizacion guarda sus datos con una arquitectura distinta (el INE
+     * en el microdato operacion_comercio_exterior; MERCOSUR en sus series
+     * propias serie_comercio_zona / serie_comercio_producto_zona). Se elige el
+     * agregador segun la organizacion, pero ambos devuelven exactamente la
+     * misma forma de respuesta para que la vista no necesite saber la diferencia.
      */
-    public function datos(Request $request, AgregadorDashboard $agg): JsonResponse
+    public function datos(Request $request, AgregadorDashboard $agg, AgregadorDashboardMercosur $aggMercosur): JsonResponse
     {
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer'],
@@ -35,6 +42,20 @@ class DashboardController extends Controller
 
         $org = $datos['organizacion_id'];
         $gestion = $datos['gestion'] ?? null;
+
+        if ($org === 3) {
+            return response()->json([
+                'kpis'                      => $aggMercosur->kpis($gestion),
+                'evolucion_mensual'         => $aggMercosur->evolucionMensual($gestion),
+                'evolucion_anual'           => $aggMercosur->evolucionAnual(),
+                'top_paises'                => $aggMercosur->topPaises($gestion),
+                'top_productos'             => $aggMercosur->topProductos($gestion),
+                'distribucion_zona'         => $aggMercosur->distribucionZona($gestion),
+                'distribucion_departamento' => $aggMercosur->distribucionDepartamento(),
+                'participacion_pais'        => $aggMercosur->participacionPais($gestion),
+                'distribucion_medio'        => $aggMercosur->distribucionMedio(),
+            ]);
+        }
 
         return response()->json([
             'kpis'                     => $agg->kpis($org, $gestion),

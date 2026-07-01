@@ -20,10 +20,12 @@ const hayDatos = computed(() => datos.value?.meta?.hay_datos);
 const meta = computed(() => datos.value?.meta ?? {});
 const ind = computed(() => datos.value?.indicadores ?? null);
 
-// Esta portada solo lee el microdato del INE. MERCOSUR/ALADI/FAOSTAT tienen
-// su propio panel con graficos reales en /organizaciones/{id}.
+// INE y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
+// ALADI/FAOSTAT todavia no tienen un resumen equivalente para esta portada:
+// mandan a su panel dedicado en /organizaciones/{id} en vez de mostrar una
+// pantalla vacia.
 const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
-const tienePanelPropio = computed(() => orgId.value !== 1);
+const tienePanelPropio = computed(() => orgId.value !== 1 && orgId.value !== 3);
 
 // Refresca la portada al cambiar organizacion o gestion.
 async function refrescar() {

@@ -239,14 +239,19 @@ class CargadorMercosurPais
 
         $id = null;
 
-        // 1) Buscar por ISO numérico como codigo_pais (cualquier fuente)
+        // 1) Buscar por ISO numérico como codigo_pais, SOLO dentro de la fuente de
+        // MERCOSUR. codigo_pais solo es unico por fuente (UNIQUE(fuente_id,
+        // codigo_pais)): buscar "en cualquier fuente" hacia mezclar el codigo
+        // interno del INE con el ISO 3166 de MERCOSUR cuando coinciden por
+        // casualidad (p.ej. 156 es "CEILAN" para el INE pero China en ISO 3166).
         if (is_numeric($iso) && (int) $iso > 0) {
-            $id = DB::table('pais')->where('codigo_pais', (int) $iso)->value('pais_id');
+            $id = DB::table('pais')->where('fuente_id', $this->fuenteId)->where('codigo_pais', (int) $iso)->value('pais_id');
         }
 
-        // 2) Buscar por iso_alpha2 o iso_alpha3
+        // 2) Buscar por iso_alpha2 o iso_alpha3 (tambien acotado a la fuente de MERCOSUR)
         if (! $id && ! is_numeric($iso) && strlen($iso) <= 3 && $iso !== '') {
             $id = DB::table('pais')
+                ->where('fuente_id', $this->fuenteId)
                 ->where(fn ($q) => $q->where('iso_alpha2', $iso)->orWhere('iso_alpha3', $iso))
                 ->value('pais_id');
         }

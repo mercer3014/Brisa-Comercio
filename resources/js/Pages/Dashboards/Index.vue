@@ -15,7 +15,13 @@ const tab = ref('general');
 const cargando = ref(false);
 const d = ref(null); // datos
 
-const tabs = [
+// Organizaciones cuya arquitectura ya sabe leer este dashboard (cada una con
+// su propia fuente: INE = microdato, MERCOSUR = series por zona/producto).
+// El resto (ALADI, FAOSTAT) todavia usa su panel dedicado en /organizaciones/{id}.
+const ORGS_SOPORTADAS = [1, 3];
+// MERCOSUR no tiene desagregacion por departamento ni por medio de transporte
+// (eso es propio del microdato del INE), asi que esa pestania no aplica.
+const tabsBase = [
     { key: 'general', label: 'General' },
     { key: 'exportaciones', label: 'Exportaciones' },
     { key: 'importaciones', label: 'Importaciones' },
@@ -24,10 +30,15 @@ const tabs = [
     { key: 'balanza', label: 'Balanza comercial' },
     { key: 'logistico', label: 'Logistico' },
 ];
+const tabs = computed(() => orgId.value === 3 ? tabsBase.filter((t) => t.key !== 'logistico') : tabsBase);
 
 async function cargar() {
     cargando.value = true;
     try {
+        if (!ORGS_SOPORTADAS.includes(orgId.value)) {
+            d.value = { kpis: {} };
+            return;
+        }
         const { data } = await axios.post('/admin/dashboards/datos', {
             organizacion_id: orgId.value,
             gestion: gestion.value,
@@ -38,6 +49,11 @@ async function cargar() {
     }
 }
 
+watch(orgId, () => {
+    if (!tabs.value.some((t) => t.key === tab.value)) {
+        tab.value = 'general';
+    }
+});
 watch([orgId, gestion], cargar);
 onMounted(cargar);
 
@@ -123,11 +139,11 @@ const distMedio = computed(() => {
 
 const k = computed(() => d.value?.kpis ?? {});
 
-// Este dashboard solo lee el microdato del INE (operacion_comercio_exterior).
-// MERCOSUR/ALADI/FAOSTAT guardan sus datos en tablas propias y tienen su
-// propio panel en el portal publico.
+// INE y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
+// ALADI/FAOSTAT todavia no tienen un agregador equivalente: mandan a su
+// propio panel en el portal publico en vez de mostrar una pantalla vacia.
 const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
-const sinMicrodato = computed(() => orgId.value !== 1 && d.value && !k.value?.valor_total);
+const sinMicrodato = computed(() => !ORGS_SOPORTADAS.includes(orgId.value));
 </script>
 
 <template>
