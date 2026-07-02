@@ -65,6 +65,9 @@ class RolPermisoSeeder extends Seeder
             'bitacora' => [
                 ['bitacora.ver', 'Consultar la bitacora de auditoria'],
             ],
+            'paises' => [
+                ['pais.editar', 'Configurar URL de Power BI por pais'],
+            ],
         ];
     }
 

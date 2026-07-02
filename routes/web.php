@@ -213,5 +213,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/paises/{pais_id}', [PaisDashboardController::class, 'show'])
             ->name('paises.dashboard');
+        Route::put('/paises/{pais_id}', [PaisDashboardController::class, 'update'])
+            ->middleware('permiso:pais.editar')->name('paises.update');
     });
 });

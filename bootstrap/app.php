@@ -13,6 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Confiar en el proxy/tunel de entrada para leer X-Forwarded-Proto: sin esto,
+        // detras de un tunel HTTPS (Cloudflare Tunnel, ngrok, etc.) Laravel genera los
+        // assets con http:// y el navegador los bloquea por contenido mixto.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             \App\Http\Middleware\ExpirarSesionInactiva::class,
             \App\Http\Middleware\HandleInertiaRequests::class,

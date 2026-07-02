@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Servicios\Auditoria;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,5 +25,24 @@ class PaisDashboardController extends Controller
                 'powerbiUrl' => $pais->powerbi_url,
             ],
         ]);
+    }
+
+    public function update(Request $request, int $pais_id): RedirectResponse
+    {
+        $pais = DB::table('pais_panel')->where('pais_panel_id', $pais_id)->first();
+        abort_if(! $pais, 404);
+
+        $datos = $request->validate([
+            'powerbi_url' => ['nullable', 'url', 'max:2048'],
+        ]);
+
+        DB::table('pais_panel')->where('pais_panel_id', $pais_id)->update([
+            'powerbi_url' => $datos['powerbi_url'] ?? null,
+            'updated_at'  => now(),
+        ]);
+
+        Auditoria::registrar('PAIS_PANEL_URL_EDITADA', 'pais_panel', (string) $pais_id, (array) $pais, $datos);
+
+        return back()->with('exito', $datos['powerbi_url'] ? 'URL de Power BI guardada.' : 'URL de Power BI eliminada.');
     }
 }

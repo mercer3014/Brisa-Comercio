@@ -7,6 +7,10 @@
 
     <title inertia>{{ config('app.name', 'Geodata') }}</title>
 
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
     <link rel="preconnect" href="https://fonts.bunny.net">
     {{-- Plus Jakarta Sans: familia unica del sistema (cuerpo + titulares en pesos altos). --}}
     <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800" rel="stylesheet" />
