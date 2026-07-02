@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { CountUp } from 'countup.js';
 
 const props = defineProps({
@@ -16,10 +16,51 @@ const props = defineProps({
 });
 
 const numero = ref(null);
+const fila = ref(null);
 let countup = null;
+let resizeObserver = null;
+
+const TAM_MAX = 1.85; // rem
+const TAM_MIN = 0.85; // rem
+const PASO = 0.05; // rem
+
+function formatoFinal(valor) {
+    return Number(valor).toLocaleString('es-BO', {
+        minimumFractionDigits: props.decimales,
+        maximumFractionDigits: props.decimales,
+    }) + props.sufijo;
+}
+
+// Prueba el texto final a tamano maximo y lo va reduciendo solo lo necesario
+// hasta que quepa en el ancho real de la tarjeta (nunca se corta ni sobra).
+function ajustarTamano(texto) {
+    const el = numero.value;
+    const contenedor = fila.value;
+    if (!el || !contenedor) return;
+
+    const original = el.textContent;
+    el.textContent = texto;
+
+    let tam = TAM_MAX;
+    el.style.fontSize = `${tam}rem`;
+    while (tam > TAM_MIN && contenedor.scrollWidth > contenedor.clientWidth) {
+        tam = Math.max(TAM_MIN, +(tam - PASO).toFixed(2));
+        el.style.fontSize = `${tam}rem`;
+    }
+
+    el.textContent = original;
+}
+
+let ultimoDestino = 0;
 
 function animar(destino) {
     if (!numero.value) return;
+    ultimoDestino = destino;
+
+    // Se calcula el tamano con el texto final ANTES de animar, para que no
+    // haya parpadeo de tamano mientras el contador sube desde 0.
+    ajustarTamano(formatoFinal(destino));
+
     if (!countup) {
         countup = new CountUp(numero.value, destino, {
             duration: 1.15,
@@ -34,7 +75,28 @@ function animar(destino) {
     }
 }
 
-onMounted(() => nextTick(() => animar(props.valor)));
+function reajustar() {
+    if (!numero.value) return;
+    ajustarTamano(formatoFinal(ultimoDestino));
+}
+
+onMounted(() => {
+    nextTick(() => animar(props.valor));
+    if (fila.value && 'ResizeObserver' in window) {
+        resizeObserver = new ResizeObserver(() => reajustar());
+        resizeObserver.observe(fila.value);
+    }
+    // La tipografia de marca (Plus Jakarta Sans) carga via CDN externo; si el
+    // ajuste de tamano se calcula antes de que termine de cargar, se mide con
+    // la fuente de reemplazo (mas angosta) y el numero final ya no entra.
+    // Recalculamos en cuanto las fuentes esten realmente listas.
+    if (document.fonts?.ready) {
+        document.fonts.ready.then(reajustar);
+    }
+});
+
+onBeforeUnmount(() => resizeObserver?.disconnect());
+
 watch(() => props.valor, animar);
 
 const positiva = computed(() => (props.variacion ?? 0) >= 0);
@@ -70,9 +132,12 @@ const sparkPath = computed(() => {
         </div>
 
         <div class="pt-5">
-            <div class="flex items-baseline gap-1 overflow-hidden">
+            <div ref="fila" class="flex items-baseline gap-1 overflow-hidden">
                 <span v-if="prefijo" class="shrink-0 text-xl font-bold leading-none text-institucional-400">{{ prefijo.trim() }}</span>
-                <div ref="numero" class="text-[1.55rem] font-bold leading-none text-institucional-900 whitespace-nowrap tabular-nums sm:text-[1.85rem]">0</div>
+                <div
+                    ref="numero"
+                    class="font-bold leading-none text-institucional-900 whitespace-nowrap tabular-nums text-[1.85rem]"
+                >0</div>
             </div>
             <div class="mt-4 flex items-end justify-between gap-4">
                 <div v-if="variacion !== null" class="text-sm font-semibold" :class="positiva ? 'text-positivo' : 'text-rojo-600'">
