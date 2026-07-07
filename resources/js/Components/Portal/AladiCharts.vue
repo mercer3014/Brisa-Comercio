@@ -1,7 +1,11 @@
 <script setup>
 /**
  * Gráficos específicos de ALADI (organizacion_id = 2).
- * Ranking de productos con % acumulado (Pareto) + tabla completa.
+ * Evolución anual del bloque (o de un país miembro), comparativa por país
+ * y ranking de productos con % acumulado (Pareto) + tabla completa.
+ *
+ * Los totales anuales se derivan del % acumulado que el top-50 de cada país
+ * representa sobre su total (aritmética del propio archivo publicado).
  */
 import { reactive, computed } from 'vue';
 import ChartCard from '../UI/ChartCard.vue';
@@ -15,12 +19,48 @@ const props = defineProps({
     gestionInicial: { type: Number, default: null },
 });
 
-const filtros = reactive({ gestion: props.gestionInicial ?? props.gestiones?.[0] ?? null, flujo: '' });
-const params = () => ({ gestion: filtros.gestion, limit: 20, ...(filtros.flujo ? { flujo: filtros.flujo } : {}) });
+const filtros = reactive({ gestion: props.gestionInicial ?? props.gestiones?.[0] ?? null, flujo: '', pais: null });
 
-const { data: ranking, cargando } = useChartData('/api/v1/charts/aladi/ranking', params);
+const paramsRanking = () => ({
+    gestion: filtros.gestion,
+    limit: 20,
+    ...(filtros.flujo ? { flujo: filtros.flujo } : {}),
+    ...(filtros.pais ? { pais_id: filtros.pais } : {}),
+});
+const paramsEvolucion = () => ({ ...(filtros.pais ? { pais_id: filtros.pais } : {}) });
+const paramsPaises = () => ({ gestion: filtros.gestion, ...(filtros.flujo ? { flujo: filtros.flujo } : {}) });
+
+const { data: ranking, cargando } = useChartData('/api/v1/charts/aladi/ranking', paramsRanking);
+const { data: evolucion, cargando: cEvo } = useChartData('/api/v1/charts/aladi/evolucion', paramsEvolucion);
+const { data: paises, cargando: cPais } = useChartData('/api/v1/charts/aladi/paises', paramsPaises);
 
 const items = computed(() => ranking.value?.items ?? []);
+const listaPaises = computed(() => paises.value?.meta?.paises ?? []);
+const nombrePais = computed(() => listaPaises.value.find((p) => p.id === filtros.pais)?.nombre ?? 'Todos los miembros');
+
+// Evolución: líneas exp/imp + barras de balanza en el mismo eje.
+const opcEvolucion = computed(() => ({
+    chart: { stacked: false },
+    stroke: { curve: 'straight', width: [3, 3, 0] },
+    markers: { size: [3.5, 3.5, 0], strokeWidth: 0 },
+    plotOptions: { bar: { columnWidth: '60%', borderRadius: 2 } },
+    colors: ['#2E7D32', '#C62828', '#A8D0E6'],
+    fill: { opacity: [1, 1, 0.9] },
+    xaxis: { categories: evolucion.value?.categorias ?? [], labels: { rotate: -45, style: { fontSize: '10px' } } },
+    yaxis: { labels: { formatter: ejeCompacto } },
+    tooltip: { shared: true, intersect: false, y: { formatter: (v) => fmtUsd(v) } },
+    legend: { position: 'top' },
+}));
+
+// Países miembros: barras agrupadas exp/imp.
+const opcPaises = computed(() => ({
+    plotOptions: { bar: { horizontal: false, columnWidth: '60%', borderRadius: 4 } },
+    colors: ['#38A169', '#C53030'],
+    xaxis: { categories: paises.value?.categorias ?? [], labels: { rotate: -45, style: { fontSize: '11px' } } },
+    yaxis: { labels: { formatter: ejeCompacto } },
+    tooltip: { y: { formatter: (v) => fmtUsd(v) } },
+    legend: { position: 'top' },
+}));
 
 // Pareto: barras de valor + línea de % acumulado en eje secundario.
 const opcPareto = computed(() => ({
@@ -53,10 +93,28 @@ const opcPareto = computed(() => ({
                     <option value="imp">Importación</option>
                 </select>
             </label>
+            <label class="text-xs font-medium text-gris-500">País miembro
+                <select v-model.number="filtros.pais" class="campo mt-1 py-2 text-sm w-44">
+                    <option :value="null">Todos los miembros</option>
+                    <option v-for="p in listaPaises" :key="p.id" :value="p.id">{{ p.nombre }}</option>
+                </select>
+            </label>
             <p class="text-xs text-gris-400 ml-auto">Los códigos con guiones (ej. 87------) son datos confidenciales.</p>
         </div>
 
-        <ChartCard titulo="Ranking de productos (Pareto)" subtitulo="Valor y participación acumulada" fuente="ALADI" :cargando="cargando">
+        <ChartCard :titulo="`Evolución anual — ${nombrePais}`"
+                   subtitulo="Exportaciones, importaciones y balanza (totales derivados del % acumulado del ranking)"
+                   fuente="ALADI" :cargando="cEvo">
+            <BaseApexChart type="line" :series="evolucion?.series ?? []" :opciones="opcEvolucion" :height="360" :cargando="cEvo" />
+        </ChartCard>
+
+        <ChartCard titulo="Comercio por país miembro" :subtitulo="`Totales derivados · ${filtros.gestion ?? ''}`"
+                   fuente="ALADI" :cargando="cPais">
+            <BaseApexChart type="bar" :series="paises?.series ?? []" :opciones="opcPaises" :height="360" :cargando="cPais" />
+        </ChartCard>
+
+        <ChartCard titulo="Ranking de productos (Pareto)" :subtitulo="`Valor y participación acumulada · ${nombrePais}`"
+                   fuente="ALADI" :cargando="cargando">
             <BaseApexChart type="line" :series="ranking?.series ?? []" :opciones="opcPareto" :height="380" :cargando="cargando" />
         </ChartCard>
 

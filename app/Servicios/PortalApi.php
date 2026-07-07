@@ -187,28 +187,63 @@ class PortalApi
 
     private function kpisAladi(?int $gestion): array
     {
-        $fila = fn (?int $g) => $g ? DB::table('ranking_comercio')
-            ->where('organizacion_id', self::ORG_ALADI)->where('gestion', $g)
-            ->selectRaw('SUM(valor) as total')
-            ->selectRaw('COUNT(*) as items')
-            ->first() : null;
+        $act = $gestion ? $this->totalesAladi($gestion) : collect();
+        $ant = $gestion ? $this->totalesAladi($gestion - 1) : collect();
 
-        $act = $fila($gestion);
-        $ant = $fila($gestion ? $gestion - 1 : null);
+        $expo = (float) $act->where('flujo', '1')->sum('total');
+        $impo = (float) $act->where('flujo', '2')->sum('total');
+        $expoAnt = (float) $ant->where('flujo', '1')->sum('total');
+        $impoAnt = (float) $ant->where('flujo', '2')->sum('total');
 
-        $total = (float) ($act->total ?? 0);
+        $items = (int) DB::table('ranking_comercio')
+            ->where('organizacion_id', self::ORG_ALADI)
+            ->when($gestion, fn ($q) => $q->where('gestion', $gestion))
+            ->count();
 
         return [
             'organizacion'      => 'ALADI',
             'gestion'           => $gestion,
             'gestion_anterior'  => $gestion ? $gestion - 1 : null,
-            'valor_total'       => $total,
-            'items_ranking'     => (int) ($act->items ?? 0),
-            'variacion_pct'     => $this->variacion($total, (float) ($ant->total ?? 0)),
+            'exportaciones'     => $expo,
+            'importaciones'     => $impo,
+            'balanza_comercial' => $expo - $impo,
+            'valor_total'       => $expo + $impo,
+            'items_ranking'     => $items,
+            'operaciones'       => $items,
+            'variacion_exp_pct' => $this->variacion($expo, $expoAnt),
+            'variacion_imp_pct' => $this->variacion($impo, $impoAnt),
             'unidad'            => 'USD',
             'fuente'            => 'ALADI',
-            'hay_datos'         => $act !== null && (int) ($act->items ?? 0) > 0,
+            'hay_datos'         => $expo + $impo > 0,
         ];
+    }
+
+    /**
+     * Totales ALADI derivados por (pais miembro, flujo): los rankings solo
+     * traen el top-50 de cada pais, pero incluyen el % acumulado sobre el
+     * total del pais, del que se deriva el total real
+     * (total = suma_top50 * 100 / pct_acumulado).
+     */
+    private function totalesAladi(?int $gestion, ?int $paisId = null): \Illuminate\Support\Collection
+    {
+        return DB::table('ranking_comercio as rc')
+            ->leftJoin('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
+            ->leftJoin('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
+            ->where('rc.organizacion_id', self::ORG_ALADI)
+            ->when($gestion, fn ($q) => $q->where('rc.gestion', $gestion))
+            ->when($paisId, fn ($q) => $q->where('rc.pais_reportante_id', $paisId))
+            ->selectRaw('rc.pais_reportante_id as pais_id, pa.nombre as pais, fl.codigo_flujo as flujo, rc.gestion')
+            ->selectRaw('SUM(rc.valor) as suma_top')
+            ->selectRaw('MAX(rc.porcentaje_acumulado) as pct')
+            ->groupBy('rc.pais_reportante_id', 'pa.nombre', 'fl.codigo_flujo', 'rc.gestion')
+            ->get()
+            ->map(function ($r) {
+                $suma = (float) $r->suma_top;
+                $pct  = (float) $r->pct;
+                $r->total = $pct > 0 ? $suma * 100 / $pct : $suma;
+
+                return $r;
+            });
     }
 
     private function kpisFaostat(?int $gestion): array
@@ -568,26 +603,25 @@ class PortalApi
     // =========================================================================
 
     /** Ranking de productos ALADI con % acumulado (ranking_comercio). */
-    public function aladiRanking(?int $gestion, ?string $flujo, int $limit): array
+    public function aladiRanking(?int $gestion, ?string $flujo, int $limit, ?int $paisId = null): array
     {
         $gestion ??= $this->gestionReciente(self::ORG_ALADI);
 
-        $q = DB::table('ranking_comercio')
-            ->where('organizacion_id', self::ORG_ALADI)
-            ->when($gestion, fn ($qq) => $qq->where('gestion', $gestion));
-
+        $flujoId = null;
         if ($flujo === 'exp' || $flujo === 'imp') {
             $codigo = $flujo === 'exp' ? '1' : '2';
             $flujoId = DB::table('flujo_comercial')->where('codigo_flujo', $codigo)->value('flujo_id');
-            $q->where('flujo_id', $flujoId);
         }
 
-        $rows = $q->orderByDesc('valor')->limit($limit)->get();
-
-        $total = (float) DB::table('ranking_comercio')
+        $filtrado = fn () => DB::table('ranking_comercio')
             ->where('organizacion_id', self::ORG_ALADI)
             ->when($gestion, fn ($qq) => $qq->where('gestion', $gestion))
-            ->sum('valor');
+            ->when($flujoId, fn ($qq) => $qq->where('flujo_id', $flujoId))
+            ->when($paisId, fn ($qq) => $qq->where('pais_reportante_id', $paisId));
+
+        $rows = $filtrado()->orderByDesc('valor')->limit($limit)->get();
+
+        $total = (float) $filtrado()->sum('valor');
 
         $acum = 0.0;
         $items = $rows->map(function ($r) use ($total, &$acum) {
@@ -616,11 +650,79 @@ class PortalApi
                 'fuente'   => 'ALADI',
                 'gestion'  => $gestion,
                 'flujo'    => $flujo ?? 'todos',
+                'pais_id'  => $paisId,
                 'unidad'   => 'USD',
                 'total'    => round($total),
                 'ultima_actualizacion' => now()->toIso8601String(),
             ],
         ];
+    }
+
+    /**
+     * Evolucion anual ALADI: exportaciones e importaciones derivadas de los
+     * rankings (total = suma_top50 * 100 / pct_acumulado), del bloque completo
+     * o de un pais miembro.
+     */
+    public function aladiEvolucion(?int $paisId = null): array
+    {
+        $porAnio = $this->totalesAladi(null, $paisId)
+            ->groupBy('gestion')
+            ->map(fn ($grupo, $g) => [
+                'gestion' => (int) $g,
+                'expo'    => (float) $grupo->where('flujo', '1')->sum('total'),
+                'impo'    => (float) $grupo->where('flujo', '2')->sum('total'),
+            ])
+            ->sortKeys()
+            ->values();
+
+        return $this->serie(
+            $porAnio->pluck('gestion')->all(),
+            [
+                ['name' => 'Exportaciones', 'type' => 'line', 'data' => $porAnio->map(fn ($r) => round($r['expo']))->all()],
+                ['name' => 'Importaciones', 'type' => 'line', 'data' => $porAnio->map(fn ($r) => round($r['impo']))->all()],
+                ['name' => 'Balanza', 'type' => 'column', 'data' => $porAnio->map(fn ($r) => round($r['expo'] - $r['impo']))->all()],
+            ],
+            ['fuente' => 'ALADI', 'pais_id' => $paisId]
+        );
+    }
+
+    /**
+     * Comercio por pais miembro de ALADI en una gestion (totales derivados).
+     * Incluye en meta la lista de paises para el selector del panel.
+     */
+    public function aladiPaises(?int $gestion = null, ?string $flujo = null): array
+    {
+        $gestion ??= $this->gestionReciente(self::ORG_ALADI);
+
+        $tot = $this->totalesAladi($gestion);
+
+        $porPais = $tot
+            ->groupBy('pais_id')
+            ->map(fn ($grupo) => [
+                'pais_id' => (int) $grupo->first()->pais_id,
+                'label'   => $grupo->first()->pais ?? '—',
+                'expo'    => (float) $grupo->where('flujo', '1')->sum('total'),
+                'impo'    => (float) $grupo->where('flujo', '2')->sum('total'),
+            ])
+            ->sortByDesc(fn ($r) => $flujo === 'imp' ? $r['impo'] : ($flujo === 'exp' ? $r['expo'] : $r['expo'] + $r['impo']))
+            ->values();
+
+        $paises = DB::table('pais as pa')
+            ->join('fuente_datos as f', 'f.fuente_id', '=', 'pa.fuente_id')
+            ->where('f.organizacion_id', self::ORG_ALADI)
+            ->orderBy('pa.nombre')
+            ->get(['pa.pais_id', 'pa.nombre'])
+            ->map(fn ($p) => ['id' => (int) $p->pais_id, 'nombre' => $p->nombre])
+            ->all();
+
+        return $this->serie(
+            $porPais->pluck('label')->all(),
+            [
+                ['name' => 'Exportaciones', 'data' => $porPais->map(fn ($r) => round($r['expo']))->all()],
+                ['name' => 'Importaciones', 'data' => $porPais->map(fn ($r) => round($r['impo']))->all()],
+            ],
+            ['fuente' => 'ALADI', 'gestion' => $gestion, 'flujo' => $flujo ?? 'todos', 'paises' => $paises]
+        );
     }
 
     /**
@@ -854,23 +956,37 @@ class PortalApi
     {
         $gestion ??= $this->gestionReciente(self::ORG_ALADI);
 
+        $tot  = $this->totalesAladi($gestion);
+        $expo = (float) $tot->where('flujo', '1')->sum('total');
+        $impo = (float) $tot->where('flujo', '2')->sum('total');
+
         $base = DB::table('ranking_comercio')
             ->where('organizacion_id', self::ORG_ALADI)
             ->when($gestion, fn ($q) => $q->where('gestion', $gestion));
 
-        $total = (float) (clone $base)->sum('valor');
+        $sumaTop = (float) (clone $base)->sum('valor');
         $items = (int) (clone $base)->count();
         $confidenciales = (int) (clone $base)->where('es_confidencial', true)->count();
 
-        $valores = (clone $base)->orderByDesc('valor')->pluck('valor')->map(fn ($v) => (float) $v);
-        $hhi = $total > 0 ? round($valores->reduce(fn ($c, $v) => $c + (($v / $total * 100) ** 2), 0.0), 1) : null;
-        $top5 = $total > 0 ? round($valores->take(5)->sum() / $total * 100, 1) : null;
+        // HHI por pais miembro (exportaciones derivadas): que tan concentrado
+        // esta el comercio del bloque entre sus miembros.
+        $expoPais = $tot->where('flujo', '1')->pluck('total')->map(fn ($v) => (float) $v);
+        $hhi = $expo > 0 ? round($expoPais->reduce(fn ($c, $v) => $c + (($v / $expo * 100) ** 2), 0.0), 1) : null;
+
+        // Participacion top 5 productos sobre la suma de los rankings.
+        $valores = (clone $base)->orderByDesc('valor')->limit(5)->pluck('valor')->map(fn ($v) => (float) $v);
+        $top5 = $sumaTop > 0 ? round($valores->sum() / $sumaTop * 100, 1) : null;
 
         return [
             'organizacion'      => 'ALADI',
             'gestion'           => $gestion,
-            'hay_importaciones' => false,
-            'valor_total'       => $total,
+            'hay_importaciones' => $impo > 0,
+            'exportaciones'     => $expo,
+            'importaciones'     => $impo,
+            'balanza_comercial' => $expo - $impo,
+            'cobertura_exportaciones' => ($expo + $impo) > 0 ? round($expo / ($expo + $impo) * 100, 1) : null,
+            'indice_cobertura'  => $impo > 0 ? round($expo / $impo * 100, 1) : null,
+            'paises_destino'    => $tot->pluck('pais_id')->unique()->count(),
             'items_ranking'     => $items,
             'items_confidenciales' => $confidenciales,
             'concentracion_hhi' => $hhi,

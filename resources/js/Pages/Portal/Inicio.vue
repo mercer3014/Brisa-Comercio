@@ -20,12 +20,12 @@ const hayDatos = computed(() => datos.value?.meta?.hay_datos);
 const meta = computed(() => datos.value?.meta ?? {});
 const ind = computed(() => datos.value?.indicadores ?? null);
 
-// INE y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
-// ALADI/FAOSTAT todavia no tienen un resumen equivalente para esta portada:
-// mandan a su panel dedicado en /organizaciones/{id} en vez de mostrar una
-// pantalla vacia.
+// INE, ALADI y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
+// FAOSTAT todavia no tiene un resumen equivalente para esta portada: manda a
+// su panel dedicado en /organizaciones/{id} en vez de mostrar una pantalla
+// vacia.
 const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
-const tienePanelPropio = computed(() => orgId.value !== 1 && orgId.value !== 3);
+const tienePanelPropio = computed(() => ![1, 2, 3].includes(orgId.value));
 
 // Refresca la portada al cambiar organizacion o gestion.
 async function refrescar() {

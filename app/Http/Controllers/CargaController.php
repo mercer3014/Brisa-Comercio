@@ -162,7 +162,20 @@ class CargaController extends Controller
         // 2) Mover el archivo a su ubicacion definitiva: cargas/{id}/datos.{ext}
         $rutaDestino = "cargas/{$carga->carga_id}/datos.{$ext}";
         Storage::disk('local')->makeDirectory("cargas/{$carga->carga_id}");
-        Storage::disk('local')->move($rutaTmp, $rutaDestino);
+        $movido = Storage::disk('local')->move($rutaTmp, $rutaDestino);
+
+        if (! $movido) {
+            $carga->update(['estado' => 'FALLIDO']);
+            Storage::disk('local')->deleteDirectory("cargas/{$carga->carga_id}");
+
+            \App\Servicios\Auditoria::registrar('CARGA_FALLIDA', 'carga_archivo', (string) $carga->carga_id, null, [
+                'nombre_archivo' => $carga->nombre_archivo,
+                'tipo_flujo'     => $carga->tipo_flujo,
+                'motivo'         => 'No se pudo mover el archivo a su ubicacion definitiva.',
+            ]);
+
+            return back()->with('error', "No se pudo guardar el archivo de la carga #{$carga->carga_id}. Vuelva a intentar la subida.");
+        }
 
         // 3) Guardar el mapeo resuelto (solo columnas marcadas) para el ETL.
         $mapeoResuelto = collect($datos['columnas'])

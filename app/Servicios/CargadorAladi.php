@@ -11,7 +11,12 @@ use Throwable;
  * Carga archivos ALADI — Rankings de productos hacia ranking_comercio.
  *
  * Cabecera esperada:
- *   N° | ÍTEM (Código SA) | DESCRIPCIÓN | VALOR (USD) | % TOTAL | VALOR ACUM. | % ACUM.
+ *   Ordinal | Item | Descripción | Valor | % / Total | Valor Acumulado | % Acumulado
+ *
+ * Cada archivo es el "top 50" de productos de UN pais miembro, para UN flujo
+ * (exportaciones o importaciones) y UNA gestion. ALADI publica los valores en
+ * MILES de USD: aqui se convierten a USD (x1000) para que toda la aplicacion
+ * hable la misma unidad que INE y MERCOSUR.
  *
  * Detecta filas confidenciales (código con guiones, ej. "87------") y
  * crea un registro en archivo_fuente para trazabilidad.
@@ -20,26 +25,60 @@ class CargadorAladi
 {
     private const ORG_ID = 2;
 
+    /** Miles de USD -> USD. */
+    private const FACTOR_USD = 1000;
+
+    /**
+     * Paises miembros de ALADI tal como vienen nombradas las carpetas del
+     * dataset: nombre propio, ISO numerico, alpha-2 y alpha-3.
+     */
+    private const PAISES = [
+        'ARGENTINA' => ['Argentina', 32,  'AR', 'ARG'],
+        'BOLIVIA'   => ['Bolivia',   68,  'BO', 'BOL'],
+        'BRASIL'    => ['Brasil',    76,  'BR', 'BRA'],
+        'CHILE'     => ['Chile',     152, 'CL', 'CHL'],
+        'COLOMBIA'  => ['Colombia',  170, 'CO', 'COL'],
+        'CUBA'      => ['Cuba',      192, 'CU', 'CUB'],
+        'ECUADOR'   => ['Ecuador',   218, 'EC', 'ECU'],
+        'MEXICO'    => ['México',    484, 'MX', 'MEX'],
+        'PANAMA'    => ['Panamá',    591, 'PA', 'PAN'],
+        'PARAGUAY'  => ['Paraguay',  600, 'PY', 'PRY'],
+        'PERU'      => ['Perú',      604, 'PE', 'PER'],
+        'URUGUAY'   => ['Uruguay',   858, 'UY', 'URY'],
+        'VENEZUELA' => ['Venezuela', 862, 'VE', 'VEN'],
+    ];
+
     public function __construct(private LectorArchivo $lector)
     {
     }
 
-    public function cargar(CargaArchivo $carga): void
-    {
+    /**
+     * @param string|null $rutaDirecta    leer este archivo del disco en vez del storage de la carga
+     * @param bool        $refrescarVistas refrescar las vistas materializadas al terminar (en lote se hace una sola vez al final)
+     * @param string|null $paisReportante  nombre de la carpeta del pais (ej. "ARGENTINA"); null = Bolivia (carga manual desde el panel)
+     */
+    public function cargar(
+        CargaArchivo $carga,
+        ?string $rutaDirecta = null,
+        bool $refrescarVistas = true,
+        ?string $paisReportante = null
+    ): void {
         $proceso = $carga->procesos()->create([
             'estado'       => 'EN_EJECUCION',
             'fecha_inicio' => now(),
         ]);
 
         try {
-            $ruta = $this->resolverRuta($carga->carga_id);
+            $ruta = $rutaDirecta ?? $this->resolverRuta($carga->carga_id);
             $ext  = pathinfo($ruta, PATHINFO_EXTENSION);
             $carga->update(['estado' => 'PROCESANDO']);
 
             $fuenteId  = $this->resolverFuente();
-            $archivoId = $this->crearArchivoFuente($carga, $ruta);
             $flujoId   = $this->resolverFlujo($carga->tipo_flujo);
-            $paisId    = $this->resolverPaisBolivia($fuenteId);
+            $paisId    = $paisReportante !== null
+                ? $this->resolverPaisReportante($paisReportante, $fuenteId)
+                : $this->resolverPaisBolivia();
+            $archivoId = $this->crearArchivoFuente($carga, $ruta, $paisId);
 
             // Idempotencia
             DB::table('ranking_comercio')->where('archivo_id', $archivoId)->delete();
@@ -52,7 +91,7 @@ class CargadorAladi
             foreach ($this->lector->iterarAsociativo($ruta, $ext) as $fila) {
                 $leidas++;
                 try {
-                    $row = $this->mapearFila($fila, $archivoId, $fuenteId, $flujoId, $paisId, $carga);
+                    $row = $this->mapearFila($fila, $archivoId, $flujoId, $paisId, $carga, $leidas + 1);
                     if ($row === null) {
                         continue;
                     }
@@ -88,7 +127,9 @@ class CargadorAladi
                 'mensaje_log'      => "ALADI: {$validas}/{$leidas} filas en ranking_comercio.",
             ]);
 
-            \Illuminate\Support\Facades\Artisan::call('comexhub:refrescar-vistas');
+            if ($refrescarVistas) {
+                \Illuminate\Support\Facades\Artisan::call('comexhub:refrescar-vistas');
+            }
         } catch (Throwable $e) {
             $carga->update(['estado' => 'FALLIDO']);
             $proceso->update([
@@ -105,18 +146,18 @@ class CargadorAladi
     private function mapearFila(
         array $fila,
         int $archivoId,
-        int $fuenteId,
         ?int $flujoId,
         ?int $paisId,
-        CargaArchivo $carga
+        CargaArchivo $carga,
+        int $filaExcel
     ): ?array {
-        $ordinal   = $this->buscarCol($fila, ['N°', 'N', 'No', 'Nro', 'Posicion', '#']);
-        $item      = $this->buscarCol($fila, ['ÍTEM (Código SA)', 'ITEM (Codigo SA)', 'ITEM', 'Codigo SA', 'Código SA', 'SA']);
+        $ordinal   = $this->buscarCol($fila, ['Ordinal', 'N°', 'N', 'No', 'Nro', 'Posicion', '#']);
+        $item      = $this->buscarCol($fila, ['Item', 'ÍTEM (Código SA)', 'ITEM (Codigo SA)', 'ITEM', 'Codigo SA', 'Código SA', 'SA']);
         $desc      = $this->buscarCol($fila, ['DESCRIPCIÓN', 'DESCRIPCION', 'Descripcion', 'Description']);
         $valor     = $this->buscarCol($fila, ['VALOR (USD)', 'VALOR', 'Valor', 'Value', 'USD']);
-        $pctTotal  = $this->buscarCol($fila, ['% TOTAL', 'TOTAL', 'PctTotal', '% del total']);
+        $pctTotal  = $this->buscarCol($fila, ['% / Total', '% TOTAL', 'TOTAL', 'PctTotal', '% del total']);
         $valAcum   = $this->buscarCol($fila, ['VALOR ACUM.', 'VALOR ACUM', 'Valor acumulado', 'ValorAcum']);
-        $pctAcum   = $this->buscarCol($fila, ['% ACUM.', '% ACUM', 'PctAcum', '% acumulado']);
+        $pctAcum   = $this->buscarCol($fila, ['% ACUM.', '% ACUM', 'PctAcum', '% acumulado', '% Acumulado']);
 
         $itemStr = trim((string) ($item ?? ''));
         if ($itemStr === '' || $itemStr === '0') {
@@ -128,6 +169,9 @@ class CargadorAladi
 
         $gestion = $carga->gestion ?? (int) date('Y');
 
+        $valorUsd = $this->numNull($valor);
+        $acumUsd  = $this->numNull($valAcum);
+
         return [
             'organizacion_id'         => self::ORG_ID,
             'archivo_id'              => $archivoId,
@@ -137,13 +181,13 @@ class CargadorAladi
             'gestion'                 => $gestion,
             'producto_codigo_externo_id' => null,
             'item_codigo'             => substr($itemStr, 0, 20),
-            'descripcion'             => $desc !== null ? substr(trim((string) $desc), 0, 500) : null,
+            'descripcion'             => $desc !== null ? substr(trim(preg_replace('/\s+/', ' ', (string) $desc)), 0, 500) : null,
             'es_confidencial'         => $esConfidencial,
-            'fila_excel'              => null,
+            'fila_excel'              => $filaExcel,
             'ordinal'                 => $ordinal !== null ? (int) $this->num($ordinal) : null,
-            'valor'                   => $this->numNull($valor),
+            'valor'                   => $valorUsd !== null ? $valorUsd * self::FACTOR_USD : null,
             'porcentaje_total'        => $this->numNull($pctTotal),
-            'valor_acumulado'         => $this->numNull($valAcum),
+            'valor_acumulado'         => $acumUsd !== null ? $acumUsd * self::FACTOR_USD : null,
             'porcentaje_acumulado'    => $this->numNull($pctAcum),
             'atributos_extra'         => null,
         ];
@@ -165,9 +209,49 @@ class CargadorAladi
         ], 'fuente_id');
     }
 
-    private function resolverPaisBolivia(int $fuenteId): ?int
+    /** Resuelve (o crea) el pais miembro dentro de la fuente ALADI. */
+    private function resolverPaisReportante(string $nombreCarpeta, int $fuenteId): int
     {
-        // Buscar Bolivia en cualquier fuente por iso_alpha3
+        $clave = strtoupper(trim($nombreCarpeta));
+        if (! isset(self::PAISES[$clave])) {
+            throw new \RuntimeException("Pais ALADI no reconocido: {$nombreCarpeta}");
+        }
+        [$nombre, $codigo, $iso2, $iso3] = self::PAISES[$clave];
+
+        $id = DB::table('pais')
+            ->where('fuente_id', $fuenteId)
+            ->where('iso_alpha3', $iso3)
+            ->value('pais_id');
+        if ($id) {
+            return (int) $id;
+        }
+
+        // ALADI no maneja zonas geoeconomicas: los paises cuelgan de "Sin zona".
+        $zonaId = DB::table('zona_geoeconomica')
+            ->where('fuente_id', $fuenteId)
+            ->where('codigo_zona', 0)
+            ->value('zona_id');
+        if (! $zonaId) {
+            $zonaId = (int) DB::table('zona_geoeconomica')->insertGetId([
+                'fuente_id'   => $fuenteId,
+                'codigo_zona' => 0,
+                'descripcion' => 'Sin zona',
+            ], 'zona_id');
+        }
+
+        return (int) DB::table('pais')->insertGetId([
+            'fuente_id'   => $fuenteId,
+            'zona_id'     => $zonaId,
+            'codigo_pais' => $codigo,
+            'nombre'      => $nombre,
+            'iso_alpha2'  => $iso2,
+            'iso_alpha3'  => $iso3,
+        ], 'pais_id');
+    }
+
+    /** Compatibilidad con la carga manual desde el panel (archivos de Bolivia). */
+    private function resolverPaisBolivia(): ?int
+    {
         $id = DB::table('pais')
             ->where(fn ($q) => $q->where('iso_alpha3', 'BOL')->orWhere('iso_alpha2', 'BO'))
             ->value('pais_id');
@@ -200,11 +284,25 @@ class CargadorAladi
         return (int) $id;
     }
 
-    private function crearArchivoFuente(CargaArchivo $carga, string $ruta): int
+    private function crearArchivoFuente(CargaArchivo $carga, string $ruta, ?int $paisId): int
     {
+        // ruta_archivo es UNIQUE en archivo_fuente: al recargar el mismo archivo
+        // se reutiliza su registro (y la idempotencia por archivo_id borra las
+        // filas previas del ranking antes de reinsertar).
+        $existente = DB::table('archivo_fuente')->where('ruta_archivo', $ruta)->value('archivo_id');
+        if ($existente) {
+            DB::table('archivo_fuente')->where('archivo_id', $existente)->update([
+                'pais_reportante_id' => $paisId,
+                'gestion'            => $carga->gestion,
+                'fecha_carga'        => now(),
+            ]);
+
+            return (int) $existente;
+        }
+
         return (int) DB::table('archivo_fuente')->insertGetId([
             'organizacion_id'     => self::ORG_ID,
-            'pais_reportante_id'  => null,
+            'pais_reportante_id'  => $paisId,
             'gestion'             => $carga->gestion,
             'ruta_archivo'        => $ruta,
             'fecha_carga'         => now(),

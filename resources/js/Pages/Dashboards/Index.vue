@@ -16,11 +16,12 @@ const cargando = ref(false);
 const d = ref(null); // datos
 
 // Organizaciones cuya arquitectura ya sabe leer este dashboard (cada una con
-// su propia fuente: INE = microdato, MERCOSUR = series por zona/producto).
-// El resto (ALADI, FAOSTAT) todavia usa su panel dedicado en /organizaciones/{id}.
-const ORGS_SOPORTADAS = [1, 3];
-// MERCOSUR no tiene desagregacion por departamento ni por medio de transporte
-// (eso es propio del microdato del INE), asi que esa pestania no aplica.
+// su propia fuente: INE = microdato, ALADI = rankings top-50 por pais,
+// MERCOSUR = series por zona/producto). El resto (FAOSTAT) todavia usa su
+// panel dedicado en /organizaciones/{id}.
+const ORGS_SOPORTADAS = [1, 2, 3];
+// MERCOSUR y ALADI no tienen desagregacion por departamento ni por medio de
+// transporte (eso es propio del microdato del INE), asi que esa pestania no aplica.
 const tabsBase = [
     { key: 'general', label: 'General' },
     { key: 'exportaciones', label: 'Exportaciones' },
@@ -30,7 +31,7 @@ const tabsBase = [
     { key: 'balanza', label: 'Balanza comercial' },
     { key: 'logistico', label: 'Logistico' },
 ];
-const tabs = computed(() => orgId.value === 3 ? tabsBase.filter((t) => t.key !== 'logistico') : tabsBase);
+const tabs = computed(() => [2, 3].includes(orgId.value) ? tabsBase.filter((t) => t.key !== 'logistico') : tabsBase);
 
 async function cargar() {
     cargando.value = true;
@@ -139,9 +140,9 @@ const distMedio = computed(() => {
 
 const k = computed(() => d.value?.kpis ?? {});
 
-// INE y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
-// ALADI/FAOSTAT todavia no tienen un agregador equivalente: mandan a su
-// propio panel en el portal publico en vez de mostrar una pantalla vacia.
+// INE, ALADI y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
+// FAOSTAT todavia no tiene un agregador equivalente: manda a su propio panel
+// en el portal publico en vez de mostrar una pantalla vacia.
 const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
 const sinMicrodato = computed(() => !ORGS_SOPORTADAS.includes(orgId.value));
 </script>

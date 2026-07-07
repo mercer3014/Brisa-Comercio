@@ -96,8 +96,8 @@ const opcEvol = computed(() => ({
     <section class="bg-white border-b border-gris-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4"><span class="w-7 h-px bg-rojo-500"></span> Tablero</p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Indicadores y ratios</h1>
-            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Indicadores del comercio exterior calculados sobre datos reales. Selecciona una organización y un año.</p>
+            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Indicadores</h1>
+            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Isfgndicadores del comercio exterior calculados sobre datos reales. Selecciona una organización y un año.</p>
         </div>
     </section>
 

@@ -44,6 +44,8 @@ Route::prefix('v1')->group(function () {
 
     // -- ALADI ------------------------------------------------------------
     Route::get('/charts/aladi/ranking', [ChartDataController::class, 'aladiRanking']);
+    Route::get('/charts/aladi/evolucion', [ChartDataController::class, 'aladiEvolucion']);
+    Route::get('/charts/aladi/paises', [ChartDataController::class, 'aladiPaises']);
 
     // -- FAOSTAT ----------------------------------------------------------
     Route::get('/charts/faostat/{subtipo}', [ChartDataController::class, 'faostat'])

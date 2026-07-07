@@ -152,8 +152,24 @@ class ChartDataController extends Controller
         $g = $this->gestion($r);
         $f = strtolower((string) $r->query('flujo', '')) ?: null;
         $l = $this->limit($r, 20);
+        $p = $r->integer('pais_id') ?: null;
 
-        return $this->cache("aladi-ranking.$f.$g.$l", fn () => $this->api->aladiRanking($g, $f, $l));
+        return $this->cache("aladi-ranking.$f.$g.$l.$p", fn () => $this->api->aladiRanking($g, $f, $l, $p));
+    }
+
+    public function aladiEvolucion(Request $r): JsonResponse
+    {
+        $p = $r->integer('pais_id') ?: null;
+
+        return $this->cache("aladi-evolucion.$p", fn () => $this->api->aladiEvolucion($p));
+    }
+
+    public function aladiPaises(Request $r): JsonResponse
+    {
+        $g = $this->gestion($r);
+        $f = strtolower((string) $r->query('flujo', '')) ?: null;
+
+        return $this->cache("aladi-paises.$g.$f", fn () => $this->api->aladiPaises($g, $f));
     }
 
     // ---- FAOSTAT ------------------------------------------------------------

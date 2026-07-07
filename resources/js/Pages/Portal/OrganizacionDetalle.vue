@@ -97,7 +97,7 @@ const ratios = computed(() => {
 
         <!-- Indicadores y ratios -->
         <div v-if="ratios.length">
-            <h2 class="titular-editorial text-2xl text-institucional-900 mb-4">Indicadores y ratios</h2>
+            <h2 class="titular-editorial text-2xl text-institucional-900 mb-4">Indicadores</h2>
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <div v-for="r in ratios" :key="r.label" class="tarjeta p-5 group relative">
                     <div class="flex items-center justify-between">

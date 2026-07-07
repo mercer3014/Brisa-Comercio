@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import ToastFlash from '@/Components/ToastFlash.vue';
 
 const page = usePage();
 const usuario = computed(() => page.props.auth?.usuario ?? null);
@@ -134,11 +135,8 @@ const anioActual = new Date().getFullYear();
         <div v-if="!esInicio" class="h-[62px]" aria-hidden="true"></div>
 
         <!-- Mensajes flash -->
-        <div v-if="flash.exito" class="max-w-7xl mx-auto w-full px-4 sm:px-6 mt-4">
-            <div class="px-4 py-3 rounded-lg bg-positivo-suave border border-positivo/30 text-positivo text-sm font-medium">
-                {{ flash.exito }}
-            </div>
-        </div>
+        <ToastFlash :mensaje="flash.exito" tipo="exito" />
+        <ToastFlash :mensaje="flash.error" tipo="error" />
 
         <!-- Contenido -->
         <main class="flex-1">

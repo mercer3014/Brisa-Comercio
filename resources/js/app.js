@@ -1,12 +1,16 @@
 import './bootstrap';
 import '../css/app.css';
 
-import { createApp, h } from 'vue';
+import { createApp, defineAsyncComponent, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import VueApexCharts from 'vue3-apexcharts';
 import LayoutAdmin from './Layouts/LayoutAdmin.vue';
 import LayoutPublico from './Layouts/LayoutPublico.vue';
+
+// ApexCharts pesa ~250 KB (gzip) y solo lo usan algunas paginas con graficos.
+// Se registra como componente global pero de carga diferida: el bundle solo
+// se descarga cuando una pagina realmente renderiza un <apexchart>.
+const ApexChartLazy = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default));
 
 const appName = import.meta.env.VITE_APP_NAME || 'Geodata';
 
@@ -30,7 +34,7 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)
-            .use(VueApexCharts)
+            .component('apexchart', ApexChartLazy)
             .mount(el);
     },
     progress: {

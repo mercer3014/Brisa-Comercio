@@ -17,11 +17,18 @@ class RankingPortal
     public const FLUJO_IMPORTACION = 2;
 
     /**
+     * ALADI no esta en las vistas del microdato: sus rankings top-50 viven en
+     * ranking_comercio y se resuelven con una rama propia con la misma forma
+     * de salida.
+     */
+    private const ORG_ALADI = 2;
+
+    /**
      * Configuracion por dimension: vista, tabla de nombre y columnas de join/etiqueta.
      */
     private function dim(string $dimension): array
     {
-        return match ($dimension) {
+        return ['dimension' => $dimension] + match ($dimension) {
             'pais' => [
                 'vista' => 'resumen_anual_pais', 'tabla' => 'pais', 'fk' => 'pais_id',
                 'pk' => 'pais_id', 'label' => 'nombre',
@@ -49,6 +56,10 @@ class RankingPortal
      */
     public function ranking(int $orgId, int $gestion, int $flujo, string $dimension, string $metrica, int $limite): array
     {
+        if ($orgId === self::ORG_ALADI) {
+            return $this->rankingAladi($gestion, $flujo, $dimension, $metrica, $limite);
+        }
+
         $cfg = $this->dim($dimension);
         $col = $this->colMetrica($metrica);
 
@@ -166,6 +177,10 @@ class RankingPortal
      */
     private function valoresPorItem(int $orgId, int $gestion, int $flujo, array $cfg): array
     {
+        if ($orgId === self::ORG_ALADI) {
+            return $this->valoresAladi($gestion, $flujo, $cfg['dimension'] ?? 'producto');
+        }
+
         return DB::table($cfg['vista'] . ' as r')
             ->join($cfg['tabla'] . ' as x', "x.{$cfg['pk']}", '=', "r.{$cfg['fk']}")
             ->where('r.organizacion_id', $orgId)->where('r.gestion', $gestion)->where('r.flujo_id', $flujo)
@@ -197,5 +212,93 @@ class RankingPortal
     private function nombreFlujo(int $flujo): string
     {
         return $flujo === self::FLUJO_EXPORTACION ? 'Exportacion' : 'Importacion';
+    }
+
+    // =========================================================================
+    //  Rama ALADI (ranking_comercio)
+    // =========================================================================
+
+    /**
+     * Ranking ALADI por producto (suma de los top-50 de los miembros) o por
+     * pais miembro (totales derivados del % acumulado). Sin datos de peso ni
+     * de departamento: esas combinaciones devuelven filas vacias.
+     */
+    private function rankingAladi(int $gestion, int $flujo, string $dimension, string $metrica, int $limite): array
+    {
+        $titulo = $this->titulo($dimension, $flujo, $metrica, $gestion) . ' — ALADI';
+
+        if ($metrica === 'peso' || $dimension === 'departamento') {
+            return ['titulo' => $titulo, 'metrica' => $metrica, 'unidad' => $metrica === 'peso' ? 'kg' : 'USD', 'total' => 0.0, 'filas' => []];
+        }
+
+        $valores = $this->valoresAladi($gestion, $flujo, $dimension);
+        arsort($valores);
+        $total = array_sum($valores);
+
+        $filas = [];
+        $acum = 0.0;
+        $pos = 0;
+        foreach (array_slice($valores, 0, $limite, true) as $label => $valor) {
+            $pct = $total > 0 ? $valor / $total * 100 : 0;
+            $acum += $pct;
+            $filas[] = [
+                'posicion'   => ++$pos,
+                'label'      => $label,
+                'valor'      => $valor,
+                'porcentaje' => round($pct, 2),
+                'acumulado'  => round($acum, 2),
+            ];
+        }
+
+        return [
+            'titulo'  => $titulo,
+            'metrica' => $metrica,
+            'unidad'  => 'USD',
+            'total'   => $total,
+            'filas'   => $filas,
+        ];
+    }
+
+    /** Valor por item (label => valor USD) para ALADI en una gestion y flujo. */
+    private function valoresAladi(int $gestion, int $flujo, string $dimension): array
+    {
+        $codigo = (string) $flujo;
+
+        if ($dimension === 'pais') {
+            // Total derivado por pais miembro: suma_top50 * 100 / pct_acumulado.
+            return DB::table('ranking_comercio as rc')
+                ->join('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
+                ->join('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
+                ->where('rc.organizacion_id', self::ORG_ALADI)
+                ->where('rc.gestion', $gestion)
+                ->where('fl.codigo_flujo', $codigo)
+                ->selectRaw('pa.nombre as label')
+                ->selectRaw('SUM(COALESCE(rc.valor,0)) as suma_top')
+                ->selectRaw('MAX(rc.porcentaje_acumulado) as pct')
+                ->groupBy('pa.nombre')
+                ->get()
+                ->mapWithKeys(function ($r) {
+                    $suma = (float) $r->suma_top;
+                    $pct = (float) $r->pct;
+
+                    return [$r->label => $pct > 0 ? $suma * 100 / $pct : $suma];
+                })
+                ->all();
+        }
+
+        // producto: suma de los rankings de todos los miembros, agrupada por
+        // descripcion (misma semantica que la rama del microdato, que agrupa
+        // por la etiqueta de la dimension).
+        return DB::table('ranking_comercio as rc')
+            ->join('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
+            ->where('rc.organizacion_id', self::ORG_ALADI)
+            ->where('rc.gestion', $gestion)
+            ->where('fl.codigo_flujo', $codigo)
+            ->selectRaw('COALESCE(rc.descripcion, rc.item_codigo) as label')
+            ->selectRaw('SUM(COALESCE(rc.valor,0)) as valor')
+            ->groupBy(DB::raw('COALESCE(rc.descripcion, rc.item_codigo)'))
+            ->get()
+            ->mapWithKeys(fn ($r) => [(string) $r->label => (float) $r->valor])
+            ->all();
     }
 }

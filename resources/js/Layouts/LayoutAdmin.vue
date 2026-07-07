@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, reactive } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import ToastFlash from '@/Components/ToastFlash.vue';
 
 const page = usePage();
 const usuario = computed(() => page.props.auth?.usuario ?? null);
@@ -275,12 +276,8 @@ const iniciales = computed(() => {
 
             <!-- Area de contenido -->
             <main class="flex-1 overflow-y-auto">
-                <div v-if="flash.exito" class="m-4 mb-0 px-4 py-3 rounded-md bg-positivo-suave border border-positivo/30 text-positivo text-sm font-medium">
-                    {{ flash.exito }}
-                </div>
-                <div v-if="flash.error" class="m-4 mb-0 px-4 py-3 rounded-md bg-negativo-suave border border-negativo/30 text-negativo text-sm font-medium">
-                    {{ flash.error }}
-                </div>
+                <ToastFlash :mensaje="flash.exito" tipo="exito" />
+                <ToastFlash :mensaje="flash.error" tipo="error" />
 
                 <div class="p-6">
                     <slot />

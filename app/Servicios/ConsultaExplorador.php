@@ -13,6 +13,13 @@ use Illuminate\Support\Facades\DB;
 class ConsultaExplorador
 {
     /**
+     * ALADI no usa el microdato: sus rankings top-50 viven en ranking_comercio,
+     * asi que sus consultas se resuelven con una rama propia que devuelve
+     * exactamente la misma forma (columnas y claves) que la del microdato.
+     */
+    private const ORG_ALADI = 2;
+
+    /**
      * Filtros directos: clave de filtro => columna en la tabla de hechos.
      */
     private array $directos = [
@@ -108,6 +115,19 @@ class ConsultaExplorador
      */
     public function totales(int $orgId, array $f): array
     {
+        if ($orgId === self::ORG_ALADI) {
+            $row = $this->aplicarAladi($this->baseAladi(), $f)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('COALESCE(SUM(COALESCE(rc.valor,0)),0) as valor')
+                ->first();
+
+            return [
+                'total' => (int) $row->total,
+                'valor' => (float) $row->valor,
+                'peso'  => 0.0, // ALADI no publica volumen fisico
+            ];
+        }
+
         $row = $this->aplicar($this->base($orgId), $f)
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('COALESCE(SUM(COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)),0) as valor')
@@ -127,6 +147,33 @@ class ConsultaExplorador
      */
     public function detalleQuery(int $orgId, array $f): Builder
     {
+        if ($orgId === self::ORG_ALADI) {
+            // Mismas columnas/alias que la rama del microdato (la vista y la
+            // exportacion no distinguen la fuente). Se envuelve en un fromSub
+            // con alias "o" para que el orden por o.operacion_id siga valiendo.
+            $sub = $this->aplicarAladi($this->baseAladi(), $f)
+                ->leftJoin('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
+                ->leftJoin('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
+                ->select([
+                    'rc.ranking_id as operacion_id',
+                    'rc.gestion',
+                    DB::raw("'Anual' as mes"),
+                    DB::raw('fl.descripcion as tipo_operacion'),
+                    'rc.item_codigo as codigo_nandina',
+                    'rc.descripcion as producto',
+                    'pa.nombre as pais',
+                    DB::raw('NULL as departamento'),
+                    DB::raw('NULL as medio'),
+                    DB::raw('NULL as via'),
+                    DB::raw('NULL as peso_bruto_kg'),
+                    DB::raw('NULL as peso_neto_kg'),
+                    DB::raw("CASE WHEN fl.codigo_flujo = '2' THEN NULL ELSE rc.valor END as valor_fob_usd"),
+                    DB::raw("CASE WHEN fl.codigo_flujo = '2' THEN rc.valor ELSE NULL END as valor_cif_frontera_usd"),
+                ]);
+
+            return DB::query()->fromSub($sub, 'o')->select('o.*');
+        }
+
         return $this->aplicar($this->base($orgId), $f)
             ->join('producto as p', 'p.producto_id', '=', 'o.producto_id')
             ->join('pais as pa', 'pa.pais_id', '=', 'o.pais_id')
@@ -167,6 +214,26 @@ class ConsultaExplorador
      */
     public function graficos(int $orgId, array $f, int $n = 10): array
     {
+        if ($orgId === self::ORG_ALADI) {
+            $topPaises = $this->aplicarAladi($this->baseAladi(), $f)
+                ->join('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
+                ->selectRaw('pa.nombre as label')
+                ->selectRaw('SUM(COALESCE(rc.valor,0)) as valor')
+                ->groupBy('pa.nombre')->orderByDesc('valor')->limit($n)
+                ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
+
+            $topProductos = $this->aplicarAladi($this->baseAladi(), $f)
+                ->selectRaw('rc.item_codigo, MAX(rc.descripcion) as label')
+                ->selectRaw('SUM(COALESCE(rc.valor,0)) as valor')
+                ->groupBy('rc.item_codigo')->orderByDesc('valor')->limit($n)
+                ->get()->map(fn ($r) => [
+                    'label' => mb_strimwidth((string) ($r->label ?: $r->item_codigo), 0, 40, '...'),
+                    'valor' => (float) $r->valor,
+                ])->all();
+
+            return ['top_paises' => $topPaises, 'top_productos' => $topProductos];
+        }
+
         $valor = 'COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)';
 
         $topPaises = $this->aplicar($this->base($orgId), $f)
@@ -197,6 +264,10 @@ class ConsultaExplorador
      */
     public function facetas(int $orgId, array $f): array
     {
+        if ($orgId === self::ORG_ALADI) {
+            return $this->facetasAladi($f);
+        }
+
         $facetas = [];
 
         // Facetas por columna directa de hechos.
@@ -242,5 +313,72 @@ class ConsultaExplorador
             ->select('cs.seccion_id as id', DB::raw('COUNT(*) as n'))->groupBy('cs.seccion_id')->pluck('n', 'id')->all();
 
         return $facetas;
+    }
+
+    // =========================================================================
+    //  Rama ALADI (ranking_comercio)
+    // =========================================================================
+
+    private function baseAladi(): Builder
+    {
+        return DB::table('ranking_comercio as rc')->where('rc.organizacion_id', self::ORG_ALADI);
+    }
+
+    /**
+     * Filtros aplicables a ALADI: gestion, pais (reportante), tipo de operacion
+     * (mapeado al flujo) y busqueda libre. El resto de facetas del microdato
+     * (departamento, medio, via, clasificaciones) no existe en los rankings.
+     */
+    private function aplicarAladi(Builder $q, array $f, ?string $excepto = null): Builder
+    {
+        if ($excepto !== 'gestion' && ! empty($f['gestion'])) {
+            $q->whereIn('rc.gestion', $f['gestion']);
+        }
+        if ($excepto !== 'pais' && ! empty($f['pais'])) {
+            $q->whereIn('rc.pais_reportante_id', $f['pais']);
+        }
+
+        // tipo_operacion del INE (1/3 = exportacion, 2 = importacion) -> codigo de flujo
+        if ($excepto !== 'tipo_operacion' && ! empty($f['tipo_operacion'])) {
+            $codigos = collect($f['tipo_operacion'])
+                ->map(fn ($id) => (int) $id === 2 ? '2' : '1')
+                ->unique()->values()->all();
+            $q->whereIn('rc.flujo_id', function ($s) use ($codigos) {
+                $s->select('flujo_id')->from('flujo_comercial')->whereIn('codigo_flujo', $codigos);
+            });
+        }
+
+        if (! empty($f['busqueda'])) {
+            $texto = '%'.trim($f['busqueda']).'%';
+            $q->where(function ($w) use ($texto) {
+                $w->where('rc.descripcion', 'ilike', $texto)
+                    ->orWhere('rc.item_codigo', 'ilike', $texto)
+                    ->orWhereIn('rc.pais_reportante_id', fn ($s) => $s->select('pais_id')->from('pais')->where('nombre', 'ilike', $texto));
+            });
+        }
+
+        return $q;
+    }
+
+    private function facetasAladi(array $f): array
+    {
+        // codigo_flujo '1'/'2' coincide con tipo_operacion_id 1/2 del catalogo INE.
+        $tipoOperacion = $this->aplicarAladi($this->baseAladi(), $f, 'tipo_operacion')
+            ->join('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
+            ->select('fl.codigo_flujo as id', DB::raw('COUNT(*) as n'))
+            ->groupBy('fl.codigo_flujo')
+            ->pluck('n', 'id')
+            ->mapWithKeys(fn ($n, $c) => [(int) $c => (int) $n])
+            ->all();
+
+        return [
+            'tipo_operacion' => $tipoOperacion,
+            'gestion' => $this->aplicarAladi($this->baseAladi(), $f, 'gestion')
+                ->select('rc.gestion as id', DB::raw('COUNT(*) as n'))
+                ->groupBy('rc.gestion')->pluck('n', 'id')->all(),
+            'pais' => $this->aplicarAladi($this->baseAladi(), $f, 'pais')
+                ->select('rc.pais_reportante_id as id', DB::raw('COUNT(*) as n'))
+                ->groupBy('rc.pais_reportante_id')->pluck('n', 'id')->all(),
+        ];
     }
 }
