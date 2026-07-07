@@ -40,7 +40,26 @@ async function refrescar() {
     }
 }
 
-watch([orgId, gestion], refrescar);
+// Cada organizacion tiene su propio rango de anios con datos (INE llega a 2026,
+// ALADI a 2025, etc.): al cambiar de organizacion se ajusta la lista de
+// gestiones y se salta a la mas reciente de esa organizacion.
+const gestionesOrg = ref([...props.gestiones]);
+
+watch(orgId, async () => {
+    try {
+        const { data } = await axios.get('/api/v1/filtros/gestiones', { params: { org: orgId.value } });
+        const lista = data?.data ?? [];
+        gestionesOrg.value = lista.length ? lista : [...props.gestiones];
+    } catch {
+        gestionesOrg.value = [...props.gestiones];
+    }
+    if (!gestionesOrg.value.includes(gestion.value)) {
+        gestion.value = gestionesOrg.value[0] ?? null; // el watch de gestion refresca
+    } else {
+        refrescar();
+    }
+});
+watch(gestion, refrescar);
 
 // --- Formato ---
 const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -305,8 +324,8 @@ const modos = [
             <div class="flex items-center gap-2.5">
                 <label class="text-sm font-medium text-institucional-500">Gestión</label>
                 <select v-model="gestion" class="rounded-lg border border-gris-200 bg-white px-3 py-1.5 text-sm font-semibold text-institucional-800 focus:outline-none focus:border-rojo-500 focus:ring-2 focus:ring-rojo-500/20 transition">
-                    <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
-                    <option v-if="!gestiones.length" :value="null">Sin datos</option>
+                    <option v-for="g in gestionesOrg" :key="g" :value="g">{{ g }}</option>
+                    <option v-if="!gestionesOrg.length" :value="null">Sin datos</option>
                 </select>
             </div>
 

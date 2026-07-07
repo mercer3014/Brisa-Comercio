@@ -17,11 +17,12 @@ class RankingPortal
     public const FLUJO_IMPORTACION = 2;
 
     /**
-     * ALADI no esta en las vistas del microdato: sus rankings top-50 viven en
-     * ranking_comercio y se resuelven con una rama propia con la misma forma
-     * de salida.
+     * ALADI y MERCOSUR no estan en las vistas del microdato: sus datos viven
+     * en ranking_comercio y en las series serie_comercio_* respectivamente, y
+     * se resuelven con ramas propias con la misma forma de salida.
      */
-    private const ORG_ALADI = 2;
+    private const ORG_ALADI    = 2;
+    private const ORG_MERCOSUR = 3;
 
     /**
      * Configuracion por dimension: vista, tabla de nombre y columnas de join/etiqueta.
@@ -58,6 +59,9 @@ class RankingPortal
     {
         if ($orgId === self::ORG_ALADI) {
             return $this->rankingAladi($gestion, $flujo, $dimension, $metrica, $limite);
+        }
+        if ($orgId === self::ORG_MERCOSUR) {
+            return $this->rankingMercosur($gestion, $flujo, $dimension, $metrica, $limite);
         }
 
         $cfg = $this->dim($dimension);
@@ -180,6 +184,9 @@ class RankingPortal
         if ($orgId === self::ORG_ALADI) {
             return $this->valoresAladi($gestion, $flujo, $cfg['dimension'] ?? 'producto');
         }
+        if ($orgId === self::ORG_MERCOSUR) {
+            return $this->valoresMercosur($gestion, $flujo, $cfg['dimension'] ?? 'producto', 'valor');
+        }
 
         return DB::table($cfg['vista'] . ' as r')
             ->join($cfg['tabla'] . ' as x', "x.{$cfg['pk']}", '=', "r.{$cfg['fk']}")
@@ -231,7 +238,30 @@ class RankingPortal
             return ['titulo' => $titulo, 'metrica' => $metrica, 'unidad' => $metrica === 'peso' ? 'kg' : 'USD', 'total' => 0.0, 'filas' => []];
         }
 
-        $valores = $this->valoresAladi($gestion, $flujo, $dimension);
+        return $this->armarRanking($this->valoresAladi($gestion, $flujo, $dimension), $titulo, $metrica, 'USD', $limite);
+    }
+
+    /**
+     * Ranking MERCOSUR por producto (serie_comercio_producto_zona) o por pais
+     * socio (serie_comercio_zona), por valor o por volumen. Sin desglose por
+     * departamento (eso es del microdato del INE).
+     */
+    private function rankingMercosur(int $gestion, int $flujo, string $dimension, string $metrica, int $limite): array
+    {
+        $titulo = $this->titulo($dimension, $flujo, $metrica, $gestion) . ' — MERCOSUR';
+        $unidad = $metrica === 'peso' ? 'kg' : 'USD';
+
+        if ($dimension === 'departamento') {
+            return ['titulo' => $titulo, 'metrica' => $metrica, 'unidad' => $unidad, 'total' => 0.0, 'filas' => []];
+        }
+
+        return $this->armarRanking($this->valoresMercosur($gestion, $flujo, $dimension, $metrica), $titulo, $metrica, $unidad, $limite);
+    }
+
+    /** Arma la respuesta estandar (posicion, %, % acumulado) desde label => valor. */
+    private function armarRanking(array $valores, string $titulo, string $metrica, string $unidad, int $limite): array
+    {
+        $valores = array_filter($valores, fn ($v) => $v > 0);
         arsort($valores);
         $total = array_sum($valores);
 
@@ -253,10 +283,49 @@ class RankingPortal
         return [
             'titulo'  => $titulo,
             'metrica' => $metrica,
-            'unidad'  => 'USD',
+            'unidad'  => $unidad,
             'total'   => $total,
             'filas'   => $filas,
         ];
+    }
+
+    /** Columna MERCOSUR segun flujo y metrica (valor USD o volumen kg). */
+    private function colMercosur(int $flujo, string $metrica): string
+    {
+        if ($metrica === 'peso') {
+            return $flujo === self::FLUJO_EXPORTACION ? 'volumen_export_kg' : 'volumen_import_kg';
+        }
+
+        return $flujo === self::FLUJO_EXPORTACION ? 'exportaciones_usd' : 'importaciones_cif_usd';
+    }
+
+    /** Valor por item (label => valor) para MERCOSUR en una gestion y flujo. */
+    private function valoresMercosur(int $gestion, int $flujo, string $dimension, string $metrica): array
+    {
+        $col = $this->colMercosur($flujo, $metrica);
+
+        if ($dimension === 'pais') {
+            return DB::table('serie_comercio_zona as s')
+                ->join('pais as pa', 'pa.pais_id', '=', 's.pais_id')
+                ->where('s.organizacion_id', self::ORG_MERCOSUR)
+                ->where('s.gestion', $gestion)
+                ->selectRaw('pa.nombre as label')
+                ->selectRaw("SUM(COALESCE(s.{$col},0)) as valor")
+                ->groupBy('pa.nombre')
+                ->get()
+                ->mapWithKeys(fn ($r) => [(string) $r->label => (float) $r->valor])
+                ->all();
+        }
+
+        return DB::table('serie_comercio_producto_zona as s')
+            ->where('s.organizacion_id', self::ORG_MERCOSUR)
+            ->where('s.gestion', $gestion)
+            ->selectRaw('COALESCE(s.ncm_descripcion, s.ncm_codigo) as label')
+            ->selectRaw("SUM(COALESCE(s.{$col},0)) as valor")
+            ->groupBy(DB::raw('COALESCE(s.ncm_descripcion, s.ncm_codigo)'))
+            ->get()
+            ->mapWithKeys(fn ($r) => [(string) $r->label => (float) $r->valor])
+            ->all();
     }
 
     /** Valor por item (label => valor USD) para ALADI en una gestion y flujo. */

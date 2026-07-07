@@ -8,6 +8,7 @@ use App\Servicios\AgregadorDashboardAladi;
 use App\Servicios\AgregadorDashboardMercosur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,32 +50,41 @@ class DashboardController extends Controller
         $org = $datos['organizacion_id'];
         $gestion = $datos['gestion'] ?? null;
 
-        if ($org === 3 || $org === 2) {
-            $servicio = $org === 3 ? $aggMercosur : $aggAladi;
+        // Cache: las agregaciones (sobre todo las del microdato del INE, con
+        // millones de filas) son costosas y solo cambian con una carga nueva
+        // (la version del cache es el ultimo carga_id).
+        $ver = (int) DB::table('carga_archivo')->max('carga_id');
 
-            return response()->json([
-                'kpis'                      => $servicio->kpis($gestion),
-                'evolucion_mensual'         => $servicio->evolucionMensual($gestion),
-                'evolucion_anual'           => $servicio->evolucionAnual(),
-                'top_paises'                => $servicio->topPaises($gestion),
-                'top_productos'             => $servicio->topProductos($gestion),
-                'distribucion_zona'         => $servicio->distribucionZona($gestion),
-                'distribucion_departamento' => $servicio->distribucionDepartamento(),
-                'participacion_pais'        => $servicio->participacionPais($gestion),
-                'distribucion_medio'        => $servicio->distribucionMedio(),
-            ]);
-        }
+        $respuesta = Cache::remember("dash.datos.{$ver}.{$org}.".($gestion ?? 'todas'), 86400, function () use ($org, $gestion, $agg, $aggMercosur, $aggAladi) {
+            if ($org === 3 || $org === 2) {
+                $servicio = $org === 3 ? $aggMercosur : $aggAladi;
 
-        return response()->json([
-            'kpis'                     => $agg->kpis($org, $gestion),
-            'evolucion_mensual'        => $agg->evolucionMensual($org, $gestion),
-            'evolucion_anual'          => $agg->evolucionAnual($org),
-            'top_paises'               => $agg->topPaises($org, $gestion),
-            'top_productos'            => $agg->topProductos($org, $gestion),
-            'distribucion_zona'        => $agg->distribucionZona($org, $gestion),
-            'distribucion_departamento' => $agg->distribucionDepartamento($org, $gestion),
-            'participacion_pais'       => $agg->participacionPais($org, $gestion),
-            'distribucion_medio'       => $agg->distribucionMedio($org, $gestion),
-        ]);
+                return [
+                    'kpis'                      => $servicio->kpis($gestion),
+                    'evolucion_mensual'         => $servicio->evolucionMensual($gestion),
+                    'evolucion_anual'           => $servicio->evolucionAnual(),
+                    'top_paises'                => $servicio->topPaises($gestion),
+                    'top_productos'             => $servicio->topProductos($gestion),
+                    'distribucion_zona'         => $servicio->distribucionZona($gestion),
+                    'distribucion_departamento' => $servicio->distribucionDepartamento(),
+                    'participacion_pais'        => $servicio->participacionPais($gestion),
+                    'distribucion_medio'        => $servicio->distribucionMedio(),
+                ];
+            }
+
+            return [
+                'kpis'                     => $agg->kpis($org, $gestion),
+                'evolucion_mensual'        => $agg->evolucionMensual($org, $gestion),
+                'evolucion_anual'          => $agg->evolucionAnual($org),
+                'top_paises'               => $agg->topPaises($org, $gestion),
+                'top_productos'            => $agg->topProductos($org, $gestion),
+                'distribucion_zona'        => $agg->distribucionZona($org, $gestion),
+                'distribucion_departamento' => $agg->distribucionDepartamento($org, $gestion),
+                'participacion_pais'       => $agg->participacionPais($org, $gestion),
+                'distribucion_medio'       => $agg->distribucionMedio($org, $gestion),
+            ];
+        });
+
+        return response()->json($respuesta);
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Configuracion;
 use App\Servicios\ConsultaExplorador;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,11 +37,27 @@ class ExploradorController extends Controller
 
         $org = $datos['organizacion_id'];
         $filtros = $this->normalizarFiltros($datos['filtros'] ?? []);
+        $porPagina = $datos['por_pagina'] ?? 25;
+        $pagina = $datos['pagina'] ?? 1;
+
+        // Cache: los agregados sobre millones de filas son costosos y solo
+        // cambian cuando se carga un archivo nuevo (la version del cache es el
+        // ultimo carga_id). Totales+facetas se cachean sin la pagina, para que
+        // paginar solo recalcule la tabla.
+        $ver = (int) DB::table('carga_archivo')->max('carga_id');
+        $hash = md5(json_encode([$org, $filtros]));
+
+        $agregados = Cache::remember("expl.agg.{$ver}.{$hash}", 86400, fn () => [
+            'totales' => $consulta->totales($org, $filtros),
+            'facetas' => $consulta->facetas($org, $filtros),
+        ]);
+        $tabla = Cache::remember("expl.tabla.{$ver}.{$hash}.{$pagina}.{$porPagina}", 86400,
+            fn () => $consulta->tabla($org, $filtros, $porPagina, $pagina));
 
         return response()->json([
-            'totales' => $consulta->totales($org, $filtros),
-            'tabla'   => $consulta->tabla($org, $filtros, $datos['por_pagina'] ?? 25, $datos['pagina'] ?? 1),
-            'facetas' => $consulta->facetas($org, $filtros),
+            'totales' => $agregados['totales'],
+            'tabla'   => $tabla,
+            'facetas' => $agregados['facetas'],
         ]);
     }
 

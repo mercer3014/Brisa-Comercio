@@ -25,6 +25,26 @@ const f = reactive({
 const ranking = ref(null);
 const cargandoR = ref(false);
 
+// Cada organizacion tiene su propio rango de anios con datos (INE llega a 2026,
+// ALADI a 2025, etc.): la lista de gestiones se pide por organizacion y al
+// cambiar de organizacion se salta a su gestion mas reciente.
+const gestionesOrg = ref([...props.gestiones]);
+
+async function cargarGestiones() {
+    try {
+        const { data } = await axios.get('/api/v1/filtros/gestiones', { params: { org: f.organizacion_id } });
+        const lista = data?.data ?? [];
+        gestionesOrg.value = lista.length ? lista : [...props.gestiones];
+    } catch {
+        gestionesOrg.value = [...props.gestiones];
+    }
+    const g = gestionesOrg.value;
+    if (!g.includes(f.gestion)) f.gestion = g[0] ?? null;
+    if (!g.includes(c.gestion)) c.gestion = g[0] ?? null;
+    if (!g.includes(c.anio_b)) c.anio_b = g[0] ?? null;
+    if (!g.includes(c.anio_a)) c.anio_a = g[1] ?? g[0] ?? null;
+}
+
 async function cargarRanking() {
     if (!f.gestion) return;
     cargandoR.value = true;
@@ -67,7 +87,16 @@ async function cargarComparador() {
 }
 
 onMounted(cargarRanking);
-watch([() => f.organizacion_id, () => f.gestion, () => f.flujo, () => f.dimension, () => f.metrica, () => f.limite], cargarRanking);
+watch([() => f.gestion, () => f.flujo, () => f.dimension, () => f.metrica, () => f.limite], cargarRanking);
+// Al cambiar la organizacion: sincronizar el comparador, ajustar las gestiones
+// disponibles y recargar (si la gestion cambio, el watch de arriba ya recarga).
+watch(() => f.organizacion_id, async () => {
+    c.organizacion_id = f.organizacion_id;
+    const antes = f.gestion;
+    await cargarGestiones();
+    if (f.gestion === antes) cargarRanking();
+    comparador.value = null;
+});
 watch(tab, (t) => { if (t === 'comparador' && !comparador.value) cargarComparador(); });
 
 // --- Formato ---
@@ -114,7 +143,8 @@ const opcRanking = computed(() => {
     };
 });
 
-const gestionesDesc = computed(() => [...props.gestiones]);
+const gestionesDesc = computed(() => [...gestionesOrg.value]);
+const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === f.organizacion_id));
 </script>
 
 <template>
@@ -236,7 +266,12 @@ const gestionesDesc = computed(() => [...props.gestiones]);
 
         <!-- ============ COMPARADORES ============ -->
         <div v-show="tab === 'comparador'" class="mt-6">
-            <div class="tarjeta p-4 grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div class="tarjeta p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
+                <label class="text-xs font-medium text-gris-500">Organizacion
+                    <select v-model="f.organizacion_id" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
+                        <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.sigla || o.nombre }}</option>
+                    </select>
+                </label>
                 <label class="text-xs font-medium text-gris-500">Comparar
                     <select v-model="c.modo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                         <option value="anios">Dos anios</option>
@@ -333,6 +368,6 @@ const gestionesDesc = computed(() => [...props.gestiones]);
             </div>
         </div>
 
-        <p class="text-xs text-gris-400 mt-6">Fuente: INE - Bolivia. Los porcentajes del ranking se calculan sobre el total general de la dimension.</p>
+        <p class="text-xs text-gris-400 mt-6">Fuente: {{ orgActual?.sigla || 'INE' }}. Los porcentajes del ranking se calculan sobre el total general de la dimension.</p>
     </section>
 </template>

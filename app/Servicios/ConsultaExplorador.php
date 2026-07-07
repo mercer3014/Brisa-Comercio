@@ -13,11 +13,13 @@ use Illuminate\Support\Facades\DB;
 class ConsultaExplorador
 {
     /**
-     * ALADI no usa el microdato: sus rankings top-50 viven en ranking_comercio,
-     * asi que sus consultas se resuelven con una rama propia que devuelve
-     * exactamente la misma forma (columnas y claves) que la del microdato.
+     * ALADI y MERCOSUR no usan el microdato: sus datos viven en
+     * ranking_comercio y serie_comercio_producto_zona respectivamente, asi que
+     * sus consultas se resuelven con ramas propias que devuelven exactamente
+     * la misma forma (columnas y claves) que la del microdato.
      */
-    private const ORG_ALADI = 2;
+    private const ORG_ALADI    = 2;
+    private const ORG_MERCOSUR = 3;
 
     /**
      * Filtros directos: clave de filtro => columna en la tabla de hechos.
@@ -128,6 +130,20 @@ class ConsultaExplorador
             ];
         }
 
+        if ($orgId === self::ORG_MERCOSUR) {
+            $row = $this->unionMercosur($f)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('COALESCE(SUM(COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)),0) as valor')
+                ->selectRaw('COALESCE(SUM(COALESCE(o.peso_bruto_kg,0)),0) as peso')
+                ->first();
+
+            return [
+                'total' => (int) $row->total,
+                'valor' => (float) $row->valor,
+                'peso'  => (float) $row->peso,
+            ];
+        }
+
         $row = $this->aplicar($this->base($orgId), $f)
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('COALESCE(SUM(COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)),0) as valor')
@@ -174,6 +190,10 @@ class ConsultaExplorador
             return DB::query()->fromSub($sub, 'o')->select('o.*');
         }
 
+        if ($orgId === self::ORG_MERCOSUR) {
+            return $this->unionMercosur($f)->select('o.*');
+        }
+
         return $this->aplicar($this->base($orgId), $f)
             ->join('producto as p', 'p.producto_id', '=', 'o.producto_id')
             ->join('pais as pa', 'pa.pais_id', '=', 'o.pais_id')
@@ -214,6 +234,27 @@ class ConsultaExplorador
      */
     public function graficos(int $orgId, array $f, int $n = 10): array
     {
+        if ($orgId === self::ORG_MERCOSUR) {
+            $valor = 'COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)';
+
+            $topZonas = $this->unionMercosur($f)
+                ->selectRaw('o.pais as label')
+                ->selectRaw("SUM({$valor}) as valor")
+                ->groupBy('o.pais')->orderByDesc('valor')->limit($n)
+                ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
+
+            $topProductos = $this->unionMercosur($f)
+                ->selectRaw('o.producto as label')
+                ->selectRaw("SUM({$valor}) as valor")
+                ->groupBy('o.producto')->orderByDesc('valor')->limit($n)
+                ->get()->map(fn ($r) => [
+                    'label' => mb_strimwidth((string) ($r->label ?: '—'), 0, 40, '...'),
+                    'valor' => (float) $r->valor,
+                ])->all();
+
+            return ['top_paises' => $topZonas, 'top_productos' => $topProductos];
+        }
+
         if ($orgId === self::ORG_ALADI) {
             $topPaises = $this->aplicarAladi($this->baseAladi(), $f)
                 ->join('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
@@ -267,52 +308,212 @@ class ConsultaExplorador
         if ($orgId === self::ORG_ALADI) {
             return $this->facetasAladi($f);
         }
+        if ($orgId === self::ORG_MERCOSUR) {
+            return $this->facetasMercosur($f);
+        }
+
+        return $this->facetasMicrodato($orgId, $f);
+    }
+
+    /**
+     * Definicion de cada faceta del microdato: columna a agrupar y joins extra
+     * que necesita (ademas de tiempo, que ya esta en base()).
+     */
+    private function defsFacetas(): array
+    {
+        return [
+            'tipo_operacion' => ['col' => 'o.tipo_operacion_id'],
+            'flujo'          => ['col' => 'o.flujo_id'],
+            'pais'           => ['col' => 'o.pais_id'],
+            'departamento'   => ['col' => 'o.departamento_id'],
+            'medio'          => ['col' => 'o.medio_id'],
+            'via'            => ['col' => 'o.via_id'],
+            'cuci'           => ['col' => 'o.cuci_id'],
+            'ciiu'           => ['col' => 'o.ciiu_id'],
+            'gce'            => ['col' => 'o.gce_id'],
+            'tnt'            => ['col' => 'o.tnt_id'],
+            'cuode'          => ['col' => 'o.cuode_id'],
+            'gestion'        => ['col' => 't.gestion'],
+            'mes'            => ['col' => 't.mes'],
+            'zona'           => ['col' => 'paz.zona_id', 'join' => 'pais'],
+            'capitulo'       => ['col' => 'pc.capitulo_id', 'join' => 'producto'],
+            'seccion'        => ['col' => 'cs.seccion_id', 'join' => 'seccion'],
+        ];
+    }
+
+    private function joinsFacetas(Builder $q, array $joins): Builder
+    {
+        if (in_array('pais', $joins, true)) {
+            $q->leftJoin('pais as paz', 'paz.pais_id', '=', 'o.pais_id');
+        }
+        if (in_array('producto', $joins, true) || in_array('seccion', $joins, true)) {
+            $q->leftJoin('producto as pc', 'pc.producto_id', '=', 'o.producto_id');
+        }
+        if (in_array('seccion', $joins, true)) {
+            $q->leftJoin('capitulo_arancelario as cs', 'cs.capitulo_id', '=', 'pc.capitulo_id');
+        }
+
+        return $q;
+    }
+
+    /**
+     * Conteos facetados del microdato.
+     *
+     * Las facetas SIN filtro activo comparten exactamente la misma consulta
+     * base, asi que se resuelven todas en UNA sola pasada con GROUPING SETS
+     * (en vez de ~16 agregaciones separadas sobre millones de filas). Solo las
+     * facetas con filtro activo necesitan su propia consulta (excluyendo su
+     * propio filtro).
+     */
+    private function facetasMicrodato(int $orgId, array $f): array
+    {
+        $defs = $this->defsFacetas();
+        $activas = array_values(array_filter(array_keys($defs), fn ($k) => ! empty($f[$k])));
+        $compartidas = array_values(array_diff(array_keys($defs), $activas));
 
         $facetas = [];
 
-        // Facetas por columna directa de hechos.
-        $directas = [
-            'tipo_operacion' => 'o.tipo_operacion_id',
-            'flujo'          => 'o.flujo_id',
-            'pais'           => 'o.pais_id',
-            'departamento'   => 'o.departamento_id',
-            'medio'          => 'o.medio_id',
-            'via'            => 'o.via_id',
-            'cuci'           => 'o.cuci_id',
-            'ciiu'           => 'o.ciiu_id',
-            'gce'            => 'o.gce_id',
-            'tnt'            => 'o.tnt_id',
-            'cuode'          => 'o.cuode_id',
-        ];
-        foreach ($directas as $clave => $columna) {
-            $facetas[$clave] = $this->aplicar($this->base($orgId), $f, $clave)
-                ->select($columna.' as id', DB::raw('COUNT(*) as n'))
-                ->groupBy($columna)
+        if (! empty($compartidas)) {
+            $cols = array_map(fn ($k) => $defs[$k]['col'], $compartidas);
+            $selects = implode(', ', array_map(fn ($k) => $defs[$k]['col'].' as f_'.$k, $compartidas));
+            $sets = implode(', ', array_map(fn ($c) => "({$c})", $cols));
+            $grouping = implode(', ', $cols);
+
+            $joins = array_values(array_unique(array_filter(array_map(fn ($k) => $defs[$k]['join'] ?? null, $compartidas))));
+
+            $rows = $this->joinsFacetas($this->aplicar($this->base($orgId), $f), $joins)
+                ->selectRaw("{$selects}, COUNT(*) as n, GROUPING({$grouping}) as gid")
+                ->groupByRaw("GROUPING SETS ({$sets})")
+                ->get();
+
+            foreach ($compartidas as $k) {
+                $facetas[$k] = [];
+            }
+
+            // GROUPING(c1..cn): el bit en 0 marca la unica columna agrupada del set.
+            $total = count($compartidas);
+            foreach ($rows as $row) {
+                $gid = (int) $row->gid;
+                for ($i = 0; $i < $total; $i++) {
+                    if (($gid & (1 << ($total - 1 - $i))) === 0) {
+                        $clave = $compartidas[$i];
+                        $id = $row->{'f_'.$clave};
+                        if ($id !== null) {
+                            $facetas[$clave][$id] = (int) $row->n;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Facetas con filtro activo: consulta individual excluyendo su filtro.
+        foreach ($activas as $k) {
+            $def = $defs[$k];
+            $q = $this->joinsFacetas($this->aplicar($this->base($orgId), $f, $k), [$def['join'] ?? null]);
+            $facetas[$k] = $q
+                ->select(DB::raw($def['col'].' as id'), DB::raw('COUNT(*) as n'))
+                ->groupBy(DB::raw($def['col']))
                 ->pluck('n', 'id')
                 ->all();
         }
 
-        // Gestion y mes (desde tiempo).
-        $facetas['gestion'] = $this->aplicar($this->base($orgId), $f, 'gestion')
-            ->select('t.gestion as id', DB::raw('COUNT(*) as n'))->groupBy('t.gestion')->pluck('n', 'id')->all();
-        $facetas['mes'] = $this->aplicar($this->base($orgId), $f, 'mes')
-            ->select('t.mes as id', DB::raw('COUNT(*) as n'))->groupBy('t.mes')->pluck('n', 'id')->all();
-
-        // Zona (via pais).
-        $facetas['zona'] = $this->aplicar($this->base($orgId), $f, 'zona')
-            ->join('pais as paz', 'paz.pais_id', '=', 'o.pais_id')
-            ->select('paz.zona_id as id', DB::raw('COUNT(*) as n'))->groupBy('paz.zona_id')->pluck('n', 'id')->all();
-
-        // Seccion y capitulo (via producto).
-        $facetas['capitulo'] = $this->aplicar($this->base($orgId), $f, 'capitulo')
-            ->join('producto as pc', 'pc.producto_id', '=', 'o.producto_id')
-            ->select('pc.capitulo_id as id', DB::raw('COUNT(*) as n'))->groupBy('pc.capitulo_id')->pluck('n', 'id')->all();
-        $facetas['seccion'] = $this->aplicar($this->base($orgId), $f, 'seccion')
-            ->join('producto as ps', 'ps.producto_id', '=', 'o.producto_id')
-            ->join('capitulo_arancelario as cs', 'cs.capitulo_id', '=', 'ps.capitulo_id')
-            ->select('cs.seccion_id as id', DB::raw('COUNT(*) as n'))->groupBy('cs.seccion_id')->pluck('n', 'id')->all();
-
         return $facetas;
+    }
+
+    // =========================================================================
+    //  Rama MERCOSUR (serie_comercio_producto_zona)
+    // =========================================================================
+
+    /**
+     * MERCOSUR guarda una fila por (producto, zona, gestion) con exportaciones
+     * e importaciones en columnas: para que el explorador muestre una fila por
+     * operacion (como el microdato), cada serie se abre en una rama de
+     * exportacion y otra de importacion unidas con UNION ALL. La columna
+     * "pais" muestra la zona geoeconomica (la dimension geografica real de
+     * las series por producto de MERCOSUR).
+     */
+    private function ramaMercosur(bool $exportacion, array $f, ?string $excepto = null): Builder
+    {
+        $col = $exportacion ? 's.exportaciones_usd' : 's.importaciones_cif_usd';
+        $vol = $exportacion ? 's.volumen_export_kg' : 's.volumen_import_kg';
+
+        $q = DB::table('serie_comercio_producto_zona as s')
+            ->join('zona_geoeconomica as z', 'z.zona_id', '=', 's.zona_id')
+            ->where('s.organizacion_id', self::ORG_MERCOSUR)
+            ->whereRaw("{$col} IS NOT NULL")
+            ->selectRaw('s.serie_prod_zona_id * 2 + '.($exportacion ? '0' : '1').' as operacion_id')
+            ->selectRaw('s.gestion')
+            ->selectRaw("'Anual' as mes")
+            ->selectRaw("'".($exportacion ? 'Exportación' : 'Importación')."' as tipo_operacion")
+            ->selectRaw(($exportacion ? '1' : '2').' as tipo_operacion_id')
+            ->selectRaw('s.ncm_codigo as codigo_nandina')
+            ->selectRaw('s.ncm_descripcion as producto')
+            ->selectRaw('z.descripcion as pais')
+            ->selectRaw('s.zona_id as zona_id')
+            ->selectRaw('NULL as departamento')
+            ->selectRaw('NULL as medio')
+            ->selectRaw('NULL as via')
+            ->selectRaw("{$vol} as peso_bruto_kg")
+            ->selectRaw('NULL as peso_neto_kg')
+            ->selectRaw($exportacion ? "{$col} as valor_fob_usd" : 'NULL as valor_fob_usd')
+            ->selectRaw($exportacion ? 'NULL as valor_cif_frontera_usd' : "{$col} as valor_cif_frontera_usd");
+
+        if ($excepto !== 'gestion' && ! empty($f['gestion'])) {
+            $q->whereIn('s.gestion', $f['gestion']);
+        }
+        if ($excepto !== 'zona' && ! empty($f['zona'])) {
+            $q->whereIn('s.zona_id', $f['zona']);
+        }
+        if (! empty($f['busqueda'])) {
+            $texto = '%'.trim($f['busqueda']).'%';
+            $q->where(function ($w) use ($texto) {
+                $w->where('s.ncm_descripcion', 'ilike', $texto)
+                    ->orWhere('s.ncm_codigo', 'ilike', $texto)
+                    ->orWhere('z.descripcion', 'ilike', $texto);
+            });
+        }
+
+        return $q;
+    }
+
+    /** Union exportaciones + importaciones (con el filtro de tipo de operacion aplicado). */
+    private function unionMercosur(array $f, ?string $excepto = null): Builder
+    {
+        $tipos = $excepto === 'tipo_operacion' ? [] : ($f['tipo_operacion'] ?? []);
+        // tipo_operacion del INE: 1 y 3 = exportacion, 2 = importacion
+        $quiereExp = empty($tipos) || count(array_intersect([1, 3], $tipos)) > 0;
+        $quiereImp = empty($tipos) || in_array(2, $tipos, true);
+
+        $ramas = [];
+        if ($quiereExp) {
+            $ramas[] = $this->ramaMercosur(true, $f, $excepto);
+        }
+        if ($quiereImp) {
+            $ramas[] = $this->ramaMercosur(false, $f, $excepto);
+        }
+
+        $union = array_shift($ramas);
+        foreach ($ramas as $rama) {
+            $union->unionAll($rama);
+        }
+
+        return DB::query()->fromSub($union, 'o');
+    }
+
+    private function facetasMercosur(array $f): array
+    {
+        return [
+            'tipo_operacion' => $this->unionMercosur($f, 'tipo_operacion')
+                ->select('o.tipo_operacion_id as id', DB::raw('COUNT(*) as n'))
+                ->groupBy('o.tipo_operacion_id')->pluck('n', 'id')->all(),
+            'gestion' => $this->unionMercosur($f, 'gestion')
+                ->select('o.gestion as id', DB::raw('COUNT(*) as n'))
+                ->groupBy('o.gestion')->pluck('n', 'id')->all(),
+            'zona' => $this->unionMercosur($f, 'zona')
+                ->select('o.zona_id as id', DB::raw('COUNT(*) as n'))
+                ->groupBy('o.zona_id')->pluck('n', 'id')->all(),
+        ];
     }
 
     // =========================================================================

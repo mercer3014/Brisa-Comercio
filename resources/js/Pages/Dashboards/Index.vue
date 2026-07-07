@@ -50,12 +50,29 @@ async function cargar() {
     }
 }
 
-watch(orgId, () => {
+// Cada organizacion tiene su propio rango de anios con datos (INE llega a
+// 2026, ALADI a 2025, etc.): al cambiar de organizacion se ajusta la lista de
+// gestiones y se salta a la mas reciente de esa organizacion.
+const gestionesOrg = ref([...(props.gestiones ?? [])]);
+
+watch(orgId, async () => {
     if (!tabs.value.some((t) => t.key === tab.value)) {
         tab.value = 'general';
     }
+    try {
+        const { data } = await axios.get('/api/v1/filtros/gestiones', { params: { org: orgId.value } });
+        const lista = data?.data ?? [];
+        gestionesOrg.value = lista.length ? lista : [...(props.gestiones ?? [])];
+    } catch {
+        gestionesOrg.value = [...(props.gestiones ?? [])];
+    }
+    if (gestion.value !== null && !gestionesOrg.value.includes(gestion.value)) {
+        gestion.value = gestionesOrg.value[0] ?? null; // el watch de gestion recarga
+    } else {
+        cargar();
+    }
 });
-watch([orgId, gestion], cargar);
+watch(gestion, cargar);
 onMounted(cargar);
 
 const fmt = (n) => new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
@@ -162,7 +179,7 @@ const sinMicrodato = computed(() => !ORGS_SOPORTADAS.includes(orgId.value));
                 </select>
                 <select v-model="gestion" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
                     <option :value="null">Todas las gestiones</option>
-                    <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
+                    <option v-for="g in gestionesOrg" :key="g" :value="g">{{ g }}</option>
                 </select>
             </div>
         </div>
