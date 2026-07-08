@@ -35,9 +35,9 @@ const ICONOS = {
     configuracion: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z',
     bitacora:      'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25',
 };
-const circulo = 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'; // segundo path para configuracion
+const circulo = 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'; // segundo path para configuración
 
-// Menu agrupado. Cada item: titulo, ruta, icono, permiso.
+// Menu agrupado. Cada item: título, ruta, ícono, permiso.
 const grupos = [
     {
         titulo: 'General',
@@ -53,23 +53,23 @@ const grupos = [
             { titulo: 'Cargas',    ruta: '/admin/cargas',        icono: 'cargas',    permiso: 'carga.ver' },
             { titulo: 'Reportes',  ruta: '/admin/reportes',      icono: 'reportes',  permiso: 'reporte.ver' },
             { titulo: 'Calidad',   ruta: '/admin/calidad',       icono: 'calidad',   permiso: 'calidad.ver' },
-            { titulo: 'Catalogos', ruta: '/admin/catalogos/pais',icono: 'catalogos', permiso: 'catalogo.ver' },
+            { titulo: 'Catálogos', ruta: '/admin/catalogos/pais',icono: 'catalogos', permiso: 'catalogo.ver' },
         ],
     },
     {
-        titulo: 'Administracion',
+        titulo: 'Administración',
         items: [
             { titulo: 'Organizaciones', ruta: '/admin/organizaciones', icono: 'organizaciones', permiso: 'organizacion.ver' },
             { titulo: 'Perfiles',       ruta: '/admin/perfiles',       icono: 'perfiles',       permiso: 'perfil.ver' },
             { titulo: 'Usuarios',       ruta: '/admin/usuarios',       icono: 'usuarios',       permiso: 'usuario.ver' },
             { titulo: 'Roles',          ruta: '/admin/roles',          icono: 'roles',          permiso: 'rol.ver' },
-            { titulo: 'Configuracion',  ruta: '/admin/configuracion',  icono: 'configuracion',  permiso: 'configuracion.ver' },
-            { titulo: 'Bitacora',       ruta: '/admin/bitacora',       icono: 'bitacora',       permiso: 'bitacora.ver' },
+            { titulo: 'Configuración',  ruta: '/admin/configuracion',  icono: 'configuracion',  permiso: 'configuracion.ver' },
+            { titulo: 'Bitácora',       ruta: '/admin/bitacora',       icono: 'bitacora',       permiso: 'bitacora.ver' },
         ],
     },
 ];
 
-// Grupos visibles segun permisos (oculta grupos vacios).
+// Grupos visibles según permisos (oculta grupos vacios).
 const gruposVisibles = computed(() =>
     grupos
         .map((g) => ({ ...g, items: g.items.filter((i) => puede(i.permiso)) }))
@@ -116,7 +116,7 @@ const iniciales = computed(() => {
             ]"
         >
             <!-- Marca -->
-            <!-- Colapsado: logo y boton apilados y centrados (asi el boton nunca se corta). -->
+            <!-- Colapsado: logo y botón apilados y centrados (así el botón nunca se corta). -->
             <div
                 class="border-b border-white/10 shrink-0"
                 :class="colapsado ? 'flex flex-col items-center gap-2 py-3' : 'h-16 flex items-center gap-2.5 px-4'"
@@ -135,7 +135,7 @@ const iniciales = computed(() => {
                     class="hidden lg:flex p-1.5 rounded-md text-institucional-300 hover:bg-white/10 hover:text-white transition"
                     :class="colapsado ? '' : 'ml-auto'"
                     @click="colapsado = !colapsado"
-                    :aria-label="colapsado ? 'Expandir menu' : 'Colapsar menu'"
+                    :aria-label="colapsado ? 'Expandir menú' : 'Colapsar menú'"
                 >
                     <svg class="w-5 h-5 transition-transform" :class="colapsado ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -143,7 +143,7 @@ const iniciales = computed(() => {
                 </button>
             </div>
 
-            <!-- Navegacion -->
+            <!-- Navegación -->
             <nav class="flex-1 overflow-y-auto scrollbar-hidden py-4 px-2.5 space-y-5">
                 <div v-for="g in gruposVisibles" :key="g.titulo">
                     <!-- Encabezado de grupo -->
@@ -244,7 +244,7 @@ const iniciales = computed(() => {
                 <button
                     class="lg:hidden p-2 rounded-lg text-institucional-700 hover:bg-gris-100 transition"
                     @click="movilAbierto = true"
-                    aria-label="Abrir menu"
+                    aria-label="Abrir menú"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />

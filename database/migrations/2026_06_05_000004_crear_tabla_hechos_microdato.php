@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
  * Tabla de hechos: microdato de comercio exterior (forma usada por INE).
  * Reproduce EXACTAMENTE estructura-db.sql, incluida la columna JSONB
  * atributos_extra, todas las FK (obligatorias y opcionales), las restricciones
- * CHECK de metricas y todos los indices (incluido el GIN sobre atributos_extra).
+ * CHECK de metricas y todos los índices (incluido el GIN sobre atributos_extra).
  * Va al final por depender de todas las dimensiones y de carga_archivo.
  */
 return new class extends Migration

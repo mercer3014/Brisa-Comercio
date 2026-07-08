@@ -33,12 +33,12 @@ function guardar() {
 </script>
 
 <template>
-    <Head :title="`Catalogo: ${definicion.etiqueta}`" />
+    <Head :title="`Catálogo: ${definicion.etiqueta}`" />
     <div class="max-w-6xl mx-auto">
-        <h1 class="text-2xl font-bold text-slate-800 mb-1">Catalogos</h1>
+        <h1 class="text-2xl font-bold text-slate-800 mb-1">Catálogos</h1>
         <p class="text-slate-500 text-sm mb-4">Revisar y corregir dimensiones del sistema.</p>
 
-        <!-- Selector de catalogo -->
+        <!-- Selector de catálogo -->
         <div class="flex flex-wrap gap-2 mb-4">
             <Link v-for="c in catalogos" :key="c.clave" :href="`/admin/catalogos/${c.clave}`"
                   class="px-3 py-1.5 rounded-lg text-sm border"

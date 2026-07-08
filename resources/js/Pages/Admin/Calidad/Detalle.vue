@@ -40,7 +40,7 @@ function tratar(inc, estado) {
                     <tr>
                         <th class="text-left px-3 py-2 font-medium">Fila</th>
                         <th class="text-left px-3 py-2 font-medium">Severidad</th>
-                        <th class="text-left px-3 py-2 font-medium">Descripcion</th>
+                        <th class="text-left px-3 py-2 font-medium">Descripción</th>
                         <th class="text-left px-3 py-2 font-medium">Valor</th>
                         <th class="text-left px-3 py-2 font-medium">Tratamiento</th>
                         <th class="text-right px-3 py-2 font-medium">Accion</th>

@@ -1,5 +1,5 @@
 <script setup>
-/** Área (apilable). Props: series, categorias, opciones, apilada. */
+/** Área (apilable). Props: series, categorías, opciones, apilada. */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';
 

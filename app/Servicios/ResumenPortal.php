@@ -5,15 +5,15 @@ namespace App\Servicios;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Calcula los titulares automaticos, indicadores grandes, rankings destacados y la
- * evolucion mensual que alimentan la PORTADA PUBLICA (Tarea 12).
+ * Calcula los titulares automáticos, indicadores grandes, rankings destacados y la
+ * evolución mensual que alimentan la PORTADA PUBLICA (Tarea 12).
  *
  * Desde la Tarea 14 lee de las VISTAS MATERIALIZADAS de resumen (resumen_anual_producto,
  * resumen_anual_pais, resumen_anual_departamento, resumen_mensual), que precalculan las
- * agregaciones por organizacion + gestion + flujo. Esas vistas guardan ya un campo `valor`
- * (FOB para exportacion, CIF frontera para importacion) coherente con AgregadorDashboard.
+ * agregaciones por organización + gestión + flujo. Esas vistas guardan ya un campo `valor`
+ * (FOB para exportación, CIF frontera para importación) coherente con AgregadorDashboard.
  *
- * Todo se filtra SIEMPRE por organizacion y, normalmente, por gestion.
+ * Todo se filtra SIEMPRE por organización y, normalmente, por gestión.
  */
 class ResumenPortal
 {
@@ -21,7 +21,7 @@ class ResumenPortal
     private const FLUJO_IMPORTACION = 2;
 
     /**
-     * Gestion (anio) mas reciente con datos para una organizacion. null si no hay datos.
+     * Gestión (año) más reciente con datos para una organización. null si no hay datos.
      */
     public function gestionMasReciente(int $orgId): ?int
     {
@@ -31,7 +31,7 @@ class ResumenPortal
     }
 
     /**
-     * Arma todo el contenido de la portada para una organizacion y gestion.
+     * Arma todo el contenido de la portada para una organización y gestión.
      */
     public function portada(int $orgId, ?int $gestion): array
     {
@@ -67,7 +67,7 @@ class ResumenPortal
     }
 
     /**
-     * Titulares automaticos: producto/pais/departamento lider de cada flujo.
+     * Titulares automáticos: producto/pais/departamento lider de cada flujo.
      */
     private function titulares(int $orgId, int $gestion): array
     {
@@ -144,7 +144,7 @@ class ResumenPortal
     }
 
     /**
-     * Indicadores grandes (KPIs) con variacion interanual.
+     * Indicadores grandes (KPIs) con variación interanual.
      */
     private function indicadores(int $orgId, int $gestion): array
     {
@@ -179,7 +179,7 @@ class ResumenPortal
     }
 
     /**
-     * Valor total de un flujo en una gestion, desde resumen_mensual.
+     * Valor total de un flujo en una gestión, desde resumen_mensual.
      */
     private function valorAnual(int $orgId, int $gestion, int $flujo): float
     {
@@ -189,7 +189,7 @@ class ResumenPortal
     }
 
     /**
-     * Volumen (peso bruto en kg) de un flujo en una gestion, desde resumen_mensual.
+     * Volumen (peso bruto en kg) de un flujo en una gestión, desde resumen_mensual.
      */
     private function volumenAnual(int $orgId, int $gestion, int $flujo): float
     {
@@ -228,7 +228,7 @@ class ResumenPortal
     }
 
     /**
-     * Top N paises destino de exportacion (ranking destacado).
+     * Top N países destino de exportación (ranking destacado).
      */
     private function topDestinosExportacion(int $orgId, int $gestion, int $n): array
     {
@@ -245,7 +245,7 @@ class ResumenPortal
     }
 
     /**
-     * Evolucion mensual del valor exportado e importado del anio (desde resumen_mensual).
+     * Evolución mensual del valor exportado e importado del año (desde resumen_mensual).
      */
     private function evolucionMensual(int $orgId, int $gestion): array
     {
@@ -265,7 +265,7 @@ class ResumenPortal
     }
 
     /**
-     * Formatea un numero grande con separadores de miles.
+     * Formatea un número grande con separadores de miles.
      */
     private function fmt(float $v): string
     {

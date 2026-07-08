@@ -13,7 +13,7 @@ function guardar() {
 </script>
 
 <template>
-    <Head title="Configuracion" />
+    <Head title="Configuración" />
     <div class="max-w-3xl mx-auto">
         <div class="mb-7">
             <h1 class="text-2xl font-bold text-institucional-900 tracking-tight">Configuración del sistema</h1>

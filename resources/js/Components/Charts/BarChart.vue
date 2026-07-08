@@ -1,5 +1,5 @@
 <script setup>
-/** Barras (vertical u horizontal). Props: series, categorias, opciones, horizontal. */
+/** Barras (vertical u horizontal). Props: series, categorías, opciones, horizontal. */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';
 

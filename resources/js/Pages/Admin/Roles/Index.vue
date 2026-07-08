@@ -79,7 +79,7 @@ function crearRol() {
                 <p v-if="formNuevo.errors.nombre" class="text-red-600 text-xs mt-1">{{ formNuevo.errors.nombre }}</p>
             </div>
             <div class="flex-1">
-                <label class="block text-xs font-medium text-slate-600 mb-1">Descripcion</label>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
                 <input v-model="formNuevo.descripcion" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <button @click="crearRol" class="px-4 py-2 rounded-lg bg-marca-700 text-white text-sm">Crear</button>
@@ -106,7 +106,7 @@ function crearRol() {
                         <p v-if="formEdit.errors.nombre" class="text-red-600 text-xs mt-1">{{ formEdit.errors.nombre }}</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-600 mb-1">Descripcion</label>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
                         <input v-model="formEdit.descripcion" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
                     </div>
                 </div>

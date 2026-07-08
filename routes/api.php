@@ -48,6 +48,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/charts/aladi/paises', [ChartDataController::class, 'aladiPaises']);
 
     // -- FAOSTAT ----------------------------------------------------------
+    Route::get('/charts/faostat/evolucion', [ChartDataController::class, 'faostatEvolucion']);
+    Route::get('/charts/faostat/productos', [ChartDataController::class, 'faostatProductos']);
+    Route::get('/charts/faostat/filtros', [ChartDataController::class, 'faostatFiltros']);
     Route::get('/charts/faostat/{subtipo}', [ChartDataController::class, 'faostat'])
         ->whereIn('subtipo', ['poblacion', 'fertilizantes', 'subalimentacion', 'cereales']);
 

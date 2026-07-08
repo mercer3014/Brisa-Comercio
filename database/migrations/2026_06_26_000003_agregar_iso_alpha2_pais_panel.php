@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('iso_alpha2', 2)->nullable()->after('nombre');
         });
 
-        // Poblar iso_alpha2 desde la tabla pais usando match de nombre (case-insensitive)
+        // Poblar iso_alpha2 desde la tabla país usando match de nombre (case-insensitive)
         DB::statement("
             UPDATE pais_panel pp
             SET iso_alpha2 = (

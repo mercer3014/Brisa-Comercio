@@ -25,7 +25,7 @@ class Pais extends Model
     }
 
     /**
-     * Zona principal del pais (FK directa).
+     * Zona principal del país (FK directa).
      */
     public function zona(): BelongsTo
     {
@@ -33,7 +33,7 @@ class Pais extends Model
     }
 
     /**
-     * Zonas adicionales a las que pertenece el pais (puente N:M pais_zona).
+     * Zonas adicionales a las que pertenece el país (puente N:M pais_zona).
      */
     public function zonas(): BelongsToMany
     {

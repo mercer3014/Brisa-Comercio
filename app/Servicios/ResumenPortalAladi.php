@@ -8,13 +8,13 @@ use Illuminate\Support\Facades\DB;
 /**
  * Version ALADI de ResumenPortal: misma forma de salida (mismo contrato que
  * consume Portal/Inicio.vue) pero leyendo de la tabla propia de ALADI
- * (ranking_comercio: top-50 de productos por pais miembro, flujo y gestion)
+ * (ranking_comercio: top-50 de productos por país miembro, flujo y gestión)
  * en vez del microdato del INE o las series de MERCOSUR.
  *
- * Los totales por pais se derivan del % acumulado que el top-50 representa
+ * Los totales por país se derivan del % acumulado que el top-50 representa
  * (total = suma_top50 * 100 / pct_acumulado): aritmetica del propio archivo,
- * no datos inventados. ALADI no tiene granularidad mensual ni volumen fisico:
- * "evolucion" (que es por mes) y el volumen se omiten.
+ * no datos inventados. ALADI no tiene granularidad mensual ni volumen físico:
+ * "evolución" (que es por mes) y el volumen se omiten.
  */
 class ResumenPortalAladi
 {
@@ -45,15 +45,15 @@ class ResumenPortalAladi
             'indicadores'   => $hayDatos ? $this->indicadores($gestion) : null,
             'top_productos' => $hayDatos ? $this->topProductos($gestion, 5) : [],
             'top_destinos'  => $hayDatos ? $this->topPaises($gestion, 5) : [],
-            'evolucion'     => [], // ALADI es anual: no hay desglose mensual que mostrar aqui.
+            'evolucion'     => [], // ALADI es anual: no hay desglose mensual que mostrar aquí.
         ];
     }
 
     // -------------------------------------------------------------------------
 
     /**
-     * Total derivado por (pais, flujo): suma del top-50 escalada por el
-     * % acumulado que ese top representa del total del pais.
+     * Total derivado por (país, flujo): suma del top-50 escalada por el
+     * % acumulado que ese top representa del total del país.
      */
     private function totales(int $gestion): Collection
     {
@@ -158,7 +158,7 @@ class ResumenPortalAladi
             'valor_importado'     => $impo,
             'variacion_impo'      => $this->variacion($impo, $impoAnt),
             'balanza_comercial'   => $expo - $impo,
-            'volumen_exportado'   => 0.0, // ALADI no publica volumen fisico
+            'volumen_exportado'   => 0.0, // ALADI no publica volumen físico
             'variacion_volumen'   => null,
             'paises_destino'      => $paises,
             'productos_distintos' => $productos,
@@ -194,7 +194,7 @@ class ResumenPortalAladi
             ])->all();
     }
 
-    /** Top paises miembros por exportaciones (total derivado del % acumulado). */
+    /** Top países miembros por exportaciones (total derivado del % acumulado). */
     private function topPaises(int $gestion, int $n): array
     {
         return $this->totales($gestion)

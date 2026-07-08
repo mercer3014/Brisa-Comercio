@@ -1,5 +1,5 @@
 <script setup>
-/** Pastel. Props: series (array de números), categorias (labels), opciones. */
+/** Pastel. Props: series (array de números), categorías (labels), opciones. */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';
 

@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\DB;
  * directamente del disco (sin copiar al storage) y refrescando las vistas
  * materializadas UNA sola vez al final.
  *
- * Estructura esperada de la carpeta base (rankings top-50 por pais miembro):
- *   <base>/<PAIS>/EXPORTACIONES/<gestion>.xlsx
- *   <base>/<PAIS>/IMPORTACIONES/<gestion>.xlsx
+ * Estructura esperada de la carpeta base (rankings top-50 por país miembro):
+ *   <base>/<PAIS>/EXPORTACIONES/<gestión>.xlsx
+ *   <base>/<PAIS>/IMPORTACIONES/<gestión>.xlsx
  *
  * Uso:
  *   php artisan ovxel:cargar-aladi "C:/Users/.../Desktop/ALADI" --fresh
@@ -131,6 +131,9 @@ class CargarAladiLote extends Command
                 $this->warn('  No se pudieron refrescar las vistas: '.$e->getMessage());
             }
         }
+
+        $this->line('Precalentando cache...');
+        \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
 
         $this->info("Listo. {$totalArchivos} archivo(s), ".number_format($totalFilas).' filas insertadas.');
         if (! empty($fallidos)) {

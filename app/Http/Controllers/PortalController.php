@@ -13,19 +13,19 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Portal publico de Geodata: la cara abierta del sistema, sin login.
+ * Portal público de Geodata: la cara abierta del sistema, sin login.
  *
- * Reune las vistas informativas (portada, explorador publico, rankings y "acerca de").
- * El contenido analitico real se construye en las Tareas 12, 13 y 15; aqui se deja la
+ * Reune las vistas informativas (portada, explorador público, rankings y "acerca de").
+ * El contenido analitico real se construye en las Tareas 12, 13 y 15; aquí se deja la
  * estructura de ruteo y las opciones base (organizaciones y gestiones) que comparten
- * todas las pantallas publicas para el selector de organizacion/anio.
+ * todas las pantallas publicas para el selector de organización/anio.
  */
 class PortalController extends Controller
 {
     /**
-     * Portada publica: titulares automaticos, indicadores grandes, rankings
-     * destacados y evolucion mensual (Tarea 12). Se renderiza con datos iniciales
-     * para la organizacion por defecto (INE) y su gestion mas reciente con datos.
+     * Portada pública: titulares automáticos, indicadores grandes, rankings
+     * destacados y evolución mensual (Tarea 12). Se renderiza con datos iniciales
+     * para la organización por defecto (INE) y su gestión más reciente con datos.
      */
     public function inicio(ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): Response
     {
@@ -40,8 +40,8 @@ class PortalController extends Controller
     }
 
     /**
-     * Datos de la portada en JSON, para refrescar al cambiar organizacion o gestion.
-     * Publico (sin autenticacion), respetando SIEMPRE la organizacion seleccionada.
+     * Datos de la portada en JSON, para refrescar al cambiar organización o gestión.
+     * Público (sin autenticación), respetando SIEMPRE la organización seleccionada.
      */
     public function datos(Request $request, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): JsonResponse
     {
@@ -59,7 +59,7 @@ class PortalController extends Controller
     /**
      * INE, MERCOSUR y ALADI guardan sus datos con arquitecturas distintas
      * (microdato vs series por zona/producto vs rankings top-50): se elige el
-     * servicio segun la organizacion, pero todos devuelven exactamente la
+     * servicio según la organización, pero todos devuelven exactamente la
      * misma forma de respuesta.
      */
     private function gestionMasReciente(int $orgId, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): ?int
@@ -93,7 +93,7 @@ class PortalController extends Controller
     }
 
     /**
-     * Pagina informativa "Acerca de" el portal.
+     * Página informativa "Acerca de" el portal.
      */
     public function acerca(): Response
     {
@@ -101,7 +101,7 @@ class PortalController extends Controller
     }
 
     /**
-     * Indice de organizaciones (las 4 fuentes). La pagina consume la API Fase 3.
+     * Índice de organizaciones (las 4 fuentes). La página consume la API Fase 3.
      */
     public function organizaciones(): Response
     {
@@ -109,7 +109,7 @@ class PortalController extends Controller
     }
 
     /**
-     * Detalle de una organizacion: todos sus indicadores. Recibe el id por ruta.
+     * Detalle de una organización: todos sus indicadores. Recibe el id por ruta.
      */
     public function organizacionDetalle(int $id): Response
     {
@@ -119,7 +119,7 @@ class PortalController extends Controller
     }
 
     /**
-     * Comparador de paises / productos / anios.
+     * Comparador de países / productos / años.
      */
     public function comparador(): Response
     {
@@ -143,7 +143,7 @@ class PortalController extends Controller
     }
 
     /**
-     * Linea de tiempo 1992-2026 con variacion anual e hitos.
+     * Línea de tiempo 1992-2026 con variación anual e hitos.
      */
     public function lineaDeTiempo(): Response
     {
@@ -152,7 +152,7 @@ class PortalController extends Controller
 
     /**
      * Opciones compartidas por las pantallas publicas: organizaciones activas,
-     * gestiones disponibles y la organizacion por defecto (INE).
+     * gestiones disponibles y la organización por defecto (INE).
      */
     private function opcionesBase(): array
     {

@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Expira la sesion por inactividad segun configuracion.sesion_minutos_expira.
- * Guarda en la sesion la marca de tiempo de la ultima actividad.
+ * Expira la sesión por inactividad según configuración.sesion_minutos_expira.
+ * Guarda en la sesión la marca de tiempo de la última actividad.
  */
 class ExpirarSesionInactiva
 {

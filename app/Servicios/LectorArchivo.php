@@ -15,7 +15,7 @@ use OpenSpout\Common\Entity\Row;
 class LectorArchivo
 {
     /**
-     * Crea el lector segun la extension.
+     * Crea el lector según la extension.
      */
     private function crearLector(string $extension)
     {
@@ -56,6 +56,22 @@ class LectorArchivo
      */
     public function leerCabecerasYMuestra(string $ruta, string $extension, int $n = 20): array
     {
+        if (strtolower($extension) === 'xls') {
+            $cabeceras = [];
+            $muestra = [];
+            foreach ($this->iterarXls($ruta) as $i => $asoc) {
+                if (empty($cabeceras)) {
+                    $cabeceras = array_keys($asoc);
+                }
+                $muestra[] = array_values($asoc);
+                if (count($muestra) >= $n) {
+                    break;
+                }
+            }
+
+            return ['cabeceras' => $cabeceras, 'muestra' => $muestra];
+        }
+
         $lector = $this->crearLector($extension);
         $lector->open($ruta);
 
@@ -93,6 +109,12 @@ class LectorArchivo
      */
     public function iterarAsociativo(string $ruta, string $extension): Generator
     {
+        if (strtolower($extension) === 'xls') {
+            yield from $this->iterarXls($ruta);
+
+            return;
+        }
+
         $lector = $this->crearLector($extension);
         $lector->open($ruta);
 
@@ -120,6 +142,45 @@ class LectorArchivo
         }
 
         $lector->close();
+    }
+
+    /**
+     * Itera un .xls binario (Excel 97-2003) vía PhpSpreadsheet, por bloques
+     * para no armar un arreglo gigante. OpenSpout solo soporta xlsx/csv.
+     *
+     * @return Generator<int, array<string, mixed>>
+     */
+    private function iterarXls(string $ruta): Generator
+    {
+        $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($ruta);
+        $reader->setReadDataOnly(true);
+        $libro = $reader->load($ruta);
+        $hoja  = $libro->getSheet(0);
+
+        $maxFila = $hoja->getHighestRow();
+        $colMax  = $hoja->getHighestColumn();
+        $maxCol  = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($colMax);
+
+        $cabeceras = [];
+        for ($c = 1; $c <= $maxCol; $c++) {
+            $cabeceras[] = trim((string) $hoja->getCell([$c, 1])->getValue());
+        }
+
+        $numero = 0;
+        for ($desde = 2; $desde <= $maxFila; $desde += 5000) {
+            $hasta = min($desde + 4999, $maxFila);
+            $bloque = $hoja->rangeToArray("A{$desde}:{$colMax}{$hasta}", null, false, false, false);
+            foreach ($bloque as $valores) {
+                $numero++;
+                $asoc = [];
+                foreach ($cabeceras as $i => $nombre) {
+                    $asoc[$nombre] = $valores[$i] ?? null;
+                }
+                yield $numero => $asoc;
+            }
+        }
+
+        $libro->disconnectWorksheets();
     }
 
     /**

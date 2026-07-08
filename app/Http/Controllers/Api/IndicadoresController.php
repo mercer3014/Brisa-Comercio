@@ -18,7 +18,7 @@ class IndicadoresController extends Controller
     {
     }
 
-    /** GET /api/v1/indicadores?org=1&gestion=2019 */
+    /** GET /api/v1/indicadores?org=1&gestión=2019 */
     public function index(Request $request): JsonResponse
     {
         $gestion = $request->integer('gestion') ?: null;

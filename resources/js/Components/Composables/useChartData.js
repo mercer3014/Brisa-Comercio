@@ -6,7 +6,7 @@ import axios from 'axios';
  * con estados de carga y error listos para skeletons.
  *
  * Uso:
- *   const { data, cargando, error, recargar } = useChartData('/api/v1/charts/top-paises', () => ({ gestion: 2024, limit: 10 }));
+ *   const { data, cargando, error, recargar } = useChartData('/api/v1/charts/top-países', () => ({ gestión: 2024, limit: 10 }));
  *
  * @param {string|import('vue').Ref<string>} url        Endpoint (absoluto o relativo).
  * @param {Function} [paramsFn]  Función reactiva que devuelve el objeto de query params.

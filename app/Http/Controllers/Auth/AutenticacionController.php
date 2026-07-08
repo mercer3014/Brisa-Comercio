@@ -25,8 +25,8 @@ class AutenticacionController extends Controller
     }
 
     /**
-     * Procesa el login: valida credenciales, registra el intento en intento_acceso
-     * y bloquea tras N intentos fallidos (configuracion.max_intentos_login).
+     * Procesa el login: válida credenciales, registra el intento en intento_acceso
+     * y bloquea tras N intentos fallidos (configuración.max_intentos_login).
      */
     public function login(Request $request): RedirectResponse
     {
@@ -82,7 +82,7 @@ class AutenticacionController extends Controller
         $this->registrar($nombre, true, $ip, null);
         \App\Servicios\Auditoria::registrar('LOGIN', 'usuario', (string) $usuario->usuario_id);
 
-        // Tras iniciar sesion, ir al panel de administracion (/admin).
+        // Tras iniciar sesión, ir al panel de administración (/admin).
         return redirect()->intended(route('admin.inicio'));
     }
 
@@ -93,7 +93,7 @@ class AutenticacionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // Tras cerrar sesion, volver al portal publico.
+        // Tras cerrar sesión, volver al portal público.
         return redirect()->route('portal.inicio')->with('exito', 'Sesion cerrada correctamente.');
     }
 

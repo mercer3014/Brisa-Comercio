@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\DB;
  * Version MERCOSUR de ResumenPortal: misma forma de salida (mismo contrato
  * que consume Portal/Inicio.vue) pero leyendo de las tablas propias de
  * MERCOSUR (serie_comercio_zona / serie_comercio_producto_zona) en vez del
- * microdato del INE. Asi la portada publica puede mostrar cualquiera de las
+ * microdato del INE. Así la portada pública puede mostrar cualquiera de las
  * dos organizaciones con la arquitectura que le corresponde, sin que la
  * vista necesite saber la diferencia.
  *
  * MERCOSUR no tiene granularidad mensual (series anuales) ni departamento:
- * "evolucion" (que es por mes) y el titular de departamento se omiten en vez
+ * "evolución" (que es por mes) y el titular de departamento se omiten en vez
  * de inventar datos.
  */
 class ResumenPortalMercosur
@@ -44,7 +44,7 @@ class ResumenPortalMercosur
             'indicadores'   => $hayDatos ? $this->indicadores($gestion) : null,
             'top_productos' => $hayDatos ? $this->topProductos($gestion, 5) : [],
             'top_destinos'  => $hayDatos ? $this->topDestinos($gestion, 5) : [],
-            'evolucion'     => [], // MERCOSUR es anual: no hay desglose mensual que mostrar aqui.
+            'evolucion'     => [], // MERCOSUR es anual: no hay desglose mensual que mostrar aquí.
         ];
     }
 

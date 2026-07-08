@@ -70,7 +70,7 @@ function buscar() {
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h1 class="text-2xl font-bold text-slate-800">Usuarios</h1>
-                <p class="text-slate-500 text-sm">Gestion de cuentas y asignacion de roles.</p>
+                <p class="text-slate-500 text-sm">Gestión de cuentas y asignacion de roles.</p>
             </div>
             <button @click="abrirCrear" class="bg-marca-700 hover:bg-marca-800 text-white px-4 py-2 rounded-lg text-sm font-medium">
                 + Nuevo usuario

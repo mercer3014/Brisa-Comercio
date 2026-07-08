@@ -1,5 +1,5 @@
 <script setup>
-/** Líneas. Props: series, categorias, opciones. */
+/** Líneas. Props: series, categorías, opciones. */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';
 

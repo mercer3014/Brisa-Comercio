@@ -11,8 +11,8 @@ use App\Models\PerfilMapeo;
 class DetectorPerfil
 {
     /**
-     * Normaliza un nombre de columna: mayusculas, sin espacios ni acentos ni
-     * caracteres no alfanumericos. Asi "Kil Bru" y "KILBRU" coinciden.
+     * Normaliza un nombre de columna: mayúsculas, sin espacios ni acentos ni
+     * caracteres no alfanumericos. Así "Kil Bru" y "KILBRU" coinciden.
      */
     public static function normalizar(string $nombre): string
     {
@@ -36,7 +36,7 @@ class DetectorPerfil
 
     /**
      * Dado un arreglo de cabeceras, evalua todos los perfiles (opcionalmente
-     * filtrados por organizacion y/o tipo de flujo) y devuelve el ranking.
+     * filtrados por organización y/o tipo de flujo) y devuelve el ranking.
      *
      * @return array{
      *   mejor: array|null,

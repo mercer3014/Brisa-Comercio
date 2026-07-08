@@ -30,9 +30,9 @@ const { data: deptos, cargando: cargandoDeptos } = useChartData('/api/v1/charts/
 const items = computed(() => flujos.value?.items ?? []);
 const filasDeptos = computed(() => deptos.value?.items ?? []);
 
-// Coordenadas por pais_id (catalogo `pais`), no por ISO: la columna iso_alpha3
-// de la base de datos esta vacia para todos los registros, asi que el cruce
-// por codigo ISO nunca encontraba nada y el mapa mundial salia sin marcadores.
+// Coordenadas por pais_id (catálogo `país`), no por ISO: la columna iso_alpha3
+// de la base de datos esta vacia para todos los registros, así que el cruce
+// por código ISO nunca encontraba nada y el mapa mundial salia sin marcadores.
 // El pais_id es estable y ya viene en la respuesta de /api/v1/charts/mapa-flujos.
 const countryCoords = {
     96: [34.53, 69.17], 218: [60.1, 19.95], 168: [41.33, 19.82], 8: [52.52, 13.4], 195: [42.51, 1.52],

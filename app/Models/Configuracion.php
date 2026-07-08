@@ -27,7 +27,7 @@ class Configuracion extends Model
     }
 
     /**
-     * Helper para leer un parametro de configuracion con valor por defecto.
+     * Helper para leer un parámetro de configuración con valor por defecto.
      */
     public static function obtener(string $clave, $defecto = null)
     {

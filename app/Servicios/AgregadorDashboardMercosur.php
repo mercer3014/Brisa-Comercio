@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * Version MERCOSUR de AgregadorDashboard: mismo contrato de salida (misma
  * forma de arreglos) que consume Dashboards/Index.vue, pero leyendo de las
  * tablas propias de MERCOSUR (serie_comercio_zona / serie_comercio_producto_zona)
- * en vez del microdato del INE. Asi el dashboard admin puede mostrar cualquiera
+ * en vez del microdato del INE. Así el dashboard admin puede mostrar cualquiera
  * de las dos organizaciones con la arquitectura que le corresponde a cada una,
  * sin que la vista sepa de donde viene el dato.
  *
@@ -73,8 +73,8 @@ class AgregadorDashboardMercosur
 
     /**
      * MERCOSUR no trae desglose mensual (series anuales, mes=0). Se devuelve un
-     * punto por gestion, IGNORANDO el filtro de gestion: filtrando a un solo
-     * anio quedaria un grafico de una sola barra sin poder ver evolucion.
+     * punto por gestión, IGNORANDO el filtro de gestión: filtrando a un solo
+     * año quedaria un gráfico de una sola barra sin poder ver evolución.
      */
     public function evolucionMensual(?int $gestion = null): array
     {
@@ -146,7 +146,7 @@ class AgregadorDashboardMercosur
             ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
     }
 
-    /** MERCOSUR no tiene desglose por departamento (eso es especifico del microdato del INE). */
+    /** MERCOSUR no tiene desglose por departamento (eso es específico del microdato del INE). */
     public function distribucionDepartamento(): array
     {
         return [];
@@ -164,7 +164,7 @@ class AgregadorDashboardMercosur
         ], $top);
     }
 
-    /** MERCOSUR no tiene desglose por medio de transporte (eso es especifico del microdato del INE). */
+    /** MERCOSUR no tiene desglose por medio de transporte (eso es específico del microdato del INE). */
     public function distribucionMedio(): array
     {
         return [];

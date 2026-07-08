@@ -34,7 +34,7 @@ class OperacionComercioExterior extends Model
         'atributos_extra' => 'array',
     ];
 
-    // -- Catalogo / carga --------------------------------------------------
+    // -- Catálogo / carga --------------------------------------------------
     public function organizacion(): BelongsTo
     {
         return $this->belongsTo(Organizacion::class, 'organizacion_id', 'organizacion_id');

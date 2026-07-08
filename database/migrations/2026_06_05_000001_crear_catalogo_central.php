@@ -4,9 +4,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Catalogo central y mapeo de cabeceras.
+ * Catálogo central y mapeo de cabeceras.
  * Reproduce EXACTAMENTE las tablas de estructura-db.sql:
- * organizacion, fuente_datos, perfil_mapeo, mapeo_columna.
+ * organización, fuente_datos, perfil_mapeo, mapeo_columna.
  * Se usa SQL crudo para conservar GENERATED ALWAYS AS IDENTITY, los tipos
  * exactos (INT/SMALLINT) y las restricciones UNIQUE/CHECK del esquema original.
  */
@@ -14,7 +14,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Necesaria para gen_random_uuid() (tabla sesion) en PostgreSQL < 13.
+        // Necesaria para gen_random_uuid() (tabla sesión) en PostgreSQL < 13.
         DB::unprepared('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
 
         DB::unprepared(<<<'SQL'

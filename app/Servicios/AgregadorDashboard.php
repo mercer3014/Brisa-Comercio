@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
  * resuelven en PostgreSQL (GROUP BY/SUM), nunca en el frontend.
  *
  * Convencion: el valor de EXPORTACION vive en valor_fob_usd y el de IMPORTACION
- * en valor_cif_frontera_usd (asi los puebla el ETL). Eso permite separar flujos
- * sin depender del nombre del tipo de operacion.
+ * en valor_cif_frontera_usd (así los puebla el ETL). Eso permite separar flujos
+ * sin depender del nombre del tipo de operación.
  */
 class AgregadorDashboard
 {
@@ -33,7 +33,7 @@ class AgregadorDashboard
     private string $valorImpo = 'COALESCE(o.valor_cif_frontera_usd,0)';
 
     /**
-     * KPIs principales. Incluye variacion interanual si se pasa gestion.
+     * KPIs principales. Incluye variación interanual si se pasa gestión.
      */
     public function kpis(int $orgId, ?int $gestion = null): array
     {
@@ -50,7 +50,7 @@ class AgregadorDashboard
         $valorTotal = $expo + $impo;
         $pesoNeto = (float) $row->peso_neto;
 
-        // Variacion interanual (valor total) respecto al anio anterior.
+        // Variación interanual (valor total) respecto al año anterior.
         $variacion = null;
         if ($gestion) {
             $ant = $this->base($orgId, $gestion - 1)
@@ -75,7 +75,7 @@ class AgregadorDashboard
     }
 
     /**
-     * Evolucion mensual del valor y peso (por gestion+mes).
+     * Evolución mensual del valor y peso (por gestión+mes).
      */
     public function evolucionMensual(int $orgId, ?int $gestion = null): array
     {
@@ -94,26 +94,32 @@ class AgregadorDashboard
     }
 
     /**
-     * Evolucion anual (valor expo, impo y balanza por gestion).
+     * Evolución anual (valor expo, impo y balanza por gestión).
      */
     public function evolucionAnual(int $orgId): array
     {
-        return $this->base($orgId)
-            ->selectRaw('t.gestion')
-            ->selectRaw("SUM({$this->valorExpo}) as expo")
-            ->selectRaw("SUM({$this->valorImpo}) as impo")
-            ->groupBy('t.gestion')->orderBy('t.gestion')
-            ->get()
-            ->map(fn ($r) => [
-                'gestion' => (int) $r->gestion,
-                'expo'    => (float) $r->expo,
-                'impo'    => (float) $r->impo,
-                'balanza' => (float) $r->expo - (float) $r->impo,
-            ])->all();
+        // No depende de la gestión seleccionada (siempre la serie completa) y
+        // escanea todo el microdato: se cachea por version de datos para que
+        // cambiar de año en el dashboard no repita el escaneo.
+        return \Illuminate\Support\Facades\Cache::remember(
+            "ine.evo.anual.{$orgId}.".ClavesCache::version(), ClavesCache::TTL,
+            fn () => $this->base($orgId)
+                ->selectRaw('t.gestion')
+                ->selectRaw("SUM({$this->valorExpo}) as expo")
+                ->selectRaw("SUM({$this->valorImpo}) as impo")
+                ->groupBy('t.gestion')->orderBy('t.gestion')
+                ->get()
+                ->map(fn ($r) => [
+                    'gestion' => (int) $r->gestion,
+                    'expo'    => (float) $r->expo,
+                    'impo'    => (float) $r->impo,
+                    'balanza' => (float) $r->expo - (float) $r->impo,
+                ])->all()
+        );
     }
 
     /**
-     * Top N paises por valor.
+     * Top N países por valor.
      */
     public function topPaises(int $orgId, ?int $gestion = null, int $n = 10): array
     {
@@ -143,7 +149,7 @@ class AgregadorDashboard
     }
 
     /**
-     * Distribucion por zona geoeconomica.
+     * Distribución por zona geoeconomica.
      */
     public function distribucionZona(int $orgId, ?int $gestion = null): array
     {
@@ -157,7 +163,7 @@ class AgregadorDashboard
     }
 
     /**
-     * Distribucion por departamento.
+     * Distribución por departamento.
      */
     public function distribucionDepartamento(int $orgId, ?int $gestion = null): array
     {
@@ -170,7 +176,7 @@ class AgregadorDashboard
     }
 
     /**
-     * Participacion por pais (porcentaje del valor total).
+     * Participación por país (porcentaje del valor total).
      */
     public function participacionPais(int $orgId, ?int $gestion = null, int $n = 8): array
     {
@@ -185,7 +191,7 @@ class AgregadorDashboard
     }
 
     /**
-     * Distribucion por medio de transporte (logistico).
+     * Distribución por medio de transporte (logístico).
      */
     public function distribucionMedio(int $orgId, ?int $gestion = null): array
     {

@@ -27,7 +27,7 @@ const columnas = ref([]);  // mapeo editable
 const gestion = ref('');
 const mes = ref('');
 
-// Tipos y tamanio permitidos (coinciden con la validacion del backend: mimes + max 500 MB).
+// Tipos y tamanio permitidos (coinciden con la validación del backend: mimes + max 500 MB).
 const EXTENSIONES = ['xlsx', 'xlsm', 'csv', 'txt'];
 const MAX_BYTES = 512000 * 1024; // 500 MB
 
@@ -40,7 +40,7 @@ function formatoTamano(bytes) {
 }
 
 /**
- * Valida tipo y tamanio. Devuelve un mensaje de error o null si es valido.
+ * Valida tipo y tamanio. Devuelve un mensaje de error o null si es válido.
  */
 function validarArchivo(f) {
     const ext = (f.name.split('.').pop() || '').toLowerCase();
@@ -160,11 +160,11 @@ function confirmar() {
 
         <div v-if="errorMsg" class="mb-4 px-4 py-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">{{ errorMsg }}</div>
 
-        <!-- PASO 1: seleccion -->
+        <!-- PASO 1: selección -->
         <div v-if="paso === 1" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-2xl">
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Organizacion</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Organización</label>
                     <select v-model="seleccion.organizacion_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                         <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.nombre }}</option>
                     </select>
@@ -307,7 +307,7 @@ function confirmar() {
             <!-- Metadatos opcionales + confirmar -->
             <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-end gap-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Gestion (opcional)</label>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Gestión (opcional)</label>
                     <input v-model="gestion" type="number" placeholder="2024" class="w-28 rounded border border-slate-300 px-3 py-2 text-sm" />
                 </div>
                 <div>

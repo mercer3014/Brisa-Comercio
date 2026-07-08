@@ -5,11 +5,11 @@ namespace App\Servicios;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Rankings y comparadores del portal publico (Tarea 13).
+ * Rankings y comparadores del portal público (Tarea 13).
  *
  * Lee de las vistas materializadas de la Tarea 14 (resumen_anual_producto/pais/departamento),
- * SIEMPRE filtradas por organizacion. Cada ranking devuelve posicion, nombre, valor, % del total
- * y % acumulado; los comparadores cruzan dos anios o los dos flujos por dimension.
+ * SIEMPRE filtradas por organización. Cada ranking devuelve posición, nombre, valor, % del total
+ * y % acumulado; los comparadores cruzan dos años o los dos flujos por dimension.
  */
 class RankingPortal
 {
@@ -17,15 +17,16 @@ class RankingPortal
     public const FLUJO_IMPORTACION = 2;
 
     /**
-     * ALADI y MERCOSUR no estan en las vistas del microdato: sus datos viven
+     * ALADI y MERCOSUR no están en las vistas del microdato: sus datos viven
      * en ranking_comercio y en las series serie_comercio_* respectivamente, y
      * se resuelven con ramas propias con la misma forma de salida.
      */
     private const ORG_ALADI    = 2;
     private const ORG_MERCOSUR = 3;
+    private const ORG_FAOSTAT  = 4;
 
     /**
-     * Configuracion por dimension: vista, tabla de nombre y columnas de join/etiqueta.
+     * Configuración por dimension: vista, tabla de nombre y columnas de join/etiqueta.
      */
     private function dim(string $dimension): array
     {
@@ -53,7 +54,7 @@ class RankingPortal
     /**
      * Ranking de una dimension por valor o por peso.
      *
-     * @return array{titulo:string, metrica:string, total:float, unidad:string, filas:array}
+     * @return array{título:string, metrica:string, total:float, unidad:string, filas:array}
      */
     public function ranking(int $orgId, int $gestion, int $flujo, string $dimension, string $metrica, int $limite): array
     {
@@ -62,6 +63,9 @@ class RankingPortal
         }
         if ($orgId === self::ORG_MERCOSUR) {
             return $this->rankingMercosur($gestion, $flujo, $dimension, $metrica, $limite);
+        }
+        if ($orgId === self::ORG_FAOSTAT) {
+            return $this->rankingFaostat($gestion, $flujo, $dimension, $metrica, $limite);
         }
 
         $cfg = $this->dim($dimension);
@@ -107,7 +111,7 @@ class RankingPortal
     }
 
     /**
-     * Comparador de dos anios para una dimension y flujo: variacion por item.
+     * Comparador de dos años para una dimension y flujo: variación por item.
      */
     public function compararAnios(int $orgId, string $dimension, int $flujo, int $anioA, int $anioB, int $limite): array
     {
@@ -130,12 +134,12 @@ class RankingPortal
             ];
         }
 
-        // Ordenar por el valor del anio mas reciente (B) descendente.
+        // Ordenar por el valor del año más reciente (B) descendente.
         usort($filas, fn ($x, $y) => $y['valor_b'] <=> $x['valor_b']);
         $filas = array_slice($filas, 0, $limite);
 
         return [
-            'titulo'  => 'Comparacion ' . $anioA . ' vs ' . $anioB . ' — ' . $this->nombreDim($dimension)
+            'titulo'  => 'Comparación ' . $anioA . ' vs ' . $anioB . ' — ' . $this->nombreDim($dimension)
                 . ' (' . $this->nombreFlujo($flujo) . ')',
             'anio_a'  => $anioA,
             'anio_b'  => $anioB,
@@ -144,7 +148,7 @@ class RankingPortal
     }
 
     /**
-     * Comparador exportacion vs importacion de una dimension en una gestion.
+     * Comparador exportación vs importación de una dimension en una gestión.
      */
     public function compararFlujos(int $orgId, string $dimension, int $gestion, int $limite): array
     {
@@ -170,14 +174,14 @@ class RankingPortal
         $filas = array_slice($filas, 0, $limite);
 
         return [
-            'titulo'  => 'Exportacion vs Importacion ' . $gestion . ' — ' . $this->nombreDim($dimension),
+            'titulo'  => 'Exportación vs Importación ' . $gestion . ' — ' . $this->nombreDim($dimension),
             'gestion' => $gestion,
             'filas'   => $filas,
         ];
     }
 
     /**
-     * Valor por item (label => valor) para una gestion y flujo.
+     * Valor por item (label => valor) para una gestión y flujo.
      */
     private function valoresPorItem(int $orgId, int $gestion, int $flujo, array $cfg): array
     {
@@ -186,6 +190,9 @@ class RankingPortal
         }
         if ($orgId === self::ORG_MERCOSUR) {
             return $this->valoresMercosur($gestion, $flujo, $cfg['dimension'] ?? 'producto', 'valor');
+        }
+        if ($orgId === self::ORG_FAOSTAT) {
+            return $this->valoresFaostat($gestion, $flujo, $cfg['dimension'] ?? 'producto', 'valor');
         }
 
         return DB::table($cfg['vista'] . ' as r')
@@ -210,7 +217,7 @@ class RankingPortal
     private function nombreDim(string $dimension): string
     {
         return match ($dimension) {
-            'pais' => 'paises',
+            'pais' => 'países',
             'departamento' => 'departamentos',
             default => 'productos',
         };
@@ -218,7 +225,7 @@ class RankingPortal
 
     private function nombreFlujo(int $flujo): string
     {
-        return $flujo === self::FLUJO_EXPORTACION ? 'Exportacion' : 'Importacion';
+        return $flujo === self::FLUJO_EXPORTACION ? 'Exportación' : 'Importación';
     }
 
     // =========================================================================
@@ -227,7 +234,7 @@ class RankingPortal
 
     /**
      * Ranking ALADI por producto (suma de los top-50 de los miembros) o por
-     * pais miembro (totales derivados del % acumulado). Sin datos de peso ni
+     * país miembro (totales derivados del % acumulado). Sin datos de peso ni
      * de departamento: esas combinaciones devuelven filas vacias.
      */
     private function rankingAladi(int $gestion, int $flujo, string $dimension, string $metrica, int $limite): array
@@ -242,7 +249,7 @@ class RankingPortal
     }
 
     /**
-     * Ranking MERCOSUR por producto (serie_comercio_producto_zona) o por pais
+     * Ranking MERCOSUR por producto (serie_comercio_producto_zona) o por país
      * socio (serie_comercio_zona), por valor o por volumen. Sin desglose por
      * departamento (eso es del microdato del INE).
      */
@@ -258,7 +265,7 @@ class RankingPortal
         return $this->armarRanking($this->valoresMercosur($gestion, $flujo, $dimension, $metrica), $titulo, $metrica, $unidad, $limite);
     }
 
-    /** Arma la respuesta estandar (posicion, %, % acumulado) desde label => valor. */
+    /** Arma la respuesta estandar (posición, %, % acumulado) desde label => valor. */
     private function armarRanking(array $valores, string $titulo, string $metrica, string $unidad, int $limite): array
     {
         $valores = array_filter($valores, fn ($v) => $v > 0);
@@ -289,7 +296,7 @@ class RankingPortal
         ];
     }
 
-    /** Columna MERCOSUR segun flujo y metrica (valor USD o volumen kg). */
+    /** Columna MERCOSUR según flujo y metrica (valor USD o volumen kg). */
     private function colMercosur(int $flujo, string $metrica): string
     {
         if ($metrica === 'peso') {
@@ -299,7 +306,70 @@ class RankingPortal
         return $flujo === self::FLUJO_EXPORTACION ? 'exportaciones_usd' : 'importaciones_cif_usd';
     }
 
-    /** Valor por item (label => valor) para MERCOSUR en una gestion y flujo. */
+    // =========================================================================
+    //  Rama FAOSTAT (serie_indicador_agricola)
+    // =========================================================================
+
+    /**
+     * FAOSTAT publica ÍNDICES (base 2014-2016 = 100), no USD ni kg: el ranking
+     * ordena por el índice promedio (de valor si la metrica es "valor", de
+     * volumen físico si es "peso"). Un índice alto = lo que más crecio frente
+     * a la base. Sin desglose por departamento.
+     */
+    private function rankingFaostat(int $gestion, int $flujo, string $dimension, string $metrica, int $limite): array
+    {
+        $titulo = 'Ranking de '.$this->nombreDim($dimension).' por índice de '
+            .($metrica === 'peso' ? 'volumen' : 'valor').' — '.$this->nombreFlujo($flujo).' '.$gestion
+            .' — FAOSTAT (índice mediano, 2014-2016 = 100)';
+
+        if ($dimension === 'departamento') {
+            return ['titulo' => $titulo, 'metrica' => $metrica, 'unidad' => 'índice', 'total' => 0.0, 'filas' => []];
+        }
+
+        return $this->armarRanking($this->valoresFaostat($gestion, $flujo, $dimension, $metrica), $titulo, $metrica, 'índice', $limite);
+    }
+
+    /** Índice promedio por item (label => índice) para FAOSTAT. */
+    private function valoresFaostat(int $gestion, int $flujo, string $dimension, string $metrica): array
+    {
+        $tipo = $flujo === self::FLUJO_IMPORTACION ? 'IMPORTACION' : 'EXPORTACION';
+
+        $q = DB::table('serie_indicador_agricola as s')
+            ->join('faostat_elemento as e', 'e.elemento_id', '=', 's.elemento_id')
+            ->where('s.organizacion_id', self::ORG_FAOSTAT)
+            ->where('s.gestion', $gestion)
+            ->where('e.tipo_comercio', $tipo)
+            ->whereNotNull('s.valor');
+
+        // "valor" -> índice de valor; "peso" -> índice de volumen físico.
+        if ($metrica === 'peso') {
+            $q->where('e.nombre_elemento', 'ilike', '%volumen%');
+        } else {
+            $q->where('e.nombre_elemento', 'ilike', '%valor%')
+                ->where('e.nombre_elemento', 'not ilike', '%unidad%')
+                ->where('e.nombre_elemento', 'not ilike', '%volumen%');
+        }
+
+        if ($dimension === 'pais') {
+            return $q->join('pais as pa', 'pa.pais_id', '=', 's.pais_id')
+                ->selectRaw('pa.nombre as label')
+                ->selectRaw('percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) as valor')
+                ->groupBy('pa.nombre')
+                ->get()
+                ->mapWithKeys(fn ($r) => [(string) $r->label => round((float) $r->valor, 1)])
+                ->all();
+        }
+
+        return $q->join('producto_codigo_externo as pc', 'pc.producto_codigo_externo_id', '=', 's.producto_codigo_externo_id')
+            ->selectRaw('pc.descripcion_externa as label')
+            ->selectRaw('percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) as valor')
+            ->groupBy('pc.descripcion_externa')
+            ->get()
+            ->mapWithKeys(fn ($r) => [(string) $r->label => round((float) $r->valor, 1)])
+            ->all();
+    }
+
+    /** Valor por item (label => valor) para MERCOSUR en una gestión y flujo. */
     private function valoresMercosur(int $gestion, int $flujo, string $dimension, string $metrica): array
     {
         $col = $this->colMercosur($flujo, $metrica);
@@ -328,13 +398,13 @@ class RankingPortal
             ->all();
     }
 
-    /** Valor por item (label => valor USD) para ALADI en una gestion y flujo. */
+    /** Valor por item (label => valor USD) para ALADI en una gestión y flujo. */
     private function valoresAladi(int $gestion, int $flujo, string $dimension): array
     {
         $codigo = (string) $flujo;
 
         if ($dimension === 'pais') {
-            // Total derivado por pais miembro: suma_top50 * 100 / pct_acumulado.
+            // Total derivado por país miembro: suma_top50 * 100 / pct_acumulado.
             return DB::table('ranking_comercio as rc')
                 ->join('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
                 ->join('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
@@ -356,7 +426,7 @@ class RankingPortal
         }
 
         // producto: suma de los rankings de todos los miembros, agrupada por
-        // descripcion (misma semantica que la rama del microdato, que agrupa
+        // descripción (misma semantica que la rama del microdato, que agrupa
         // por la etiqueta de la dimension).
         return DB::table('ranking_comercio as rc')
             ->join('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')

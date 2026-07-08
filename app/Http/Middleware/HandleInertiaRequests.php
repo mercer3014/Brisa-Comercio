@@ -22,8 +22,8 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Datos compartidos con todas las paginas de Inertia.
-     * Aqui se expone el usuario autenticado y sus permisos para el frontend.
+     * Datos compartidos con todas las páginas de Inertia.
+     * Aquí se expone el usuario autenticado y sus permisos para el frontend.
      */
     public function share(Request $request): array
     {

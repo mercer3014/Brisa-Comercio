@@ -16,7 +16,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Poblamos desde la tabla pais con deduplicacion por acentos
+        // Poblamos desde la tabla país con deduplicacion por acentos
         try {
             $paises = DB::table('pais')->orderBy('nombre')->get(['nombre']);
 
@@ -28,7 +28,7 @@ return new class extends Migration
                 if (! isset($mapa[$clave])) {
                     $mapa[$clave] = $formateado;
                 } else {
-                    // Quedarse con el que tenga mas acentos (mejor ortografia)
+                    // Quedarse con el que tenga más acentos (mejor ortografía)
                     if (self::contarAcentos($formateado) > self::contarAcentos($mapa[$clave])) {
                         $mapa[$clave] = $formateado;
                     }
@@ -48,7 +48,7 @@ return new class extends Migration
 
             DB::table('pais_panel')->insert($filas);
         } catch (\Throwable) {
-            // Si la tabla pais aun no existe, se deja vacia para poblar despues.
+            // Si la tabla país aún no existe, se deja vacia para poblar después.
         }
     }
 

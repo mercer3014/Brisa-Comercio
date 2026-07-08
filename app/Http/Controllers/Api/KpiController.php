@@ -29,7 +29,7 @@ class KpiController extends Controller
         return response()->json($datos);
     }
 
-    /** GET /api/v1/kpis/{organizacion} — KPIs de una organización. */
+    /** GET /api/v1/kpis/{organización} — KPIs de una organización. */
     public function organizacion(Request $request, int $organizacion): JsonResponse
     {
         $gestion = $request->integer('gestion') ?: null;

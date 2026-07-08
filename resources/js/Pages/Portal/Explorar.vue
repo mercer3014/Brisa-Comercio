@@ -28,16 +28,16 @@ const graficos = ref({ top_paises: [], top_productos: [] });
 
 const panel = [
     { key: 'flujo', titulo: 'Flujo' },
-    { key: 'tipo_operacion', titulo: 'Tipo de operacion' },
-    { key: 'gestion', titulo: 'Gestion (anio)' },
+    { key: 'tipo_operacion', titulo: 'Tipo de operación' },
+    { key: 'gestion', titulo: 'Gestión (año)' },
     { key: 'mes', titulo: 'Mes' },
-    { key: 'pais', titulo: 'Pais' },
+    { key: 'pais', titulo: 'País' },
     { key: 'zona', titulo: 'Zona' },
     { key: 'departamento', titulo: 'Departamento' },
     { key: 'medio', titulo: 'Medio de transporte' },
-    { key: 'via', titulo: 'Via' },
-    { key: 'seccion', titulo: 'Seccion NANDINA' },
-    { key: 'capitulo', titulo: 'Capitulo NANDINA' },
+    { key: 'via', titulo: 'Vía' },
+    { key: 'seccion', titulo: 'Sección NANDINA' },
+    { key: 'capitulo', titulo: 'Capítulo NANDINA' },
     { key: 'cuci', titulo: 'CUCI' },
     { key: 'ciiu', titulo: 'CIIU' },
     { key: 'gce', titulo: 'GCE' },
@@ -118,8 +118,19 @@ function exportar(formato) {
 
 const fmt = (n) => new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
 const fmtUsd = (n) => '$ ' + new Intl.NumberFormat('es-BO', { maximumFractionDigits: 0 }).format(n || 0);
+// Cifras grandes de las tarjetas: siempre cortas para que no se salgan del
+// cuadro (B = billones, mil M = miles de millones, M = millones).
+const fmtCorto = (n) => {
+    const v = n || 0;
+    const abs = Math.abs(v);
+    const nf = (x, d) => new Intl.NumberFormat('es-BO', { maximumFractionDigits: d }).format(x);
+    if (abs >= 1e12) return nf(v / 1e12, 2) + ' B';
+    if (abs >= 1e9) return nf(v / 1e9, 1) + ' mil M';
+    if (abs >= 1e6) return nf(v / 1e6, 1) + ' M';
+    return nf(v, 0);
+};
 
-// Graficos (barras horizontales estilizadas) — navy slate general, Top 1 crimson.
+// Gráficos (barras horizontales estilizadas) — navy slate general, Top 1 crimson.
 function opcBarras(items) {
     return {
         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
@@ -201,7 +212,7 @@ onMounted(() => {
 
             <!-- Resultados -->
             <main class="flex-1 min-w-0">
-                <!-- Busqueda -->
+                <!-- Búsqueda -->
                 <input v-model="busqueda" placeholder="Buscar por producto, país o aduana..."
                        class="campo px-4 py-3 mb-4" />
 
@@ -212,19 +223,19 @@ onMounted(() => {
                         <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmt(totales.total) }}</div>
                     </div>
                     <div class="tarjeta p-4">
-                        <div class="text-xs text-gris-500 uppercase tracking-wide">Valor total</div>
-                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmtUsd(totales.valor) }}</div>
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">{{ totales.etiqueta_valor || 'Valor total' }}</div>
+                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1 whitespace-nowrap">{{ totales.etiqueta_valor ? fmt(totales.valor) : '$ ' + fmtCorto(totales.valor) }}</div>
                     </div>
                     <div class="tarjeta p-4">
-                        <div class="text-xs text-gris-500 uppercase tracking-wide">Peso bruto (kg)</div>
-                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1">{{ fmt(totales.peso) }}</div>
+                        <div class="text-xs text-gris-500 uppercase tracking-wide">{{ totales.etiqueta_peso || 'Peso bruto (kg)' }}</div>
+                        <div class="text-xl sm:text-2xl font-bold text-institucional-900 mt-1 whitespace-nowrap">{{ fmtCorto(totales.peso) }}</div>
                     </div>
                 </div>
 
-                <!-- Resumen visual: graficos del subconjunto -->
+                <!-- Resumen visual: gráficos del subconjunto -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="tarjeta p-4">
-                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top paises (del filtro)</h3>
+                        <h3 class="text-sm font-semibold text-institucional-900 mb-1">Top países (del filtro)</h3>
                         <apexchart v-if="seriePaises[0].data.length" type="bar" height="240" :options="opcPaises" :series="seriePaises" />
                         <p v-else class="text-xs text-gris-400 py-8 text-center">Sin datos.</p>
                     </div>
@@ -279,7 +290,7 @@ onMounted(() => {
                         </table>
                     </div>
                     <div class="flex items-center justify-between px-4 py-2.5 border-t border-gris-100 text-sm">
-                        <span class="text-gris-500">Pagina {{ tabla.pagina }} de {{ tabla.ultima_pagina || 1 }} · {{ fmt(tabla.total) }} registros</span>
+                        <span class="text-gris-500">Página {{ tabla.pagina }} de {{ tabla.ultima_pagina || 1 }} · {{ fmt(tabla.total) }} registros</span>
                         <div class="flex gap-2">
                             <button @click="pagina = Math.max(1, pagina - 1)" :disabled="pagina <= 1" class="px-3 py-1 rounded border border-gris-200 disabled:opacity-40 hover:bg-gris-50">Anterior</button>
                             <button @click="pagina = Math.min(tabla.ultima_pagina, pagina + 1)" :disabled="pagina >= tabla.ultima_pagina" class="px-3 py-1 rounded border border-gris-200 disabled:opacity-40 hover:bg-gris-50">Siguiente</button>

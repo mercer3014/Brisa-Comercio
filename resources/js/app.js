@@ -7,9 +7,9 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import LayoutAdmin from './Layouts/LayoutAdmin.vue';
 import LayoutPublico from './Layouts/LayoutPublico.vue';
 
-// ApexCharts pesa ~250 KB (gzip) y solo lo usan algunas paginas con graficos.
+// ApexCharts pesa ~250 KB (gzip) y solo lo usan algunas páginas con gráficos.
 // Se registra como componente global pero de carga diferida: el bundle solo
-// se descarga cuando una pagina realmente renderiza un <apexchart>.
+// se descarga cuando una página realmente renderiza un <apexchart>.
 const ApexChartLazy = defineAsyncComponent(() => import('vue3-apexcharts').then((m) => m.default));
 
 const appName = import.meta.env.VITE_APP_NAME || 'Geodata';
@@ -21,9 +21,9 @@ createInertiaApp({
             `./Pages/${name}.vue`,
             import.meta.glob('./Pages/**/*.vue')
         );
-        // Layout por defecto segun la pagina: las del portal publico (Pages/Portal/*)
+        // Layout por defecto según la página: las del portal público (Pages/Portal/*)
         // usan LayoutPublico; el resto, el LayoutAdmin del panel privado.
-        // Las paginas pueden sobrescribir con `defineOptions({ layout: ... })` (ej. login = null).
+        // Las páginas pueden sobrescribir con `defineOptions({ layout: ... })` (ej. login = null).
         page.then((module) => {
             if (module.default.layout === undefined) {
                 module.default.layout = name.startsWith('Portal/') ? LayoutPublico : LayoutAdmin;

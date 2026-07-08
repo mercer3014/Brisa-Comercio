@@ -51,12 +51,12 @@ class CargaController extends Controller
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer', 'exists:organizacion,organizacion_id'],
             'tipo_flujo'      => ['required', Rule::in(['EXPORTACION', 'IMPORTACION'])],
-            'archivo'         => ['required', 'file', 'mimes:xlsx,xlsm,csv,txt', 'max:512000'], // 500 MB
+            'archivo'         => ['required', 'file', 'mimes:xlsx,xlsm,xls,csv,txt', 'max:512000'], // 500 MB
         ]);
 
         $archivo = $request->file('archivo');
         $ext = strtolower($archivo->getClientOriginalExtension());
-        $ext = in_array($ext, ['xlsx', 'xlsm', 'csv', 'txt']) ? $ext : 'csv';
+        $ext = in_array($ext, ['xlsx', 'xlsm', 'xls', 'csv', 'txt']) ? $ext : 'csv';
 
         // Guarda temporalmente con un nombre seguro (uuid).
         $token = Str::uuid()->toString().'.'.$ext;
@@ -126,7 +126,7 @@ class CargaController extends Controller
         $campos = array_keys(config('comexhub.campos_canonicos'));
 
         $datos = $request->validate([
-            'token'           => ['required', 'string', 'regex:/^[a-f0-9\-]+\.(xlsx|xlsm|csv|txt)$/i'],
+            'token'           => ['required', 'string', 'regex:/^[a-f0-9\-]+\.(xlsx|xlsm|xls|csv|txt)$/i'],
             'organizacion_id' => ['required', 'integer', 'exists:organizacion,organizacion_id'],
             'perfil_id'       => ['nullable', 'integer', 'exists:perfil_mapeo,perfil_id'],
             'tipo_flujo'      => ['required', Rule::in(['EXPORTACION', 'IMPORTACION'])],

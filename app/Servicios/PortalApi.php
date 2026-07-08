@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  * Servicio central de la API pública de charts (Fase 3).
  *
  * Devuelve SIEMPRE estructuras listas para ApexCharts:
- *   { categorias: [...], series: [ {name, data}, ... ], meta: {...} }
+ *   { categorías: [...], series: [ {name, data}, ... ], meta: {...} }
  * o, para rankings/filtros, arreglos simples documentados por método.
  *
  * Fuentes de datos REALES (la BD es la fuente de verdad):
@@ -219,9 +219,9 @@ class PortalApi
     }
 
     /**
-     * Totales ALADI derivados por (pais miembro, flujo): los rankings solo
-     * traen el top-50 de cada pais, pero incluyen el % acumulado sobre el
-     * total del pais, del que se deriva el total real
+     * Totales ALADI derivados por (país miembro, flujo): los rankings solo
+     * traen el top-50 de cada país, pero incluyen el % acumulado sobre el
+     * total del país, del que se deriva el total real
      * (total = suma_top50 * 100 / pct_acumulado).
      */
     private function totalesAladi(?int $gestion, ?int $paisId = null): \Illuminate\Support\Collection
@@ -248,15 +248,27 @@ class PortalApi
 
     private function kpisFaostat(?int $gestion): array
     {
-        $series = DB::table('serie_indicador_agricola')->count();
+        $base = DB::table('serie_indicador_agricola')->where('organizacion_id', self::ORG_FAOSTAT);
+
+        $tot = (clone $base)
+            ->selectRaw('COUNT(*) as series')
+            ->selectRaw('COUNT(DISTINCT pais_id) as paises')
+            ->selectRaw('COUNT(DISTINCT producto_codigo_externo_id) as productos')
+            ->selectRaw('MIN(gestion) as anio_min')
+            ->selectRaw('MAX(gestion) as anio_max')
+            ->first();
 
         return [
             'organizacion' => 'FAOSTAT',
-            'gestion'      => $gestion,
-            'series'       => $series,
-            'unidad'       => 'varias',
+            'gestion'      => $gestion ?? ($tot->anio_max !== null ? (int) $tot->anio_max : null),
+            'series'       => (int) $tot->series,
+            'paises'       => (int) $tot->paises,
+            'productos'    => (int) $tot->productos,
+            'anio_min'     => $tot->anio_min !== null ? (int) $tot->anio_min : null,
+            'anio_max'     => $tot->anio_max !== null ? (int) $tot->anio_max : null,
+            'unidad'       => 'índice (2014-2016 = 100)',
             'fuente'       => 'FAOSTAT',
-            'hay_datos'    => $series > 0,
+            'hay_datos'    => (int) $tot->series > 0,
         ];
     }
 
@@ -274,7 +286,7 @@ class PortalApi
             ->orderBy('gestion')->orderBy('mes')
             ->get();
 
-        // Acumular por periodo: la MV separa por tipo_operacion (Exportacion/Importacion).
+        // Acumular por periodo: la MV separa por tipo_operacion (Exportación/Importacion).
         $meses = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         $cat = [];
         $exp = [];
@@ -347,7 +359,7 @@ class PortalApi
         ], ['fuente' => 'INE']);
     }
 
-    /** Top N productos por valor (param flujo: exp|imp, gestion, limit). */
+    /** Top N productos por valor (param flujo: exp|imp, gestión, limit). */
     public function topProductos(string $flujo, ?int $gestion, int $limit): array
     {
         $gestion ??= $this->gestionReciente(self::ORG_INE);
@@ -370,7 +382,7 @@ class PortalApi
         return $serie;
     }
 
-    /** Top N países por valor (param flujo, gestion, limit). */
+    /** Top N países por valor (param flujo, gestión, limit). */
     public function topPaises(string $flujo, ?int $gestion, int $limit): array
     {
         $gestion ??= $this->gestionReciente(self::ORG_INE);
@@ -659,9 +671,9 @@ class PortalApi
     }
 
     /**
-     * Evolucion anual ALADI: exportaciones e importaciones derivadas de los
+     * Evolución anual ALADI: exportaciones e importaciones derivadas de los
      * rankings (total = suma_top50 * 100 / pct_acumulado), del bloque completo
-     * o de un pais miembro.
+     * o de un país miembro.
      */
     public function aladiEvolucion(?int $paisId = null): array
     {
@@ -687,8 +699,8 @@ class PortalApi
     }
 
     /**
-     * Comercio por pais miembro de ALADI en una gestion (totales derivados).
-     * Incluye en meta la lista de paises para el selector del panel.
+     * Comercio por país miembro de ALADI en una gestión (totales derivados).
+     * Incluye en meta la lista de países para el selector del panel.
      */
     public function aladiPaises(?int $gestion = null, ?string $flujo = null): array
     {
@@ -726,7 +738,7 @@ class PortalApi
     }
 
     /**
-     * Ranking dinámico INE por dimensión (productos|paises|departamentos),
+     * Ranking dinámico INE por dimensión (productos|países|departamentos),
      * con posición, valor, % del total y % acumulado.
      */
     public function rankingDinamico(string $tipo, string $flujo, ?int $gestion, int $limit): array
@@ -830,6 +842,158 @@ class PortalApi
             'hay_datos' => true,
             'unidad'    => $rows->first()->unidad,
         ]);
+    }
+
+    /** País FAOSTAT por defecto: Bolivia (M49 = 68) o el primero con datos. */
+    private function paisFaostatDefecto(): ?int
+    {
+        $id = DB::table('pais as p')
+            ->join('fuente_datos as f', 'f.fuente_id', '=', 'p.fuente_id')
+            ->where('f.organizacion_id', self::ORG_FAOSTAT)
+            ->where('p.codigo_pais', 68)
+            ->value('p.pais_id');
+
+        if ($id) {
+            return (int) $id;
+        }
+
+        $min = DB::table('serie_indicador_agricola')
+            ->where('organizacion_id', self::ORG_FAOSTAT)
+            ->min('pais_id');
+
+        return $min !== null ? (int) $min : null;
+    }
+
+    /**
+     * Evolución anual de los índices comerciales FAOSTAT de un país y un
+     * producto CPC (una línea por elemento: valor/volumen de exp/imp).
+     * Sin producto se usa el que más serie histórica tiene en ese país.
+     */
+    public function faostatEvolucion(?int $paisId = null, ?int $productoId = null): array
+    {
+        $paisId ??= $this->paisFaostatDefecto();
+
+        $productoId ??= (int) DB::table('serie_indicador_agricola')
+            ->where('organizacion_id', self::ORG_FAOSTAT)
+            ->where('pais_id', $paisId)
+            ->whereNotNull('producto_codigo_externo_id')
+            ->selectRaw('producto_codigo_externo_id')
+            ->groupBy('producto_codigo_externo_id')
+            ->orderByRaw('COUNT(*) DESC')
+            ->value('producto_codigo_externo_id') ?: null;
+
+        $rows = DB::table('serie_indicador_agricola as s')
+            ->join('faostat_elemento as e', 'e.elemento_id', '=', 's.elemento_id')
+            ->where('s.organizacion_id', self::ORG_FAOSTAT)
+            ->where('s.pais_id', $paisId)
+            ->when($productoId, fn ($q) => $q->where('s.producto_codigo_externo_id', $productoId))
+            ->orderBy('s.gestion')
+            ->get(['s.gestion', 's.valor', 'e.nombre_elemento as elemento']);
+
+        $producto = $productoId ? DB::table('producto_codigo_externo')
+            ->where('producto_codigo_externo_id', $productoId)
+            ->value('descripcion_externa') : null;
+        $pais = DB::table('pais')->where('pais_id', $paisId)->value('nombre');
+
+        $cat = $rows->pluck('gestion')->unique()->sort()->values()->map(fn ($g) => (string) $g)->all();
+        $catIdx = array_flip($cat);
+        $series = [];
+        foreach ($rows->groupBy('elemento') as $elemento => $grupo) {
+            $data = array_fill(0, count($cat), null);
+            foreach ($grupo as $r) {
+                $data[$catIdx[(string) $r->gestion]] = $r->valor !== null ? (float) $r->valor : null;
+            }
+            $series[] = ['name' => mb_strimwidth((string) $elemento, 0, 45, '…'), 'data' => $data];
+        }
+
+        return $this->serie($cat, $series, [
+            'fuente'    => 'FAOSTAT',
+            'unidad'    => 'índice (2014-2016 = 100)',
+            'pais_id'   => $paisId,
+            'pais'      => $pais,
+            'producto_id' => $productoId,
+            'producto'  => $producto,
+            'hay_datos' => ! empty($series),
+        ]);
+    }
+
+    /**
+     * Top productos de un país por índice de valor de exportación o
+     * importación en una gestión (los que más crecieron frente a la base
+     * 2014-2016 = 100).
+     */
+    public function faostatProductos(?int $paisId = null, string $flujo = 'exp', ?int $gestion = null, int $limit = 10): array
+    {
+        $paisId ??= $this->paisFaostatDefecto();
+        $tipo = $flujo === 'imp' ? 'IMPORTACION' : 'EXPORTACION';
+
+        $base = DB::table('serie_indicador_agricola as s')
+            ->join('faostat_elemento as e', 'e.elemento_id', '=', 's.elemento_id')
+            ->join('producto_codigo_externo as pc', 'pc.producto_codigo_externo_id', '=', 's.producto_codigo_externo_id')
+            ->where('s.organizacion_id', self::ORG_FAOSTAT)
+            ->where('s.pais_id', $paisId)
+            ->where('e.tipo_comercio', $tipo)
+            // Solo el "índice de valor" (no el de volumen ni el de valor unitario).
+            ->where('e.nombre_elemento', 'ilike', '%valor%')
+            ->where('e.nombre_elemento', 'not ilike', '%unidad%')
+            ->where('e.nombre_elemento', 'not ilike', '%volumen%');
+
+        $gestion ??= (int) (clone $base)->max('s.gestion') ?: null;
+
+        $rows = (clone $base)
+            ->when($gestion, fn ($q) => $q->where('s.gestion', $gestion))
+            ->whereNotNull('s.valor')
+            ->selectRaw('pc.descripcion_externa as label')
+            ->selectRaw('MAX(s.valor) as valor')
+            ->groupBy('pc.descripcion_externa')
+            ->orderByDesc('valor')
+            ->limit($limit)
+            ->get();
+
+        $pais = DB::table('pais')->where('pais_id', $paisId)->value('nombre');
+
+        return $this->serie(
+            $rows->pluck('label')->map(fn ($l) => mb_strimwidth((string) $l, 0, 40, '…'))->all(),
+            [['name' => 'Índice de valor ('.($flujo === 'imp' ? 'importación' : 'exportación').')', 'data' => $rows->pluck('valor')->map(fn ($v) => round((float) $v, 1))->all()]],
+            [
+                'fuente'    => 'FAOSTAT',
+                'unidad'    => 'índice (2014-2016 = 100)',
+                'gestion'   => $gestion,
+                'flujo'     => $flujo,
+                'pais_id'   => $paisId,
+                'pais'      => $pais,
+                'hay_datos' => $rows->isNotEmpty(),
+            ]
+        );
+    }
+
+    /** Países y productos disponibles en FAOSTAT para los selectores del panel. */
+    public function faostatFiltros(?int $paisId = null): array
+    {
+        $paises = DB::table('serie_indicador_agricola as s')
+            ->join('pais as p', 'p.pais_id', '=', 's.pais_id')
+            ->where('s.organizacion_id', self::ORG_FAOSTAT)
+            ->selectRaw('p.pais_id as id, p.nombre')
+            ->groupBy('p.pais_id', 'p.nombre')
+            ->orderBy('p.nombre')
+            ->get()
+            ->map(fn ($p) => ['id' => (int) $p->id, 'nombre' => $p->nombre])
+            ->all();
+
+        $paisId ??= $this->paisFaostatDefecto();
+
+        $productos = DB::table('serie_indicador_agricola as s')
+            ->join('producto_codigo_externo as pc', 'pc.producto_codigo_externo_id', '=', 's.producto_codigo_externo_id')
+            ->where('s.organizacion_id', self::ORG_FAOSTAT)
+            ->where('s.pais_id', $paisId)
+            ->selectRaw('pc.producto_codigo_externo_id as id, pc.descripcion_externa as nombre')
+            ->groupBy('pc.producto_codigo_externo_id', 'pc.descripcion_externa')
+            ->orderBy('pc.descripcion_externa')
+            ->get()
+            ->map(fn ($p) => ['id' => (int) $p->id, 'nombre' => $p->nombre])
+            ->all();
+
+        return ['paises' => $paises, 'pais_id' => $paisId, 'productos' => $productos];
     }
 
     // =========================================================================
@@ -968,12 +1132,12 @@ class PortalApi
         $items = (int) (clone $base)->count();
         $confidenciales = (int) (clone $base)->where('es_confidencial', true)->count();
 
-        // HHI por pais miembro (exportaciones derivadas): que tan concentrado
+        // HHI por país miembro (exportaciones derivadas): que tan concentrado
         // esta el comercio del bloque entre sus miembros.
         $expoPais = $tot->where('flujo', '1')->pluck('total')->map(fn ($v) => (float) $v);
         $hhi = $expo > 0 ? round($expoPais->reduce(fn ($c, $v) => $c + (($v / $expo * 100) ** 2), 0.0), 1) : null;
 
-        // Participacion top 5 productos sobre la suma de los rankings.
+        // Participación top 5 productos sobre la suma de los rankings.
         $valores = (clone $base)->orderByDesc('valor')->limit(5)->pluck('valor')->map(fn ($v) => (float) $v);
         $top5 = $sumaTop > 0 ? round($valores->sum() / $sumaTop * 100, 1) : null;
 
@@ -997,16 +1161,23 @@ class PortalApi
 
     private function indicadoresFaostat(?int $gestion): array
     {
-        $series = (int) DB::table('serie_indicador_agricola')->count();
+        $base = DB::table('serie_indicador_agricola')->where('organizacion_id', self::ORG_FAOSTAT);
+        $gestion ??= (int) (clone $base)->max('gestion') ?: null;
+
+        $delAnio = (clone $base)->when($gestion, fn ($q) => $q->where('gestion', $gestion));
+        $series = (int) (clone $delAnio)->count();
 
         return [
-            'organizacion' => 'FAOSTAT',
-            'gestion'      => $gestion,
-            'hay_datos'    => $series > 0,
-            'series'       => $series,
+            'organizacion'        => 'FAOSTAT',
+            'gestion'             => $gestion,
+            'hay_datos'           => $series > 0,
+            'series'              => $series,
+            'paises_destino'      => (int) (clone $delAnio)->distinct()->count('pais_id'),
+            'productos_distintos' => (int) (clone $delAnio)->distinct()->count('producto_codigo_externo_id'),
             'meta' => [
                 'fuente' => 'FAOSTAT',
-                'nota'   => 'Sin datos FAOSTAT cargados aún. Los indicadores se activarán al cargar los Excel.',
+                'nota'   => 'FAOSTAT publica índices comerciales (base 2014-2016 = 100), no valores en USD.',
+                'unidad' => 'índice (2014-2016 = 100)',
                 'ultima_actualizacion' => now()->toIso8601String(),
             ],
         ];
@@ -1281,6 +1452,10 @@ class PortalApi
         }
         if ($orgId === self::ORG_ALADI) {
             return DB::table('ranking_comercio')->distinct()->orderByDesc('gestion')
+                ->pluck('gestion')->map(fn ($g) => (int) $g)->all();
+        }
+        if ($orgId === self::ORG_FAOSTAT) {
+            return DB::table('serie_indicador_agricola')->distinct()->orderByDesc('gestion')
                 ->pluck('gestion')->map(fn ($g) => (int) $g)->all();
         }
         if ($orgId === self::ORG_INE) {

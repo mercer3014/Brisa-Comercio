@@ -14,12 +14,13 @@ class ConsultaExplorador
 {
     /**
      * ALADI y MERCOSUR no usan el microdato: sus datos viven en
-     * ranking_comercio y serie_comercio_producto_zona respectivamente, asi que
+     * ranking_comercio y serie_comercio_producto_zona respectivamente, así que
      * sus consultas se resuelven con ramas propias que devuelven exactamente
      * la misma forma (columnas y claves) que la del microdato.
      */
     private const ORG_ALADI    = 2;
     private const ORG_MERCOSUR = 3;
+    private const ORG_FAOSTAT  = 4;
 
     /**
      * Filtros directos: clave de filtro => columna en la tabla de hechos.
@@ -40,8 +41,8 @@ class ConsultaExplorador
     ];
 
     /**
-     * Consulta base sobre la organizacion seleccionada, con join a tiempo
-     * (para gestion/mes).
+     * Consulta base sobre la organización seleccionada, con join a tiempo
+     * (para gestión/mes).
      */
     private function base(int $organizacionId): Builder
     {
@@ -67,7 +68,7 @@ class ConsultaExplorador
             }
         }
 
-        // Tiempo: gestion y mes.
+        // Tiempo: gestión y mes.
         if ($excepto !== 'gestion' && ! empty($f['gestion'])) {
             $q->whereIn('t.gestion', $f['gestion']);
         }
@@ -75,21 +76,21 @@ class ConsultaExplorador
             $q->whereIn('t.mes', $f['mes']);
         }
 
-        // Zona: a traves de pais.
+        // Zona: a través de país.
         if ($excepto !== 'zona' && ! empty($f['zona'])) {
             $q->whereIn('o.pais_id', function ($sub) use ($f) {
                 $sub->select('pais_id')->from('pais')->whereIn('zona_id', $f['zona']);
             });
         }
 
-        // Capitulo: a traves de producto.
+        // Capítulo: a través de producto.
         if ($excepto !== 'capitulo' && ! empty($f['capitulo'])) {
             $q->whereIn('o.producto_id', function ($sub) use ($f) {
                 $sub->select('producto_id')->from('producto')->whereIn('capitulo_id', $f['capitulo']);
             });
         }
 
-        // Seccion: a traves de producto -> capitulo.
+        // Sección: a través de producto -> capítulo.
         if ($excepto !== 'seccion' && ! empty($f['seccion'])) {
             $q->whereIn('o.producto_id', function ($sub) use ($f) {
                 $sub->select('p.producto_id')->from('producto as p')
@@ -98,7 +99,7 @@ class ConsultaExplorador
             });
         }
 
-        // Busqueda libre sobre descripciones de producto, pais y aduana.
+        // Búsqueda libre sobre descripciones de producto, país y aduana.
         if (! empty($f['busqueda'])) {
             $texto = '%'.trim($f['busqueda']).'%';
             $q->where(function ($w) use ($texto) {
@@ -113,7 +114,7 @@ class ConsultaExplorador
 
     /**
      * Totales: cantidad de registros, suma de valor y de peso.
-     * valor = FOB (exportacion) o CIF frontera (importacion); peso = peso bruto.
+     * valor = FOB (exportación) o CIF frontera (importación); peso = peso bruto.
      */
     public function totales(int $orgId, array $f): array
     {
@@ -126,7 +127,7 @@ class ConsultaExplorador
             return [
                 'total' => (int) $row->total,
                 'valor' => (float) $row->valor,
-                'peso'  => 0.0, // ALADI no publica volumen fisico
+                'peso'  => 0.0, // ALADI no publica volumen físico
             ];
         }
 
@@ -141,6 +142,25 @@ class ConsultaExplorador
                 'total' => (int) $row->total,
                 'valor' => (float) $row->valor,
                 'peso'  => (float) $row->peso,
+            ];
+        }
+
+        if ($orgId === self::ORG_FAOSTAT) {
+            // FAOSTAT publica índices (2014-2016 = 100), no USD ni kg: sumar
+            // índices no significa nada, así que las tarjetas muestran el
+            // índice promedio y la cantidad de países (con sus etiquetas).
+            $row = $this->aplicarFaostat($this->baseFaostat(), $f)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw('percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) as promedio')
+                ->selectRaw('COUNT(DISTINCT s.pais_id) as paises')
+                ->first();
+
+            return [
+                'total'          => (int) $row->total,
+                'valor'          => round((float) $row->promedio, 1),
+                'peso'           => (int) $row->paises,
+                'etiqueta_valor' => 'Índice mediano (2014-2016 = 100)',
+                'etiqueta_peso'  => 'Países',
             ];
         }
 
@@ -159,13 +179,13 @@ class ConsultaExplorador
 
     /**
      * Consulta de detalle (microdato) con etiquetas de dimension, aplicando los filtros.
-     * Reutilizada por la tabla paginada y por la exportacion.
+     * Reutilizada por la tabla paginada y por la exportación.
      */
     public function detalleQuery(int $orgId, array $f): Builder
     {
         if ($orgId === self::ORG_ALADI) {
             // Mismas columnas/alias que la rama del microdato (la vista y la
-            // exportacion no distinguen la fuente). Se envuelve en un fromSub
+            // exportación no distinguen la fuente). Se envuelve en un fromSub
             // con alias "o" para que el orden por o.operacion_id siga valiendo.
             $sub = $this->aplicarAladi($this->baseAladi(), $f)
                 ->leftJoin('pais as pa', 'pa.pais_id', '=', 'rc.pais_reportante_id')
@@ -192,6 +212,28 @@ class ConsultaExplorador
 
         if ($orgId === self::ORG_MERCOSUR) {
             return $this->unionMercosur($f)->select('o.*');
+        }
+
+        if ($orgId === self::ORG_FAOSTAT) {
+            $sub = $this->aplicarFaostat($this->baseFaostat(), $f)
+                ->select([
+                    's.serie_agricola_id as operacion_id',
+                    's.gestion',
+                    DB::raw("'Anual' as mes"),
+                    DB::raw('e.nombre_elemento as tipo_operacion'),
+                    DB::raw('pc.codigo_externo as codigo_nandina'),
+                    DB::raw('pc.descripcion_externa as producto'),
+                    DB::raw('pa.nombre as pais'),
+                    DB::raw('NULL as departamento'),
+                    DB::raw('NULL as medio'),
+                    DB::raw('NULL as via'),
+                    DB::raw('NULL as peso_bruto_kg'),
+                    DB::raw('NULL as peso_neto_kg'),
+                    DB::raw("CASE WHEN e.tipo_comercio = 'IMPORTACION' THEN NULL ELSE s.valor END as valor_fob_usd"),
+                    DB::raw("CASE WHEN e.tipo_comercio = 'IMPORTACION' THEN s.valor ELSE NULL END as valor_cif_frontera_usd"),
+                ]);
+
+            return DB::query()->fromSub($sub, 'o')->select('o.*');
         }
 
         return $this->aplicar($this->base($orgId), $f)
@@ -230,10 +272,30 @@ class ConsultaExplorador
     }
 
     /**
-     * Graficos del subconjunto filtrado: top N paises y top N productos por valor.
+     * Gráficos del subconjunto filtrado: top N países y top N productos por valor.
      */
     public function graficos(int $orgId, array $f, int $n = 10): array
     {
+        if ($orgId === self::ORG_FAOSTAT) {
+            // Sin valores USD que sumar: los "top" muestran cantidad de series.
+            $topPaises = $this->aplicarFaostat($this->baseFaostat(), $f)
+                ->selectRaw('pa.nombre as label')
+                ->selectRaw('COUNT(*) as valor')
+                ->groupBy('pa.nombre')->orderByDesc('valor')->limit($n)
+                ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
+
+            $topProductos = $this->aplicarFaostat($this->baseFaostat(), $f)
+                ->selectRaw('pc.descripcion_externa as label')
+                ->selectRaw('COUNT(*) as valor')
+                ->groupBy('pc.descripcion_externa')->orderByDesc('valor')->limit($n)
+                ->get()->map(fn ($r) => [
+                    'label' => mb_strimwidth((string) ($r->label ?: '—'), 0, 40, '...'),
+                    'valor' => (float) $r->valor,
+                ])->all();
+
+            return ['top_paises' => $topPaises, 'top_productos' => $topProductos];
+        }
+
         if ($orgId === self::ORG_MERCOSUR) {
             $valor = 'COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)';
 
@@ -311,13 +373,16 @@ class ConsultaExplorador
         if ($orgId === self::ORG_MERCOSUR) {
             return $this->facetasMercosur($f);
         }
+        if ($orgId === self::ORG_FAOSTAT) {
+            return $this->facetasFaostat($f);
+        }
 
         return $this->facetasMicrodato($orgId, $f);
     }
 
     /**
      * Definicion de cada faceta del microdato: columna a agrupar y joins extra
-     * que necesita (ademas de tiempo, que ya esta en base()).
+     * que necesita (además de tiempo, que ya esta en base()).
      */
     private function defsFacetas(): array
     {
@@ -360,7 +425,7 @@ class ConsultaExplorador
      * Conteos facetados del microdato.
      *
      * Las facetas SIN filtro activo comparten exactamente la misma consulta
-     * base, asi que se resuelven todas en UNA sola pasada con GROUPING SETS
+     * base, así que se resuelven todas en UNA sola pasada con GROUPING SETS
      * (en vez de ~16 agregaciones separadas sobre millones de filas). Solo las
      * facetas con filtro activo necesitan su propia consulta (excluyendo su
      * propio filtro).
@@ -390,7 +455,7 @@ class ConsultaExplorador
                 $facetas[$k] = [];
             }
 
-            // GROUPING(c1..cn): el bit en 0 marca la unica columna agrupada del set.
+            // GROUPING(c1..cn): el bit en 0 marca la única columna agrupada del set.
             $total = count($compartidas);
             foreach ($rows as $row) {
                 $gid = (int) $row->gid;
@@ -426,11 +491,11 @@ class ConsultaExplorador
     // =========================================================================
 
     /**
-     * MERCOSUR guarda una fila por (producto, zona, gestion) con exportaciones
+     * MERCOSUR guarda una fila por (producto, zona, gestión) con exportaciones
      * e importaciones en columnas: para que el explorador muestre una fila por
-     * operacion (como el microdato), cada serie se abre en una rama de
-     * exportacion y otra de importacion unidas con UNION ALL. La columna
-     * "pais" muestra la zona geoeconomica (la dimension geografica real de
+     * operación (como el microdato), cada serie se abre en una rama de
+     * exportación y otra de importación unidas con UNION ALL. La columna
+     * "país" muestra la zona geoeconomica (la dimension geográfica real de
      * las series por producto de MERCOSUR).
      */
     private function ramaMercosur(bool $exportacion, array $f, ?string $excepto = null): Builder
@@ -477,11 +542,11 @@ class ConsultaExplorador
         return $q;
     }
 
-    /** Union exportaciones + importaciones (con el filtro de tipo de operacion aplicado). */
+    /** Union exportaciones + importaciones (con el filtro de tipo de operación aplicado). */
     private function unionMercosur(array $f, ?string $excepto = null): Builder
     {
         $tipos = $excepto === 'tipo_operacion' ? [] : ($f['tipo_operacion'] ?? []);
-        // tipo_operacion del INE: 1 y 3 = exportacion, 2 = importacion
+        // tipo_operacion del INE: 1 y 3 = exportación, 2 = importación
         $quiereExp = empty($tipos) || count(array_intersect([1, 3], $tipos)) > 0;
         $quiereImp = empty($tipos) || in_array(2, $tipos, true);
 
@@ -503,6 +568,29 @@ class ConsultaExplorador
 
     private function facetasMercosur(array $f): array
     {
+        // Sin filtros activos las tres facetas comparten la misma base: se
+        // resuelven en UNA pasada de la union con GROUPING SETS.
+        if (empty($f['tipo_operacion']) && empty($f['gestion']) && empty($f['zona'])) {
+            $rows = $this->unionMercosur($f)
+                ->selectRaw('o.tipo_operacion_id as f_tipo, o.gestion as f_gestion, o.zona_id as f_zona')
+                ->selectRaw('COUNT(*) as n, GROUPING(o.tipo_operacion_id, o.gestion, o.zona_id) as gid')
+                ->groupByRaw('GROUPING SETS ((o.tipo_operacion_id), (o.gestion), (o.zona_id))')
+                ->get();
+
+            $fac = ['tipo_operacion' => [], 'gestion' => [], 'zona' => []];
+            foreach ($rows as $r) {
+                // GROUPING(a,b,c): bit en 0 = columna agrupada. (a)=3, (b)=5, (c)=6.
+                match ((int) $r->gid) {
+                    3 => $fac['tipo_operacion'][(int) $r->f_tipo] = (int) $r->n,
+                    5 => $fac['gestion'][(int) $r->f_gestion] = (int) $r->n,
+                    6 => $fac['zona'][(int) $r->f_zona] = (int) $r->n,
+                    default => null,
+                };
+            }
+
+            return $fac;
+        }
+
         return [
             'tipo_operacion' => $this->unionMercosur($f, 'tipo_operacion')
                 ->select('o.tipo_operacion_id as id', DB::raw('COUNT(*) as n'))
@@ -517,6 +605,100 @@ class ConsultaExplorador
     }
 
     // =========================================================================
+    //  Rama FAOSTAT (serie_indicador_agricola)
+    // =========================================================================
+
+    /**
+     * FAOSTAT guarda índices comerciales (base 2014-2016 = 100) por país,
+     * elemento y producto CPC. La columna "Operación" del explorador muestra
+     * el elemento (índice de valor/volumen de exp/imp) y "Valor" el índice.
+     */
+    private function baseFaostat(): Builder
+    {
+        return DB::table('serie_indicador_agricola as s')
+            ->join('faostat_elemento as e', 'e.elemento_id', '=', 's.elemento_id')
+            ->join('pais as pa', 'pa.pais_id', '=', 's.pais_id')
+            ->leftJoin('producto_codigo_externo as pc', 'pc.producto_codigo_externo_id', '=', 's.producto_codigo_externo_id')
+            ->where('s.organizacion_id', self::ORG_FAOSTAT);
+    }
+
+    private function aplicarFaostat(Builder $q, array $f, ?string $excepto = null): Builder
+    {
+        if ($excepto !== 'gestion' && ! empty($f['gestion'])) {
+            $q->whereIn('s.gestion', $f['gestion']);
+        }
+        if ($excepto !== 'pais' && ! empty($f['pais'])) {
+            $q->whereIn('s.pais_id', $f['pais']);
+        }
+
+        // tipo_operacion del INE (1/3 = exportación, 2 = importación) -> tipo_comercio
+        if ($excepto !== 'tipo_operacion' && ! empty($f['tipo_operacion'])) {
+            $tipos = collect($f['tipo_operacion'])
+                ->map(fn ($id) => (int) $id === 2 ? 'IMPORTACION' : 'EXPORTACION')
+                ->unique()->values()->all();
+            $q->whereIn('e.tipo_comercio', $tipos);
+        }
+
+        if (! empty($f['busqueda'])) {
+            $texto = '%'.trim($f['busqueda']).'%';
+            $q->where(function ($w) use ($texto) {
+                $w->where('pc.descripcion_externa', 'ilike', $texto)
+                    ->orWhere('pc.codigo_externo', 'ilike', $texto)
+                    ->orWhere('pa.nombre', 'ilike', $texto)
+                    ->orWhere('e.nombre_elemento', 'ilike', $texto);
+            });
+        }
+
+        return $q;
+    }
+
+    private function facetasFaostat(array $f): array
+    {
+        // Sin filtros activos las tres facetas comparten la misma base: UNA
+        // sola pasada con GROUPING SETS sobre los millones de series.
+        if (empty($f['tipo_operacion']) && empty($f['gestion']) && empty($f['pais'])) {
+            $rows = $this->aplicarFaostat($this->baseFaostat(), $f)
+                ->selectRaw('e.tipo_comercio as f_tipo, s.gestion as f_gestion, s.pais_id as f_pais')
+                ->selectRaw('COUNT(*) as n, GROUPING(e.tipo_comercio, s.gestion, s.pais_id) as gid')
+                ->groupByRaw('GROUPING SETS ((e.tipo_comercio), (s.gestion), (s.pais_id))')
+                ->get();
+
+            $fac = ['tipo_operacion' => [], 'gestion' => [], 'pais' => []];
+            foreach ($rows as $r) {
+                // GROUPING(a,b,c): bit en 0 = columna agrupada. (a)=3, (b)=5, (c)=6.
+                // EXPORTACION y OTRO caen juntos en el id 1 (se suman).
+                match ((int) $r->gid) {
+                    3 => $fac['tipo_operacion'][$r->f_tipo === 'IMPORTACION' ? 2 : 1] =
+                        ($fac['tipo_operacion'][$r->f_tipo === 'IMPORTACION' ? 2 : 1] ?? 0) + (int) $r->n,
+                    5 => $fac['gestion'][(int) $r->f_gestion] = (int) $r->n,
+                    6 => $fac['pais'][(int) $r->f_pais] = (int) $r->n,
+                    default => null,
+                };
+            }
+
+            return $fac;
+        }
+
+        // tipo_comercio EXPORTACION/IMPORTACION -> tipo_operacion_id 1/2 del catálogo INE.
+        $tipoOperacion = $this->aplicarFaostat($this->baseFaostat(), $f, 'tipo_operacion')
+            ->selectRaw('e.tipo_comercio as id, COUNT(*) as n')
+            ->groupBy('e.tipo_comercio')
+            ->pluck('n', 'id')
+            ->mapWithKeys(fn ($n, $t) => [$t === 'IMPORTACION' ? 2 : 1 => (int) $n])
+            ->all();
+
+        return [
+            'tipo_operacion' => $tipoOperacion,
+            'gestion' => $this->aplicarFaostat($this->baseFaostat(), $f, 'gestion')
+                ->selectRaw('s.gestion as id, COUNT(*) as n')
+                ->groupBy('s.gestion')->pluck('n', 'id')->all(),
+            'pais' => $this->aplicarFaostat($this->baseFaostat(), $f, 'pais')
+                ->selectRaw('s.pais_id as id, COUNT(*) as n')
+                ->groupBy('s.pais_id')->pluck('n', 'id')->all(),
+        ];
+    }
+
+    // =========================================================================
     //  Rama ALADI (ranking_comercio)
     // =========================================================================
 
@@ -526,9 +708,9 @@ class ConsultaExplorador
     }
 
     /**
-     * Filtros aplicables a ALADI: gestion, pais (reportante), tipo de operacion
-     * (mapeado al flujo) y busqueda libre. El resto de facetas del microdato
-     * (departamento, medio, via, clasificaciones) no existe en los rankings.
+     * Filtros aplicables a ALADI: gestión, país (reportante), tipo de operación
+     * (mapeado al flujo) y búsqueda libre. El resto de facetas del microdato
+     * (departamento, medio, vía, clasificaciones) no existe en los rankings.
      */
     private function aplicarAladi(Builder $q, array $f, ?string $excepto = null): Builder
     {
@@ -539,7 +721,7 @@ class ConsultaExplorador
             $q->whereIn('rc.pais_reportante_id', $f['pais']);
         }
 
-        // tipo_operacion del INE (1/3 = exportacion, 2 = importacion) -> codigo de flujo
+        // tipo_operacion del INE (1/3 = exportación, 2 = importación) -> código de flujo
         if ($excepto !== 'tipo_operacion' && ! empty($f['tipo_operacion'])) {
             $codigos = collect($f['tipo_operacion'])
                 ->map(fn ($id) => (int) $id === 2 ? '2' : '1')
@@ -563,7 +745,7 @@ class ConsultaExplorador
 
     private function facetasAladi(array $f): array
     {
-        // codigo_flujo '1'/'2' coincide con tipo_operacion_id 1/2 del catalogo INE.
+        // codigo_flujo '1'/'2' coincide con tipo_operacion_id 1/2 del catálogo INE.
         $tipoOperacion = $this->aplicarAladi($this->baseAladi(), $f, 'tipo_operacion')
             ->join('flujo_comercial as fl', 'fl.flujo_id', '=', 'rc.flujo_id')
             ->select('fl.codigo_flujo as id', DB::raw('COUNT(*) as n'))

@@ -21,9 +21,9 @@ function limpiar() {
 </script>
 
 <template>
-    <Head title="Bitacora" />
+    <Head title="Bitácora" />
     <div class="max-w-6xl mx-auto">
-        <h1 class="text-2xl font-bold text-slate-800 mb-1">Bitacora de auditoria</h1>
+        <h1 class="text-2xl font-bold text-slate-800 mb-1">Bitácora de auditoria</h1>
         <p class="text-slate-500 text-sm mb-5">Registro de acciones relevantes del sistema.</p>
 
         <div class="bg-white rounded-xl border border-slate-200 p-4 mb-4 grid grid-cols-2 md:grid-cols-5 gap-3 items-end">

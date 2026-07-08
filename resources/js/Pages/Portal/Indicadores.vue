@@ -60,6 +60,7 @@ const DESCRIPTORES = [
     { key: 'zonas', label: 'Zonas geoeconómicas', fmt: fmtNum, formula: 'Número de zonas con registros.', color: '#3182CE' },
     { key: 'productos_distintos', label: 'Productos distintos', fmt: fmtNum, formula: 'Cantidad de productos (NANDINA) distintos comerciados.', color: '#805AD5' },
     { key: 'items_ranking', label: 'Ítems en ranking', fmt: fmtNum, formula: 'Número de ítems del ranking.', color: '#805AD5' },
+    { key: 'series', label: 'Series de índices', fmt: fmtNum, formula: 'Cantidad de series de índices comerciales (país × producto × elemento) del año. FAOSTAT publica índices (2014-2016 = 100), no USD.', color: '#0D9488' },
     { key: 'exportaciones', label: 'Exportaciones', fmt: fmtCompacto, formula: 'Total exportado en el periodo (USD).', color: '#16A34A' },
     { key: 'importaciones', label: 'Importaciones', fmt: fmtCompacto, formula: 'Total importado en el periodo (USD).', color: '#DC2626' },
     { key: 'valor_total', label: 'Valor total', fmt: fmtCompacto, formula: 'Suma del valor de los ítems del ranking (USD).', color: '#16A34A' },

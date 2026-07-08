@@ -1,5 +1,5 @@
 <script setup>
-/** Radar. Props: series, categorias, opciones. */
+/** Radar. Props: series, categorías, opciones. */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';
 

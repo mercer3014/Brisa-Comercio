@@ -31,7 +31,7 @@ function formatoFinal(valor) {
     }) + props.sufijo;
 }
 
-// Prueba el texto final a tamano maximo y lo va reduciendo solo lo necesario
+// Prueba el texto final a tamano máximo y lo va reduciendo solo lo necesario
 // hasta que quepa en el ancho real de la tarjeta (nunca se corta ni sobra).
 function ajustarTamano(texto) {
     const el = numero.value;
@@ -86,9 +86,9 @@ onMounted(() => {
         resizeObserver = new ResizeObserver(() => reajustar());
         resizeObserver.observe(fila.value);
     }
-    // La tipografia de marca (Plus Jakarta Sans) carga via CDN externo; si el
+    // La tipografia de marca (Plus Jakarta Sans) carga vía CDN externo; si el
     // ajuste de tamano se calcula antes de que termine de cargar, se mide con
-    // la fuente de reemplazo (mas angosta) y el numero final ya no entra.
+    // la fuente de reemplazo (más angosta) y el número final ya no entra.
     // Recalculamos en cuanto las fuentes esten realmente listas.
     if (document.fonts?.ready) {
         document.fonts.ready.then(reajustar);

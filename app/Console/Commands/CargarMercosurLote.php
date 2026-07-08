@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  * materializadas UNA sola vez al final.
  *
  * Estructura esperada de la carpeta base:
- *   <base>/MERCOSUR <version>/Por Paises/*.xlsx  -> serie_comercio_zona
+ *   <base>/MERCOSUR <version>/Por Países/*.xlsx  -> serie_comercio_zona
  *   <base>/MERCOSUR <version>/Por Items/*.xlsx   -> serie_comercio_producto_zona
  *
  * Uso:
@@ -80,6 +80,9 @@ class CargarMercosurLote extends Command
                 $this->warn('  No se pudo refrescar la vista: ' . $e->getMessage());
             }
         }
+
+        $this->line('Precalentando cache...');
+        \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
 
         $this->info('Listo. Países: ' . number_format($totalPais) . ' filas · Items: ' . number_format($totalItem) . ' filas.');
         return self::SUCCESS;

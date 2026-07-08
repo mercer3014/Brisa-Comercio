@@ -17,8 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Explorador PUBLICO con detalle (Tarea 15): version abierta y visual del explorador
- * facetado privado. Reutiliza ConsultaExplorador. Sin autenticacion; respeta SIEMPRE
- * la organizacion seleccionada.
+ * facetado privado. Reutiliza ConsultaExplorador. Sin autenticación; respeta SIEMPRE
+ * la organización seleccionada.
  */
 class ExploradorPublicoController extends Controller
 {
@@ -39,7 +39,7 @@ class ExploradorPublicoController extends Controller
     }
 
     /**
-     * Totales + tabla paginada + facetas + graficos del subconjunto filtrado.
+     * Totales + tabla paginada + facetas + gráficos del subconjunto filtrado.
      */
     public function consultar(Request $request, ConsultaExplorador $consulta): JsonResponse
     {
@@ -57,19 +57,19 @@ class ExploradorPublicoController extends Controller
 
         // Cache: los agregados sobre millones de filas son costosos y solo
         // cambian cuando se carga un archivo nuevo (la version del cache es el
-        // ultimo carga_id). Totales+facetas+graficos se cachean sin la pagina.
-        $ver = (int) DB::table('carga_archivo')->max('carga_id');
-        $hash = md5(json_encode([$org, $filtros]));
-
+        // último carga_id). Totales+facetas+gráficos se cachean sin la página.
         // Mismas claves que el explorador admin (consultan lo mismo): calentar
-        // una calienta la otra. Los graficos son solo del publico.
-        $agregados = Cache::remember("expl.agg.{$ver}.{$hash}", 86400, fn () => [
+        // una calienta la otra. Los gráficos son solo del público. Las claves
+        // viven en ClavesCache porque ovxel:calentar-cache las precalienta.
+        $ver = \App\Servicios\ClavesCache::version();
+
+        $agregados = Cache::remember(\App\Servicios\ClavesCache::explAgg($ver, $org, $filtros), \App\Servicios\ClavesCache::TTL, fn () => [
             'totales' => $consulta->totales($org, $filtros),
             'facetas' => $consulta->facetas($org, $filtros),
         ]);
-        $graficos = Cache::remember("expl.graf.{$ver}.{$hash}", 86400,
+        $graficos = Cache::remember(\App\Servicios\ClavesCache::explGraf($ver, $org, $filtros), \App\Servicios\ClavesCache::TTL,
             fn () => $consulta->graficos($org, $filtros, 10));
-        $tabla = Cache::remember("expl.tabla.{$ver}.{$hash}.{$pagina}.{$porPagina}", 86400,
+        $tabla = Cache::remember(\App\Servicios\ClavesCache::explTabla($ver, $org, $filtros, $pagina, $porPagina), \App\Servicios\ClavesCache::TTL,
             fn () => $consulta->tabla($org, $filtros, $porPagina, $pagina));
 
         return response()->json([
@@ -97,8 +97,8 @@ class ExploradorPublicoController extends Controller
 
         $query = $consulta->detalleQuery($org, $filtros)->orderByDesc('o.operacion_id');
 
-        $columnas = ['Gestion', 'Mes', 'Tipo', 'NANDINA', 'Producto', 'Pais', 'Departamento',
-            'Medio', 'Via', 'Peso bruto (kg)', 'Peso neto (kg)', 'FOB (USD)', 'CIF frontera (USD)'];
+        $columnas = ['Gestión', 'Mes', 'Tipo', 'NANDINA', 'Producto', 'País', 'Departamento',
+            'Medio', 'Vía', 'Peso bruto (kg)', 'Peso neto (kg)', 'FOB (USD)', 'CIF frontera (USD)'];
 
         $archivo = 'explorador_'.now()->format('Ymd_His').'.'.$formato;
         $writer = $formato === 'xlsx' ? new XlsxWriter() : new CsvWriter();
@@ -125,7 +125,7 @@ class ExploradorPublicoController extends Controller
     }
 
     /**
-     * Limpia los filtros recibidos (arreglos de ids enteros + busqueda).
+     * Limpia los filtros recibidos (arreglos de ids enteros + búsqueda).
      */
     private function normalizarFiltros(array $filtros): array
     {

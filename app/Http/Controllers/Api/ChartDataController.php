@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Datos para gráficos (ApexCharts) del portal público. Todos los endpoints
- * devuelven JSON con la estructura { categorias, series, meta } y usan cache
+ * devuelven JSON con la estructura { categorías, series, meta } y usan cache
  * de 10 minutos sobre las consultas agregadas.
  */
 class ChartDataController extends Controller
@@ -173,6 +173,31 @@ class ChartDataController extends Controller
     }
 
     // ---- FAOSTAT ------------------------------------------------------------
+
+    public function faostatEvolucion(Request $r): JsonResponse
+    {
+        $p = $r->integer('pais_id') ?: null;
+        $prod = $r->integer('producto_id') ?: null;
+
+        return $this->cache("faostat-evolucion.$p.$prod", fn () => $this->api->faostatEvolucion($p, $prod));
+    }
+
+    public function faostatProductos(Request $r): JsonResponse
+    {
+        $p = $r->integer('pais_id') ?: null;
+        $f = strtolower((string) $r->query('flujo', 'exp')) === 'imp' ? 'imp' : 'exp';
+        $g = $this->gestion($r);
+        $l = $this->limit($r, 10);
+
+        return $this->cache("faostat-productos.$p.$f.$g.$l", fn () => $this->api->faostatProductos($p, $f, $g, $l));
+    }
+
+    public function faostatFiltros(Request $r): JsonResponse
+    {
+        $p = $r->integer('pais_id') ?: null;
+
+        return $this->cache("faostat-filtros.$p", fn () => $this->api->faostatFiltros($p));
+    }
 
     public function faostat(string $subtipo): JsonResponse
     {

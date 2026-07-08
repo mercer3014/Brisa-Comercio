@@ -11,7 +11,7 @@ class OrganizacionIneSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1) INE como primera organizacion (organizacion_id = 1 esperado).
+        // 1) INE como primera organización (organizacion_id = 1 esperado).
         $ine = Organizacion::updateOrCreate(
             ['nombre' => 'Instituto Nacional de Estadistica de Bolivia'],
             [
@@ -22,7 +22,7 @@ class OrganizacionIneSeeder extends Seeder
             ]
         );
 
-        // 2) Perfiles iniciales: exportacion e importacion.
+        // 2) Perfiles iniciales: exportación e importación.
         // NOTA: las cabeceras reales completas las entrega el equipo; este mapeo es una
         // base operativa con los alias conocidos. Editable desde la interfaz (Tarea 4)
         // y validable con archivos reales en la Tarea 5/6.

@@ -8,15 +8,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * Version ALADI de AgregadorDashboard: mismo contrato de salida (misma forma
  * de arreglos) que consume Dashboards/Index.vue, pero leyendo de la tabla
- * propia de ALADI (ranking_comercio: top-50 de productos por pais miembro,
- * flujo y gestion) en vez del microdato del INE o las series de MERCOSUR.
+ * propia de ALADI (ranking_comercio: top-50 de productos por país miembro,
+ * flujo y gestión) en vez del microdato del INE o las series de MERCOSUR.
  *
- * Los rankings solo traen el top-50 de cada pais, pero incluyen el
- * "% acumulado" sobre el total del pais: de ahi se deriva el total real
+ * Los rankings solo traen el top-50 de cada país, pero incluyen el
+ * "% acumulado" sobre el total del país: de ahi se deriva el total real
  * (total = suma_top50 * 100 / pct_acumulado). No se inventa nada, es
  * aritmetica del propio archivo publicado.
  *
- * Lo que no existe en ALADI (volumen fisico, departamento, medio de
+ * Lo que no existe en ALADI (volumen físico, departamento, medio de
  * transporte, granularidad mensual) devuelve series vacias o nulos en vez
  * de inventar datos.
  */
@@ -25,10 +25,10 @@ class AgregadorDashboardAladi
     private const ORG_ID = 2;
 
     /**
-     * Total derivado por (pais, flujo, gestion): la suma del top-50 escalada
-     * por el % acumulado que ese top representa del total del pais.
+     * Total derivado por (país, flujo, gestión): la suma del top-50 escalada
+     * por el % acumulado que ese top representa del total del país.
      *
-     * @return Collection<int, object{pais_id:int|null, flujo:string|null, gestion:int, total:float}>
+     * @return Collection<int, object{pais_id:int|null, flujo:string|null, gestión:int, total:float}>
      */
     private function totales(?int $gestion = null): Collection
     {
@@ -75,7 +75,7 @@ class AgregadorDashboardAladi
             'valor_exportacion'    => $expo,
             'valor_importacion'    => $impo,
             'balanza_comercial'    => $expo - $impo,
-            'peso_bruto'           => 0.0, // ALADI no publica volumen fisico
+            'peso_bruto'           => 0.0, // ALADI no publica volumen físico
             'peso_neto'            => 0.0,
             'registros'            => $registros,
             'precio_implicito'     => null,
@@ -85,8 +85,8 @@ class AgregadorDashboardAladi
 
     /**
      * ALADI no trae desglose mensual (rankings anuales). Se devuelve un punto
-     * por gestion, IGNORANDO el filtro de gestion: filtrando a un solo anio
-     * quedaria un grafico de una sola barra sin poder ver evolucion.
+     * por gestión, IGNORANDO el filtro de gestión: filtrando a un solo año
+     * quedaria un gráfico de una sola barra sin poder ver evolución.
      */
     public function evolucionMensual(?int $gestion = null): array
     {
@@ -154,15 +154,15 @@ class AgregadorDashboardAladi
     }
 
     /**
-     * ALADI no maneja zonas geoeconomicas: su dimension geografica es el pais
-     * miembro, asi que la "distribucion por zona" muestra los 13 miembros.
+     * ALADI no maneja zonas geoeconomicas: su dimension geográfica es el país
+     * miembro, así que la "distribución por zona" muestra los 13 miembros.
      */
     public function distribucionZona(?int $gestion = null): array
     {
         return $this->topPaises($gestion, 13);
     }
 
-    /** ALADI no tiene desglose por departamento (eso es especifico del microdato del INE). */
+    /** ALADI no tiene desglose por departamento (eso es específico del microdato del INE). */
     public function distribucionDepartamento(): array
     {
         return [];
@@ -180,7 +180,7 @@ class AgregadorDashboardAladi
         ], $top);
     }
 
-    /** ALADI no tiene desglose por medio de transporte (eso es especifico del microdato del INE). */
+    /** ALADI no tiene desglose por medio de transporte (eso es específico del microdato del INE). */
     public function distribucionMedio(): array
     {
         return [];

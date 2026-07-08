@@ -42,16 +42,16 @@ class ExploradorController extends Controller
 
         // Cache: los agregados sobre millones de filas son costosos y solo
         // cambian cuando se carga un archivo nuevo (la version del cache es el
-        // ultimo carga_id). Totales+facetas se cachean sin la pagina, para que
-        // paginar solo recalcule la tabla.
-        $ver = (int) DB::table('carga_archivo')->max('carga_id');
-        $hash = md5(json_encode([$org, $filtros]));
+        // último carga_id). Totales+facetas se cachean sin la página, para que
+        // paginar solo recalcule la tabla. Las claves viven en ClavesCache
+        // porque ovxel:calentar-cache las precalienta tras cada carga.
+        $ver = \App\Servicios\ClavesCache::version();
 
-        $agregados = Cache::remember("expl.agg.{$ver}.{$hash}", 86400, fn () => [
+        $agregados = Cache::remember(\App\Servicios\ClavesCache::explAgg($ver, $org, $filtros), \App\Servicios\ClavesCache::TTL, fn () => [
             'totales' => $consulta->totales($org, $filtros),
             'facetas' => $consulta->facetas($org, $filtros),
         ]);
-        $tabla = Cache::remember("expl.tabla.{$ver}.{$hash}.{$pagina}.{$porPagina}", 86400,
+        $tabla = Cache::remember(\App\Servicios\ClavesCache::explTabla($ver, $org, $filtros, $pagina, $porPagina), \App\Servicios\ClavesCache::TTL,
             fn () => $consulta->tabla($org, $filtros, $porPagina, $pagina));
 
         return response()->json([
@@ -62,7 +62,7 @@ class ExploradorController extends Controller
     }
 
     /**
-     * Limpia los filtros recibidos (arreglos de ids enteros + busqueda).
+     * Limpia los filtros recibidos (arreglos de ids enteros + búsqueda).
      */
     private function normalizarFiltros(array $filtros): array
     {

@@ -9,11 +9,11 @@ use Throwable;
 /**
  * Refresca las vistas materializadas del portal (Tarea 14).
  *
- * Se ejecuta manualmente (`php artisan comexhub:refrescar-vistas`) y automaticamente
- * al final de cada ETL exitoso, para que los resumenes queden al dia tras cada carga.
+ * Se ejecuta manualmente (`php artisan comexhub:refrescar-vistas`) y automáticamente
+ * al final de cada ETL exitoso, para que los resumenes queden al día tras cada carga.
  *
- * Intenta REFRESH ... CONCURRENTLY (no bloquea lecturas; requiere indice unico, que
- * la migracion crea); si falla (p.ej. vista aun sin poblar), cae a un REFRESH normal.
+ * Intenta REFRESH ... CONCURRENTLY (no bloquea lecturas; requiere índice único, que
+ * la migracion crea); si falla (p.ej. vista aún sin poblar), cae a un REFRESH normal.
  */
 class RefrescarVistasPortal extends Command
 {

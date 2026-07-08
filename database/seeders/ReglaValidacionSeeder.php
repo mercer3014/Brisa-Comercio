@@ -8,7 +8,7 @@ use Illuminate\Database\Seeder;
 class ReglaValidacionSeeder extends Seeder
 {
     /**
-     * Reglas base de calidad. La columna `expresion` lleva un codigo que el
+     * Reglas base de calidad. La columna `expresion` lleva un código que el
      * ProcesadorEtl sabe interpretar (no_nulo, no_negativo, rango_mes).
      */
     public function run(): void

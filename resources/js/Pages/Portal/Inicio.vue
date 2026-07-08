@@ -20,14 +20,14 @@ const hayDatos = computed(() => datos.value?.meta?.hay_datos);
 const meta = computed(() => datos.value?.meta ?? {});
 const ind = computed(() => datos.value?.indicadores ?? null);
 
-// INE, ALADI y MERCOSUR ya se leen aqui mismo, cada uno con su arquitectura.
+// INE, ALADI y MERCOSUR ya se leen aquí mismo, cada uno con su arquitectura.
 // FAOSTAT todavia no tiene un resumen equivalente para esta portada: manda a
 // su panel dedicado en /organizaciones/{id} en vez de mostrar una pantalla
 // vacia.
 const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
 const tienePanelPropio = computed(() => ![1, 2, 3].includes(orgId.value));
 
-// Refresca la portada al cambiar organizacion o gestion.
+// Refresca la portada al cambiar organización o gestión.
 async function refrescar() {
     cargando.value = true;
     try {
@@ -40,9 +40,9 @@ async function refrescar() {
     }
 }
 
-// Cada organizacion tiene su propio rango de anios con datos (INE llega a 2026,
-// ALADI a 2025, etc.): al cambiar de organizacion se ajusta la lista de
-// gestiones y se salta a la mas reciente de esa organizacion.
+// Cada organización tiene su propio rango de años con datos (INE llega a 2026,
+// ALADI a 2025, etc.): al cambiar de organización se ajusta la lista de
+// gestiones y se salta a la más reciente de esa organización.
 const gestionesOrg = ref([...props.gestiones]);
 
 watch(orgId, async () => {
@@ -54,7 +54,7 @@ watch(orgId, async () => {
         gestionesOrg.value = [...props.gestiones];
     }
     if (!gestionesOrg.value.includes(gestion.value)) {
-        gestion.value = gestionesOrg.value[0] ?? null; // el watch de gestion refresca
+        gestion.value = gestionesOrg.value[0] ?? null; // el watch de gestión refresca
     } else {
         refrescar();
     }
@@ -102,7 +102,7 @@ const ICONO = {
 };
 const iconoPaths = (clave) => ICONO[clave] ?? ['M12 6v12m6-6H6'];
 
-// --- Mini graficos de barras horizontales (estilizadas: delgadas, redondeadas) ---
+// --- Mini gráficos de barras horizontales (estilizadas: delgadas, redondeadas) ---
 // Set general en navy slate; el Top 1 destacado en crimson premium.
 function opcionesBarras(items) {
     const colores = items.map((_, i) => (i === 0 ? '#e11d48' : '#334155'));
@@ -128,7 +128,7 @@ const serieDestinos = computed(() => [{ name: 'Exportado', data: (datos.value.to
 const opcProductos = computed(() => opcionesBarras(datos.value.top_productos ?? []));
 const opcDestinos = computed(() => opcionesBarras(datos.value.top_destinos ?? []));
 
-// --- Grafico de Comercio Exterior estilo INE: lineas exp/imp + barras de saldo ---
+// --- Gráfico de Comercio Exterior estilo INE: líneas exp/imp + barras de saldo ---
 const serieEvolucion = computed(() => {
     const ev = datos.value.evolucion ?? [];
     return [

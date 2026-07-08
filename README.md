@@ -1,13 +1,13 @@
 # ComexHub
 
 Plataforma web que **centraliza datos de comercio exterior** (exportaciones e
-importaciones) de organizaciones estadisticas. Arranca con una sola organizacion:
+importaciones) de organizaciones estadísticas. Arranca con una sola organización:
 el **INE de Bolivia**. Tiene dos caras:
 
-- **Portal publico** (sin login): portada con titulares e indicadores, explorador,
-  rankings/comparadores y pagina informativa.
-- **Panel privado** (`/admin`, detras del login): carga de archivos, ETL, explorador
-  de microdatos, dashboards, reportes, catalogos, calidad, configuracion, bitacora,
+- **Portal público** (sin login): portada con titulares e indicadores, explorador,
+  rankings/comparadores y página informativa.
+- **Panel privado** (`/admin`, detrás del login): carga de archivos, ETL, explorador
+  de microdatos, dashboards, reportes, catálogos, calidad, configuración, bitácora,
   usuarios, roles, organizaciones y perfiles de mapeo.
 
 > Proyecto academico — FCEE, UAGRM. Fuente de datos: INE Bolivia.
@@ -18,8 +18,8 @@ el **INE de Bolivia**. Tiene dos caras:
 - **Frontend**: Inertia.js + Vue 3 (`<script setup>`) + Tailwind CSS v4 sobre Vite 7
 - **Base de datos**: PostgreSQL 14+ (probado en 18)
 - **Cola de trabajos**: driver `database` (cargas pesadas / ETL en segundo plano)
-- **Librerias clave**: openspout/openspout (lectura y exportacion en streaming),
-  barryvdh/laravel-dompdf (PDF), apexcharts + vue3-apexcharts (graficos)
+- **Librerias clave**: openspout/openspout (lectura y exportación en streaming),
+  barryvdh/laravel-dompdf (PDF), apexcharts + vue3-apexcharts (gráficos)
 
 ---
 
@@ -84,9 +84,9 @@ CREATE DATABASE brisa;
 php artisan migrate --seed
 ```
 
-Esto crea las **39 tablas del esquema** (mas las internas de Laravel) y siembra los
-**datos base**: roles, permisos, usuario administrador, la organizacion INE con sus
-perfiles de mapeo, la configuracion del sistema y las reglas de calidad. Las 4 vistas
+Esto crea las **39 tablas del esquema** (más las internas de Laravel) y siembra los
+**datos base**: roles, permisos, usuario administrador, la organización INE con sus
+perfiles de mapeo, la configuración del sistema y las reglas de calidad. Las 4 vistas
 materializadas del portal se crean y pueblan en la misma corrida.
 
 > Para reconstruir todo desde cero (¡borra los datos!): `php artisan migrate:fresh --seed`.
@@ -107,7 +107,7 @@ php artisan serve      # http://localhost:8000
 php artisan queue:work # worker de la cola (procesa las cargas / ETL)
 ```
 
-Para produccion: `npm run build` y servir `php artisan serve` (o un servidor web)
+Para producción: `npm run build` y servir `php artisan serve` (o un servidor web)
 junto con un worker de cola permanente (`php artisan queue:work`).
 
 ---
@@ -120,7 +120,7 @@ junto con un worker de cola permanente (`php artisan queue:work`).
 | Contrasenia | `Admin12345`           |
 | Correo      | `admin@comexhub.local` |
 
-Configurables via `ADMIN_USUARIO`, `ADMIN_CORREO` y `ADMIN_PASSWORD` en `.env`.
+Configurables vía `ADMIN_USUARIO`, `ADMIN_CORREO` y `ADMIN_PASSWORD` en `.env`.
 La contrasenia se guarda solo como **hash bcrypt** y el usuario nace con
 `debe_cambiar_pwd = true` (debe cambiarla en el primer ingreso). Ingreso por `/acceder`.
 
@@ -138,8 +138,8 @@ php artisan queue:work
 
 `composer dev` ya levanta un `queue:listen` para desarrollo.
 
-Tras cada ETL exitoso se refrescan automaticamente las vistas materializadas del
-portal. Tambien se pueden refrescar a mano:
+Tras cada ETL exitoso se refrescan automáticamente las vistas materializadas del
+portal. También se pueden refrescar a mano:
 
 ```bash
 php artisan comexhub:refrescar-vistas
@@ -151,7 +151,7 @@ php artisan comexhub:refrescar-vistas
 
 | Cara          | Middleware            | Rutas |
 |---------------|-----------------------|-------|
-| Portal publico| (ninguno)             | `/`, `/explorar`, `/rankings`, `/acerca` |
+| Portal público| (ninguno)             | `/`, `/explorar`, `/rankings`, `/acerca` |
 | Acceso        | guest                 | `/acceder` (GET/POST) |
 | Panel privado | auth + prefix `admin` | `/admin` y `/admin/<modulo>...`; `/logout` |
 
@@ -159,11 +159,11 @@ php artisan comexhub:refrescar-vistas
 
 ## Documentacion del proyecto
 
-La carpeta [`memoria/`](memoria/) contiene el contexto y la bitacora de desarrollo:
+La carpeta [`memoria/`](memoria/) contiene el contexto y la bitácora de desarrollo:
 
 - `contexto-proyecto.md` — vision general, arquitectura de datos, reglas.
 - `estructura-bd.md` — resumen de las 39 tablas y su mapeo a modelos Eloquent.
-- `bitacora-desarrollo.md` — registro cronologico de cada tarea.
+- `bitácora-desarrollo.md` — registro cronologico de cada tarea.
 - `pendientes.md` — pendientes y mejoras diferidas.
 - `sistema-disenio.md` — paleta institucional, tipografias y tokens visuales.
 

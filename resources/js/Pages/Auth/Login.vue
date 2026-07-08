@@ -2,7 +2,7 @@
 import { useForm, Head, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-// Esta pagina NO usa el layout de la app.
+// Esta página NO usa el layout de la app.
 defineOptions({ layout: null });
 
 const page = usePage();

@@ -31,7 +31,7 @@ const colorEstado = {
                     <tr>
                         <th class="text-left px-4 py-3 font-medium">#</th>
                         <th class="text-left px-4 py-3 font-medium">Archivo</th>
-                        <th class="text-left px-4 py-3 font-medium">Organizacion</th>
+                        <th class="text-left px-4 py-3 font-medium">Organización</th>
                         <th class="text-left px-4 py-3 font-medium">Flujo</th>
                         <th class="text-center px-4 py-3 font-medium">Leidas</th>
                         <th class="text-center px-4 py-3 font-medium">Validas</th>

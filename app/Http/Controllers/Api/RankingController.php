@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Rankings dinámicos del portal (API). Cubre dimensiones INE
- * (productos|paises|departamentos|aduanas) y el ranking ALADI.
+ * (productos|países|departamentos|aduanas) y el ranking ALADI.
  */
 class RankingController extends Controller
 {
@@ -18,7 +18,7 @@ class RankingController extends Controller
     {
     }
 
-    /** GET /api/v1/rankings/{tipo} — tipo: productos|paises|departamentos|aduanas|aladi. */
+    /** GET /api/v1/rankings/{tipo} — tipo: productos|países|departamentos|aduanas|aladi. */
     public function index(Request $request, string $tipo): JsonResponse
     {
         $gestion = $request->integer('gestion') ?: null;

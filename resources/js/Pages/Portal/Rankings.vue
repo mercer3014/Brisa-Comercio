@@ -25,9 +25,9 @@ const f = reactive({
 const ranking = ref(null);
 const cargandoR = ref(false);
 
-// Cada organizacion tiene su propio rango de anios con datos (INE llega a 2026,
-// ALADI a 2025, etc.): la lista de gestiones se pide por organizacion y al
-// cambiar de organizacion se salta a su gestion mas reciente.
+// Cada organización tiene su propio rango de años con datos (INE llega a 2026,
+// ALADI a 2025, etc.): la lista de gestiones se pide por organización y al
+// cambiar de organización se salta a su gestión más reciente.
 const gestionesOrg = ref([...props.gestiones]);
 
 async function cargarGestiones() {
@@ -63,7 +63,7 @@ function exportar(formato) {
 
 // --- Comparador ---
 const c = reactive({
-    modo: 'anios', // 'anios' | 'flujos'
+    modo: 'anios', // 'años' | 'flujos'
     organizacion_id: props.organizacionDefecto,
     dimension: 'producto',
     flujo: 1,
@@ -88,8 +88,8 @@ async function cargarComparador() {
 
 onMounted(cargarRanking);
 watch([() => f.gestion, () => f.flujo, () => f.dimension, () => f.metrica, () => f.limite], cargarRanking);
-// Al cambiar la organizacion: sincronizar el comparador, ajustar las gestiones
-// disponibles y recargar (si la gestion cambio, el watch de arriba ya recarga).
+// Al cambiar la organización: sincronizar el comparador, ajustar las gestiones
+// disponibles y recargar (si la gestión cambio, el watch de arriba ya recarga).
 watch(() => f.organizacion_id, async () => {
     c.organizacion_id = f.organizacion_id;
     const antes = f.gestion;
@@ -106,8 +106,10 @@ function fmtUsd(v) {
 }
 function fmtVal(v) {
     if (v == null) return '—';
-    const u = ranking.value?.unidad === 'kg' ? 'kg' : 'USD';
-    return `${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 0 })} ${u}`;
+    const unidad = ranking.value?.unidad;
+    // FAOSTAT publica índices (2014-2016 = 100), no montos.
+    if (unidad === 'índice') return Number(v).toLocaleString('es-BO', { maximumFractionDigits: 1 });
+    return `${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 0 })} ${unidad === 'kg' ? 'kg' : 'USD'}`;
 }
 function fmtPct(v) {
     return v == null ? '—' : `${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 1 })}%`;
@@ -118,7 +120,7 @@ function fmtVarPct(v) {
     return `${s}${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 1 })}%`;
 }
 
-// --- Grafico de barras horizontales del ranking ---
+// --- Gráfico de barras horizontales del ranking ---
 // Barras en azul institucional; el primer puesto (mayor) resaltado en rojo.
 const serieRanking = computed(() => [{
     name: ranking.value?.metrica === 'peso' ? 'Peso' : 'Valor',
@@ -179,26 +181,26 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
         <div v-show="tab === 'ranking'" class="mt-6">
             <!-- Filtros -->
             <div class="tarjeta p-4 grid grid-cols-2 md:grid-cols-6 gap-3">
-                <label class="text-xs font-medium text-gris-500">Organizacion
+                <label class="text-xs font-medium text-gris-500">Organización
                     <select v-model="f.organizacion_id" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                         <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.sigla || o.nombre }}</option>
                     </select>
                 </label>
-                <label class="text-xs font-medium text-gris-500">Gestion
+                <label class="text-xs font-medium text-gris-500">Gestión
                     <select v-model="f.gestion" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                         <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
                     </select>
                 </label>
                 <label class="text-xs font-medium text-gris-500">Flujo
                     <select v-model.number="f.flujo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option :value="1">Exportacion</option>
-                        <option :value="2">Importacion</option>
+                        <option :value="1">Exportación</option>
+                        <option :value="2">Importación</option>
                     </select>
                 </label>
-                <label class="text-xs font-medium text-gris-500">Dimension
+                <label class="text-xs font-medium text-gris-500">Dimensión
                     <select v-model="f.dimension" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                         <option value="producto">Productos</option>
-                        <option value="pais">Paises</option>
+                        <option value="pais">Países</option>
                         <option value="departamento">Departamentos</option>
                     </select>
                 </label>
@@ -255,9 +257,9 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
                     </table>
                 </div>
 
-                <!-- Grafico -->
+                <!-- Gráfico -->
                 <div class="tarjeta p-5">
-                    <h3 class="font-display font-bold text-institucional-900 mb-2">Grafico</h3>
+                    <h3 class="font-display font-bold text-institucional-900 mb-2">Gráfico</h3>
                     <apexchart v-if="ranking.filas.length" type="bar" :height="Math.max(260, ranking.filas.length * 28)" :options="opcRanking" :series="serieRanking" />
                     <p v-else class="text-sm text-gris-400 py-8 text-center">Sin datos.</p>
                 </div>
@@ -267,43 +269,43 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
         <!-- ============ COMPARADORES ============ -->
         <div v-show="tab === 'comparador'" class="mt-6">
             <div class="tarjeta p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
-                <label class="text-xs font-medium text-gris-500">Organizacion
+                <label class="text-xs font-medium text-gris-500">Organización
                     <select v-model="f.organizacion_id" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                         <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.sigla || o.nombre }}</option>
                     </select>
                 </label>
                 <label class="text-xs font-medium text-gris-500">Comparar
                     <select v-model="c.modo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option value="anios">Dos anios</option>
+                        <option value="anios">Dos años</option>
                         <option value="flujos">Expo vs Impo</option>
                     </select>
                 </label>
-                <label class="text-xs font-medium text-gris-500">Dimension
+                <label class="text-xs font-medium text-gris-500">Dimensión
                     <select v-model="c.dimension" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                         <option value="producto">Productos</option>
-                        <option value="pais">Paises</option>
+                        <option value="pais">Países</option>
                     </select>
                 </label>
                 <template v-if="c.modo === 'anios'">
                     <label class="text-xs font-medium text-gris-500">Flujo
                         <select v-model.number="c.flujo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                            <option :value="1">Exportacion</option>
-                            <option :value="2">Importacion</option>
+                            <option :value="1">Exportación</option>
+                            <option :value="2">Importación</option>
                         </select>
                     </label>
-                    <label class="text-xs font-medium text-gris-500">Anio A
+                    <label class="text-xs font-medium text-gris-500">Año A
                         <select v-model="c.anio_a" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                             <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
                         </select>
                     </label>
-                    <label class="text-xs font-medium text-gris-500">Anio B
+                    <label class="text-xs font-medium text-gris-500">Año B
                         <select v-model="c.anio_b" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                             <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
                         </select>
                     </label>
                 </template>
                 <template v-else>
-                    <label class="text-xs font-medium text-gris-500">Gestion
+                    <label class="text-xs font-medium text-gris-500">Gestión
                         <select v-model="c.gestion" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
                             <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
                         </select>
@@ -324,14 +326,14 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
             <div v-if="comparador" class="mt-5 tarjeta p-5" :class="{ 'opacity-60': cargandoC }">
                 <h3 class="font-display font-bold text-institucional-900 mb-3">{{ comparador.titulo }}</h3>
 
-                <!-- Comparar dos anios -->
+                <!-- Comparar dos años -->
                 <table v-if="c.modo === 'anios'" class="w-full text-sm">
                     <thead class="text-xs font-semibold text-institucional-500 uppercase tracking-wider border-b border-gris-200">
                         <tr>
                             <th class="text-left py-2">Nombre</th>
                             <th class="text-right py-2">{{ comparador.anio_a }}</th>
                             <th class="text-right py-2">{{ comparador.anio_b }}</th>
-                            <th class="text-right py-2">Variacion</th>
+                            <th class="text-right py-2">Variación</th>
                             <th class="text-right py-2">%</th>
                         </tr>
                     </thead>
@@ -351,8 +353,8 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
                     <thead class="text-xs font-semibold text-institucional-500 uppercase tracking-wider border-b border-gris-200">
                         <tr>
                             <th class="text-left py-2">Nombre</th>
-                            <th class="text-right py-2">Exportacion</th>
-                            <th class="text-right py-2">Importacion</th>
+                            <th class="text-right py-2">Exportación</th>
+                            <th class="text-right py-2">Importación</th>
                             <th class="text-right py-2">Balance</th>
                         </tr>
                     </thead>

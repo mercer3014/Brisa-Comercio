@@ -8,7 +8,7 @@ const usuario = computed(() => page.props.auth?.usuario ?? null);
 const flash = computed(() => page.props.flash ?? {});
 const nombreApp = computed(() => page.props.app?.nombre ?? 'Geodata');
 
-// Menu de navegacion del portal publico.
+// Menu de navegación del portal público.
 const navegacion = [
     { titulo: 'Inicio',         ruta: '/' },
     { titulo: 'Organizaciones', ruta: '/organizaciones' },
@@ -71,7 +71,7 @@ const anioActual = new Date().getFullYear();
                         <span class="font-bold text-[17px] tracking-tight transition-colors" :class="headerSolido ? 'text-institucional-900' : 'text-white'">{{ nombreApp }}</span>
                     </Link>
 
-                    <!-- Navegacion (escritorio) -->
+                    <!-- Navegación (escritorio) -->
                     <nav class="hidden md:flex items-center">
                         <Link
                             v-for="item in navegacion"
@@ -110,7 +110,7 @@ const anioActual = new Date().getFullYear();
                 </div>
             </div>
 
-            <!-- Navegacion (movil) -->
+            <!-- Navegación (movil) -->
             <div v-show="menuMovilAbierto" class="md:hidden border-t border-gris-100 bg-white">
                 <nav class="px-4 py-3 space-y-1">
                     <Link

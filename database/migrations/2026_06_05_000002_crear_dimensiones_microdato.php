@@ -6,8 +6,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Dimensiones del microdato (forma usada por INE).
  * Reproduce EXACTAMENTE estructura-db.sql: tiempo, tipo_operacion,
- * flujo_comercial, jerarquia de producto (seccion/capitulo/producto),
- * clasificaciones economicas, geografia (zona/pais + puente) y logistica.
+ * flujo_comercial, jerarquía de producto (sección/capitulo/producto),
+ * clasificaciones economicas, geografia (zona/pais + puente) y logística.
  */
 return new class extends Migration
 {

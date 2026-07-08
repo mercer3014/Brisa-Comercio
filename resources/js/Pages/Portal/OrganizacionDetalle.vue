@@ -88,7 +88,14 @@ const ratios = computed(() => {
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         <!-- KPIs -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- FAOSTAT publica índices comerciales (no USD): sus KPIs son de cobertura. -->
+        <div v-if="esFaostat" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard titulo="Series" :valor="f(kpis.series)" :color="color" subtitulo="índices comerciales" />
+            <KPICard titulo="Países" :valor="f(kpis.paises)" :color="color" subtitulo="con datos" />
+            <KPICard titulo="Productos (CPC)" :valor="f(kpis.productos)" :color="color" subtitulo="distintos" />
+            <KPICard titulo="Período" :valor="f(kpis.anio_max)" :color="color" :subtitulo="`desde ${kpis.anio_min ?? '—'}`" />
+        </div>
+        <div v-else class="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard titulo="Exportaciones" :valor="f(kpis.exportaciones ?? kpis.valor_total)" prefijo="$ " :color="color" :variacion="kpis.variacion_exp_pct ?? null" />
             <KPICard titulo="Importaciones" :valor="f(kpis.importaciones)" prefijo="$ " :color="color" :variacion="kpis.variacion_imp_pct ?? null" />
             <KPICard titulo="Balanza" :valor="f(kpis.balanza_comercial)" prefijo="$ " :color="color" />

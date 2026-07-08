@@ -57,7 +57,7 @@ class Usuario extends Model implements AuthenticatableContract
     }
 
     /**
-     * Codigos de permiso del usuario, derivados de sus roles
+     * Códigos de permiso del usuario, derivados de sus roles
      * (usuario_rol -> rol_permiso -> permiso).
      */
     public function codigosPermisos(): array
@@ -74,7 +74,7 @@ class Usuario extends Model implements AuthenticatableContract
     }
 
     /**
-     * Verifica si el usuario tiene un permiso por su codigo.
+     * Verifica si el usuario tiene un permiso por su código.
      */
     public function tienePermiso(string $codigo): bool
     {

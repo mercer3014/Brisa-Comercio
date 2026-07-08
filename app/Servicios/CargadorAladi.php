@@ -13,9 +13,9 @@ use Throwable;
  * Cabecera esperada:
  *   Ordinal | Item | Descripción | Valor | % / Total | Valor Acumulado | % Acumulado
  *
- * Cada archivo es el "top 50" de productos de UN pais miembro, para UN flujo
- * (exportaciones o importaciones) y UNA gestion. ALADI publica los valores en
- * MILES de USD: aqui se convierten a USD (x1000) para que toda la aplicacion
+ * Cada archivo es el "top 50" de productos de UN país miembro, para UN flujo
+ * (exportaciones o importaciones) y UNA gestión. ALADI publica los valores en
+ * MILES de USD: aquí se convierten a USD (x1000) para que toda la aplicacion
  * hable la misma unidad que INE y MERCOSUR.
  *
  * Detecta filas confidenciales (código con guiones, ej. "87------") y
@@ -29,8 +29,8 @@ class CargadorAladi
     private const FACTOR_USD = 1000;
 
     /**
-     * Paises miembros de ALADI tal como vienen nombradas las carpetas del
-     * dataset: nombre propio, ISO numerico, alpha-2 y alpha-3.
+     * Países miembros de ALADI tal como vienen nombradas las carpetas del
+     * dataset: nombre propio, ISO numérico, alpha-2 y alpha-3.
      */
     private const PAISES = [
         'ARGENTINA' => ['Argentina', 32,  'AR', 'ARG'],
@@ -55,7 +55,7 @@ class CargadorAladi
     /**
      * @param string|null $rutaDirecta    leer este archivo del disco en vez del storage de la carga
      * @param bool        $refrescarVistas refrescar las vistas materializadas al terminar (en lote se hace una sola vez al final)
-     * @param string|null $paisReportante  nombre de la carpeta del pais (ej. "ARGENTINA"); null = Bolivia (carga manual desde el panel)
+     * @param string|null $paisReportante  nombre de la carpeta del país (ej. "ARGENTINA"); null = Bolivia (carga manual desde el panel)
      */
     public function cargar(
         CargaArchivo $carga,
@@ -209,7 +209,7 @@ class CargadorAladi
         ], 'fuente_id');
     }
 
-    /** Resuelve (o crea) el pais miembro dentro de la fuente ALADI. */
+    /** Resuelve (o crea) el país miembro dentro de la fuente ALADI. */
     private function resolverPaisReportante(string $nombreCarpeta, int $fuenteId): int
     {
         $clave = strtoupper(trim($nombreCarpeta));
@@ -226,7 +226,7 @@ class CargadorAladi
             return (int) $id;
         }
 
-        // ALADI no maneja zonas geoeconomicas: los paises cuelgan de "Sin zona".
+        // ALADI no maneja zonas geoeconomicas: los países cuelgan de "Sin zona".
         $zonaId = DB::table('zona_geoeconomica')
             ->where('fuente_id', $fuenteId)
             ->where('codigo_zona', 0)

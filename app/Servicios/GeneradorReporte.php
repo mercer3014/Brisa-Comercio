@@ -7,13 +7,13 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Genera los reportes predefinidos como conjuntos de filas agregadas (GROUP BY)
- * sobre el microdato. Cada reporte respeta los parametros: organizacion, flujo y
+ * sobre el microdato. Cada reporte respeta los parámetros: organización, flujo y
  * rango de gestiones.
  */
 class GeneradorReporte
 {
     /**
-     * Catalogo de reportes disponibles.
+     * Catálogo de reportes disponibles.
      */
     public static function catalogo(): array
     {
@@ -51,7 +51,7 @@ class GeneradorReporte
     }
 
     /**
-     * Devuelve ['titulo', 'columnas', 'filas', 'resumen'] del reporte solicitado.
+     * Devuelve ['título', 'columnas', 'filas', 'resumen'] del reporte solicitado.
      */
     public function generar(string $tipo, array $p): array
     {
@@ -133,7 +133,7 @@ class GeneradorReporte
     }
 
     /**
-     * Resumen (totales) segun el tipo de reporte.
+     * Resumen (totales) según el tipo de reporte.
      */
     private function resumen(string $tipo, array $filas): array
     {
@@ -145,7 +145,7 @@ class GeneradorReporte
             ];
         }
 
-        // Para los demas, valor es la penultima columna y peso la ultima.
+        // Para los demas, valor es la penultima columna y peso la última.
         $idxValor = count(($filas[0] ?? [])) - 2;
         $idxPeso = count(($filas[0] ?? [])) - 1;
 

@@ -4,10 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Modulo de sistema (usuarios, seguridad, operacion).
+ * Modulo de sistema (usuarios, seguridad, operación).
  * Reproduce EXACTAMENTE estructura-db.sql: rol, permiso, rol_permiso, usuario,
- * usuario_rol, sesion (UUID), intento_acceso, bitacora_auditoria,
- * regla_validacion, configuracion, tipo_cambio, carga_archivo, proceso_etl,
+ * usuario_rol, sesión (UUID), intento_acceso, bitacora_auditoria,
+ * regla_validacion, configuración, tipo_cambio, carga_archivo, proceso_etl,
  * incidencia_calidad. NO crea la tabla `usuario`s de Laravel: la auth usa `usuario`.
  */
 return new class extends Migration

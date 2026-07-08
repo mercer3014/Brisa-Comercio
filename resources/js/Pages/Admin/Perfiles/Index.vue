@@ -67,7 +67,7 @@ function nombrePerfil(perfilId) {
 
         <div v-if="mostrarNuevo" class="bg-white rounded-xl border border-slate-200 p-4 mb-5 grid grid-cols-4 gap-3 items-end">
             <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">Organizacion</label>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Organización</label>
                 <select v-model="form.organizacion_id" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
                     <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.nombre }}</option>
                 </select>
@@ -93,7 +93,7 @@ function nombrePerfil(perfilId) {
                 <table class="w-full text-sm">
                     <thead class="bg-slate-50 text-slate-600">
                         <tr>
-                            <th class="text-left px-4 py-3 font-medium">Organizacion</th>
+                            <th class="text-left px-4 py-3 font-medium">Organización</th>
                             <th class="text-left px-4 py-3 font-medium">Flujo</th>
                             <th class="text-left px-4 py-3 font-medium">Version</th>
                             <th class="text-center px-4 py-3 font-medium">Columnas</th>
@@ -130,7 +130,7 @@ function nombrePerfil(perfilId) {
             <!-- Detector de perfil -->
             <div class="col-span-5 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                 <h3 class="font-semibold text-slate-700 mb-1">Detector de perfil</h3>
-                <p class="text-xs text-slate-500 mb-3">Pega las cabeceras de un archivo (separadas por coma o salto de linea) y se sugiere el perfil que mejor coincide.</p>
+                <p class="text-xs text-slate-500 mb-3">Pega las cabeceras de un archivo (separadas por coma o salto de línea) y se sugiere el perfil que mejor coincide.</p>
                 <textarea v-model="textoCabeceras" rows="4" placeholder="GESTION, MES, NANDINA, PAIS, KILBRU, FOB..."
                           class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono"></textarea>
                 <button @click="detectar" :disabled="detectando" class="mt-2 w-full px-4 py-2 rounded-lg bg-marca-700 hover:bg-marca-800 text-white text-sm disabled:opacity-60">

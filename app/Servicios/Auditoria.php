@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 
 /**
- * Registro centralizado de la bitacora de auditoria (bitacora_auditoria).
+ * Registro centralizado de la bitácora de auditoria (bitacora_auditoria).
  * Captura usuario, accion, entidad, valores anterior/nuevo (JSONB) e IP.
  */
 class Auditoria

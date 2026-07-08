@@ -80,7 +80,7 @@ function guardarColumnas() {
                 <input v-model="formPerfil.etiqueta_version" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div class="col-span-6">
-                <label class="block text-xs font-medium text-slate-600 mb-1">Descripcion</label>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Descripción</label>
                 <input v-model="formPerfil.descripcion" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <label class="col-span-2 inline-flex items-center gap-2 text-sm pb-2">

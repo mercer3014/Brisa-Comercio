@@ -9,12 +9,12 @@ use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Exporta un reporte (titulo + columnas + filas + resumen) a XLSX, CSV o PDF.
+ * Exporta un reporte (título + columnas + filas + resumen) a XLSX, CSV o PDF.
  */
 class ExportadorReporte
 {
     /**
-     * @param array $reporte  ['titulo','columnas','filas','resumen']
+     * @param array $reporte  ['título','columnas','filas','resumen']
      */
     public function descargar(array $reporte, string $formato): mixed
     {
@@ -48,7 +48,7 @@ class ExportadorReporte
             foreach ($reporte['filas'] as $fila) {
                 $writer->addRow(Row::fromValues($fila));
             }
-            // Linea de resumen.
+            // Línea de resumen.
             $writer->addRow(Row::fromValues([]));
             foreach ($reporte['resumen'] as $k => $v) {
                 $writer->addRow(Row::fromValues([$k, $v]));

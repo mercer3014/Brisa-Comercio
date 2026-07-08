@@ -8,13 +8,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Endpoints publicos de rankings y comparadores (Tarea 13). Sin autenticacion;
- * respetan SIEMPRE la organizacion seleccionada.
+ * Endpoints publicos de rankings y comparadores (Tarea 13). Sin autenticación;
+ * respetan SIEMPRE la organización seleccionada.
  */
 class RankingController extends Controller
 {
     /**
-     * Reglas de validacion comunes a un ranking.
+     * Reglas de validación comunes a un ranking.
      */
     private function reglasRanking(): array
     {
@@ -88,7 +88,7 @@ class RankingController extends Controller
         $unidad = $ranking['unidad'];
         $reporte = [
             'titulo'   => $ranking['titulo'],
-            'columnas' => ['Posicion', 'Nombre', "Valor ({$unidad})", '% del total', '% acumulado'],
+            'columnas' => ['Posición', 'Nombre', "Valor ({$unidad})", '% del total', '% acumulado'],
             'filas'    => array_map(fn ($f) => [
                 $f['posicion'], $f['label'], $f['valor'], $f['porcentaje'], $f['acumulado'],
             ], $ranking['filas']),

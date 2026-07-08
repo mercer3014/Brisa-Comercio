@@ -12,7 +12,7 @@ use Inertia\Response;
 class CatalogoController extends Controller
 {
     /**
-     * Catalogos editables: clave => [tabla, pk, etiqueta, campos editables, campos de busqueda].
+     * Catálogos editables: clave => [tabla, pk, etiqueta, campos editables, campos de búsqueda].
      */
     private function catalogos(): array
     {

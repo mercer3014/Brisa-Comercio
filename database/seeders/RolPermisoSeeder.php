@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 class RolPermisoSeeder extends Seeder
 {
     /**
-     * Catalogo de permisos por modulo. Cada entrada: [codigo, descripcion].
+     * Catálogo de permisos por modulo. Cada entrada: [código, descripción].
      */
     private function catalogoPermisos(): array
     {

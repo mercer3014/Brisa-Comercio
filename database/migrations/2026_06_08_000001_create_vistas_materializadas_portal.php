@@ -4,21 +4,21 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Tarea 14 — Vistas materializadas para el rendimiento del portal publico.
+ * Tarea 14 — Vistas materializadas para el rendimiento del portal público.
  *
  * Son objetos de SOLO LECTURA derivados de operacion_comercio_exterior; NO modifican
- * ni borran las tablas base. Precalculan los resumenes mas usados por la portada
+ * ni borran las tablas base. Precalculan los resumenes más usados por la portada
  * (Tarea 12) y los rankings (Tarea 13).
  *
  * Convencion de valor: por cada fila de la vista (que ya esta separada por flujo_id),
- * `valor` = SUM(valor_fob_usd) para exportacion (flujo 1) y SUM(valor_cif_frontera_usd)
- * para importacion (flujo 2), coherente con AgregadorDashboard y ResumenPortal.
+ * `valor` = SUM(valor_fob_usd) para exportación (flujo 1) y SUM(valor_cif_frontera_usd)
+ * para importación (flujo 2), coherente con AgregadorDashboard y ResumenPortal.
  *
  * Se refrescan con el comando `comexhub:refrescar-vistas` (tras cada ETL exitoso).
  */
 return new class extends Migration
 {
-    /** Expresion de valor segun flujo, reutilizada en las vistas. */
+    /** Expresion de valor según flujo, reutilizada en las vistas. */
     private string $valor = 'SUM(CASE WHEN o.flujo_id = 1 THEN COALESCE(o.valor_fob_usd,0) ELSE COALESCE(o.valor_cif_frontera_usd,0) END)';
 
     public function up(): void
@@ -43,7 +43,7 @@ return new class extends Migration
             WITH DATA
         ");
 
-        // 2) Resumen anual por pais
+        // 2) Resumen anual por país
         DB::statement("
             CREATE MATERIALIZED VIEW resumen_anual_pais AS
             SELECT
@@ -79,7 +79,7 @@ return new class extends Migration
             WITH DATA
         ");
 
-        // 4) Resumen mensual (para graficos de evolucion)
+        // 4) Resumen mensual (para gráficos de evolución)
         DB::statement("
             CREATE MATERIALIZED VIEW resumen_mensual AS
             SELECT
@@ -97,7 +97,7 @@ return new class extends Migration
             WITH DATA
         ");
 
-        // Indices por organizacion y anio (y unicos para permitir REFRESH CONCURRENTLY).
+        // Índices por organización y año (y unicos para permitir REFRESH CONCURRENTLY).
         DB::statement('CREATE UNIQUE INDEX ux_rap_org_gestion_flujo_producto ON resumen_anual_producto (organizacion_id, gestion, flujo_id, producto_id)');
         DB::statement('CREATE INDEX ix_rap_org_gestion ON resumen_anual_producto (organizacion_id, gestion)');
 

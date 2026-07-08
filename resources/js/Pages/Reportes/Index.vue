@@ -48,9 +48,9 @@ const fmt = (v, i) => (typeof v === 'number' && i > 0)
 
     <div class="max-w-6xl mx-auto">
         <h1 class="text-2xl font-bold text-slate-800 mb-1">Reportes</h1>
-        <p class="text-slate-500 text-sm mb-5">Reportes predefinidos con parametros y exportacion.</p>
+        <p class="text-slate-500 text-sm mb-5">Reportes predefinidos con parámetros y exportación.</p>
 
-        <!-- Parametros -->
+        <!-- Parámetros -->
         <div class="bg-white rounded-xl border border-slate-200 p-4 mb-5">
             <div class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
                 <div class="col-span-2">
@@ -60,7 +60,7 @@ const fmt = (v, i) => (typeof v === 'number' && i > 0)
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">Organizacion</label>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Organización</label>
                     <select v-model="params.organizacion_id" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
                         <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.nombre }}</option>
                     </select>
@@ -69,8 +69,8 @@ const fmt = (v, i) => (typeof v === 'number' && i > 0)
                     <label class="block text-xs font-medium text-slate-600 mb-1">Flujo</label>
                     <select v-model="params.flujo" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
                         <option value="">Ambos</option>
-                        <option value="EXPORTACION">Exportacion</option>
-                        <option value="IMPORTACION">Importacion</option>
+                        <option value="EXPORTACION">Exportación</option>
+                        <option value="IMPORTACION">Importación</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -122,7 +122,7 @@ const fmt = (v, i) => (typeof v === 'number' && i > 0)
                             <td v-for="(celda, ci) in fila" :key="ci" class="px-3 py-1.5" :class="ci > 0 ? 'text-right' : 'text-left'">{{ fmt(celda, ci) }}</td>
                         </tr>
                         <tr v-if="!reporte.filas.length">
-                            <td :colspan="reporte.columnas.length" class="px-4 py-8 text-center text-slate-400">Sin datos para los parametros.</td>
+                            <td :colspan="reporte.columnas.length" class="px-4 py-8 text-center text-slate-400">Sin datos para los parámetros.</td>
                         </tr>
                     </tbody>
                 </table>

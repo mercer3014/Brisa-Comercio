@@ -8,7 +8,7 @@ use Illuminate\Foundation\Queue\Queueable;
 
 /**
  * Procesa un archivo cargado y puebla operacion_comercio_exterior y sus
- * dimensiones. La logica completa del ETL se implementa en la Tarea 6.
+ * dimensiones. La lógica completa del ETL se implementa en la Tarea 6.
  */
 class ProcesarCargaArchivo implements ShouldQueue
 {
@@ -37,5 +37,14 @@ class ProcesarCargaArchivo implements ShouldQueue
             $carga->organizacion_id === 4 => app(\App\Servicios\CargadorFaostat::class)->cargar($carga),
             default => app(\App\Servicios\ProcesadorEtl::class)->procesar($carga),
         };
+
+        // Tras cada carga cambia la version de los datos (carga_id): dejar el
+        // cache caliente para que el explorador y los dashboards respondan al
+        // instante con la nueva version.
+        try {
+            \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

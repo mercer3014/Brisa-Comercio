@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Storage;
  * desde el sistema de archivos sin pasar por el flujo web.
  *
  * Uso:
- *   php artisan ovxel:probar-etl <ruta_archivo> --org=1 --flujo=EXPORTACION [--gestion=2023] [--sync]
+ *   php artisan ovxel:probar-etl <ruta_archivo> --org=1 --flujo=EXPORTACION [--gestión=2023] [--sync]
  *
  * Opciones:
  *   --org    organizacion_id (1=INE, 2=ALADI, 3=MERCOSUR, 4=FAOSTAT)
  *   --flujo  tipo_flujo: EXPORTACION, IMPORTACION, MERCOSUR_PAIS, MERCOSUR_ITEM, ALADI_RANKING, FAOSTAT
- *   --gestion año de la gestión (opcional, para INE/ALADI)
+ *   --gestión año de la gestión (opcional, para INE/ALADI)
  *   --sync   ejecutar de forma síncrona (sin cola); por defecto sin cola para facilitar pruebas
  */
 class ProbarEtl extends Command

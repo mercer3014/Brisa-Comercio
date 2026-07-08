@@ -2,7 +2,7 @@
 /**
  * Treemap. Acepta:
  *  - series ya formateada [{ data: [{x,y}] }], o
- *  - categorias + valores planos que se convierten a [{x,y}].
+ *  - categorías + valores planos que se convierten a [{x,y}].
  */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';

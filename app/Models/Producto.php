@@ -28,7 +28,7 @@ class Producto extends Model
     }
 
     /**
-     * Acceso directo a la seccion a traves del capitulo (jerarquia NANDINA).
+     * Acceso directo a la sección a través del capítulo (jerarquía NANDINA).
      */
     public function seccion(): HasOneThrough
     {

@@ -22,7 +22,7 @@ class ZonaGeoeconomica extends Model
     }
 
     /**
-     * Paises cuya zona principal es esta (FK directa pais.zona_id).
+     * Países cuya zona principal es esta (FK directa país.zona_id).
      */
     public function paises(): HasMany
     {

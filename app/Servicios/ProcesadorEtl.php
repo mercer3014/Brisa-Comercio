@@ -12,7 +12,7 @@ use Throwable;
 /**
  * Servicio ETL: lee el archivo de una carga en streaming por lotes, aplica el
  * perfil de mapeo, resuelve dimensiones con "buscar o crear" (con cache en
- * memoria), valida con regla_validacion e inserta el microdato por lotes.
+ * memoria), válida con regla_validacion e inserta el microdato por lotes.
  * Idempotente: reprocesar una carga no duplica registros.
  */
 class ProcesadorEtl
@@ -65,7 +65,7 @@ class ProcesadorEtl
             }
             $rutaAbs = Storage::disk('local')->path($rutaDatos);
 
-            // 2) Resolver/crear la fuente_datos de la organizacion (todas las dimensiones se asocian a ella).
+            // 2) Resolver/crear la fuente_datos de la organización (todas las dimensiones se asocian a ella).
             $this->fuenteId = $this->resolverFuente($carga);
             $carga->update(['fuente_id' => $this->fuenteId, 'estado' => 'PROCESANDO']);
 
@@ -81,7 +81,7 @@ class ProcesadorEtl
                 $this->leidas++;
                 [$canonico, $extra] = $this->traducirFila($filaCruda, $columnas);
 
-                // Completar gestion/mes desde la carga si faltan en la fila.
+                // Completar gestión/mes desde la carga si faltan en la fila.
                 $canonico['gestion'] = $canonico['gestion'] ?? $carga->gestion;
                 $canonico['mes'] = $canonico['mes'] ?? $carga->mes;
 
@@ -143,7 +143,7 @@ class ProcesadorEtl
                 }
             }
 
-            // Vaciar el ultimo lote.
+            // Vaciar el último lote.
             $this->vaciarLote();
 
             // 6) Cierre exitoso.
@@ -160,7 +160,7 @@ class ProcesadorEtl
                 'mensaje_log'      => "Leidas: {$this->leidas}, validas: {$this->validas}, con error: {$this->conError}.",
             ]);
 
-            // Bitacora del ETL (sin usuario autenticado en cola: se usa el de la carga).
+            // Bitácora del ETL (sin usuario autenticado en cola: se usa el de la carga).
             \App\Models\BitacoraAuditoria::create([
                 'usuario_id'        => $carga->usuario_id,
                 'accion'            => 'ETL_COMPLETADO',
@@ -173,7 +173,7 @@ class ProcesadorEtl
             ]);
 
             // Tarea 14: refrescar las vistas materializadas del portal para que los
-            // resumenes precalculados queden al dia tras esta carga.
+            // resumenes precalculados queden al día tras esta carga.
             $this->refrescarVistasPortal();
         } catch (Throwable $e) {
             $carga->update(['estado' => 'FALLIDO']);
@@ -188,7 +188,7 @@ class ProcesadorEtl
 
     /**
      * Refresca las vistas materializadas del portal tras un ETL exitoso.
-     * Tolerante a fallos: si las vistas aun no existen, no interrumpe la carga.
+     * Tolerante a fallos: si las vistas aún no existen, no interrumpe la carga.
      */
     private function refrescarVistasPortal(): void
     {
@@ -212,7 +212,7 @@ class ProcesadorEtl
     }
 
     /**
-     * Traduce una fila cruda (cabecera=>valor) a [canonico, extra] segun el mapeo.
+     * Traduce una fila cruda (cabecera=>valor) a [canonico, extra] según el mapeo.
      */
     private function traducirFila(array $filaCruda, array $columnas): array
     {
@@ -235,9 +235,9 @@ class ProcesadorEtl
     }
 
     /**
-     * Aplica las reglas de validacion a la fila canonica.
+     * Aplica las reglas de validación a la fila canonica.
      *
-     * @return array<int, array{regla_id:int, descripcion:string, severidad:string, valor:?string}>
+     * @return array<int, array{regla_id:int, descripción:string, severidad:string, valor:?string}>
      */
     private function validar(array $canonico, int $numeroFila): array
     {
@@ -417,7 +417,7 @@ class ProcesadorEtl
     private function resolverProducto(array $c): int
     {
         $nandina = (int) $this->aNumero($c['codigo_nandina'] ?? 0);
-        // Capitulo: explicito o derivado de los 2 primeros digitos de la NANDINA (10 digitos).
+        // Capítulo: explicito o derivado de los 2 primeros digitos de la NANDINA (10 digitos).
         $codCap = isset($c['codigo_capitulo']) && $c['codigo_capitulo'] !== ''
             ? (int) $this->aNumero($c['codigo_capitulo'])
             : (int) substr(str_pad((string) $nandina, 10, '0', STR_PAD_LEFT), 0, 2);
@@ -606,8 +606,8 @@ class ProcesadorEtl
     // =====================================================================
 
     /**
-     * Convierte un valor de celda a numero, tolerando separadores de miles y
-     * decimales. Si tiene coma como ultimo separador, se interpreta como decimal.
+     * Convierte un valor de celda a número, tolerando separadores de miles y
+     * decimales. Si tiene coma como último separador, se interpreta como decimal.
      */
     private function aNumero($valor): float
     {

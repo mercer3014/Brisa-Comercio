@@ -1,5 +1,5 @@
 <script setup>
-/** Dona. Props: series (números), categorias (labels), opciones. */
+/** Dona. Props: series (números), categorías (labels), opciones. */
 import { computed } from 'vue';
 import BaseApexChart from './BaseApexChart.vue';
 

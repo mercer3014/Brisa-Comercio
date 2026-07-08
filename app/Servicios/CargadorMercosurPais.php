@@ -140,9 +140,9 @@ class CargadorMercosurPais
         $isoStr  = trim((string) ($iso ?? ''));
         $nomStr  = trim((string) ($nombre ?? ''));
         if ($isoStr === '' && $nomStr === '') {
-            // Ni ISO 3166 ni Pais: no es realmente una fila "por pais" (p.ej. un
-            // archivo con formato de item/NCM mal ubicado en la carpeta "Por Paises").
-            // Sin esto, todas esas filas caerian en un unico pais generado por hash
+            // Ni ISO 3166 ni País: no es realmente una fila "por país" (p.ej. un
+            // archivo con formato de item/NCM mal ubicado en la carpeta "Por Países").
+            // Sin esto, todas esas filas caerian en un único país generado por hash
             // y contaminarian el total de la zona.
             return null;
         }
@@ -240,15 +240,15 @@ class CargadorMercosurPais
         $id = null;
 
         // 1) Buscar por ISO numérico como codigo_pais, SOLO dentro de la fuente de
-        // MERCOSUR. codigo_pais solo es unico por fuente (UNIQUE(fuente_id,
-        // codigo_pais)): buscar "en cualquier fuente" hacia mezclar el codigo
+        // MERCOSUR. codigo_pais solo es único por fuente (UNIQUE(fuente_id,
+        // codigo_pais)): buscar "en cualquier fuente" hacia mezclar el código
         // interno del INE con el ISO 3166 de MERCOSUR cuando coinciden por
         // casualidad (p.ej. 156 es "CEILAN" para el INE pero China en ISO 3166).
         if (is_numeric($iso) && (int) $iso > 0) {
             $id = DB::table('pais')->where('fuente_id', $this->fuenteId)->where('codigo_pais', (int) $iso)->value('pais_id');
         }
 
-        // 2) Buscar por iso_alpha2 o iso_alpha3 (tambien acotado a la fuente de MERCOSUR)
+        // 2) Buscar por iso_alpha2 o iso_alpha3 (también acotado a la fuente de MERCOSUR)
         if (! $id && ! is_numeric($iso) && strlen($iso) <= 3 && $iso !== '') {
             $id = DB::table('pais')
                 ->where('fuente_id', $this->fuenteId)
@@ -264,7 +264,7 @@ class CargadorMercosurPais
                 ->value('pais_id');
         }
 
-        // 4) Crear pais en fuente MERCOSUR
+        // 4) Crear país en fuente MERCOSUR
         if (! $id) {
             $codPais = is_numeric($iso) ? (int) $iso : (crc32($nombre ?: $iso) & 0x7FFFFFFF);
             // Asegurar unicidad en la fuente
@@ -348,7 +348,7 @@ class CargadorMercosurPais
         $n = strtolower(str_replace(['_', '-'], ' ', pathinfo($nombreArchivo, PATHINFO_FILENAME)));
         $n = trim(preg_replace('/\s+/', ' ', $n));
         // Quitar prefijos comunes de los archivos MERCOSUR (acepta cualquier cantidad
-        // de espacios entre los anios, ej. "2000   2026" tras normalizar el guion).
+        // de espacios entre los años, ej. "2000   2026" tras normalizar el guion).
         $n = preg_replace('/^(exp e imp ?\d{4} *\d{4} ?|exportaciones importaciones ?\d+ ?)/i', '', $n);
 
         $mapa = [

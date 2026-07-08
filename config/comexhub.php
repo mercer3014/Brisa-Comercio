@@ -16,7 +16,7 @@ return [
         // Tiempo
         'gestion'                => ['etiqueta' => 'Gestion (anio)',        'grupo' => 'Tiempo',          'tipo' => 'entero'],
         'mes'                    => ['etiqueta' => 'Mes',                   'grupo' => 'Tiempo',          'tipo' => 'entero'],
-        // Operacion
+        // Operación
         'tipo_operacion'         => ['etiqueta' => 'Tipo de operacion',     'grupo' => 'Operacion',       'tipo' => 'texto'],
         'flujo'                  => ['etiqueta' => 'Flujo comercial',       'grupo' => 'Operacion',       'tipo' => 'texto'],
         // Producto / clasificaciones
@@ -30,7 +30,7 @@ return [
         'codigo_grupo_actividad' => ['etiqueta' => 'Codigo grupo actividad','grupo' => 'Clasificacion',   'tipo' => 'texto'],
         'codigo_tnt'             => ['etiqueta' => 'Codigo TNT',            'grupo' => 'Clasificacion',   'tipo' => 'entero'],
         'codigo_cuode'           => ['etiqueta' => 'Codigo CUODE',          'grupo' => 'Clasificacion',   'tipo' => 'texto'],
-        // Geografia y logistica
+        // Geografia y logística
         'codigo_pais'            => ['etiqueta' => 'Codigo pais',           'grupo' => 'Geografia',       'tipo' => 'entero'],
         'codigo_zona'            => ['etiqueta' => 'Codigo zona',           'grupo' => 'Geografia',       'tipo' => 'entero'],
         'codigo_departamento'    => ['etiqueta' => 'Codigo departamento',   'grupo' => 'Geografia',       'tipo' => 'entero'],
@@ -57,7 +57,7 @@ return [
         // Tiempo
         'GESTION' => 'gestion', 'ANIO' => 'gestion', 'ANO' => 'gestion', 'YEAR' => 'gestion',
         'MES' => 'mes', 'MONTH' => 'mes',
-        // Operacion / flujo
+        // Operación / flujo
         'TIPOOPERACION' => 'tipo_operacion', 'TIPO_OPERACION' => 'tipo_operacion',
         'FLUJO' => 'flujo', 'FLUJOCOMERCIAL' => 'flujo',
         // Producto
@@ -71,7 +71,7 @@ return [
         // Geografia
         'PAIS' => 'codigo_pais', 'CODPAIS' => 'codigo_pais', 'ZONA' => 'codigo_zona',
         'DEPTO' => 'codigo_departamento', 'DEPARTAMENTO' => 'codigo_departamento',
-        // Logistica
+        // Logística
         'MEDIO' => 'codigo_medio', 'MEDIOTRANSPORTE' => 'codigo_medio', 'TRANSPORTE' => 'codigo_medio',
         'VIA' => 'codigo_via', 'ADUANA' => 'codigo_aduana', 'CODADUANA' => 'codigo_aduana',
         // Pesos (incluye alias documentados)
