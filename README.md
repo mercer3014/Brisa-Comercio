@@ -1,4 +1,4 @@
-# ComexHub
+# Geodata
 
 Plataforma web que **centraliza datos de comercio exterior** (exportaciones e
 importaciones) de organizaciones estadísticas. Arranca con una sola organización:
@@ -38,8 +38,8 @@ el **INE de Bolivia**. Tiene dos caras:
 ### 1. Clonar e instalar dependencias
 
 ```bash
-git clone <url-del-repo> comexhub
-cd comexhub
+git clone <url-del-repo> geodata
+cd geodata
 composer install
 npm install
 ```
@@ -54,7 +54,7 @@ php artisan key:generate
 Editar `.env` y ajustar la conexion a PostgreSQL y las credenciales del admin:
 
 ```env
-APP_NAME=ComexHub
+APP_NAME=Geodata
 APP_URL=http://localhost:8000
 APP_LOCALE=es
 
@@ -68,7 +68,7 @@ DB_SEARCH_PATH=public
 
 # Administrador inicial (lo siembra el seeder)
 ADMIN_USUARIO=admin
-ADMIN_CORREO=admin@comexhub.local
+ADMIN_CORREO=admin@geodata.local
 ADMIN_PASSWORD=Admin12345
 ```
 
@@ -118,7 +118,7 @@ junto con un worker de cola permanente (`php artisan queue:work`).
 |-------------|------------------------|
 | Usuario     | `admin`                |
 | Contrasenia | `Admin12345`           |
-| Correo      | `admin@comexhub.local` |
+| Correo      | `admin@geodata.local` |
 
 Configurables vía `ADMIN_USUARIO`, `ADMIN_CORREO` y `ADMIN_PASSWORD` en `.env`.
 La contrasenia se guarda solo como **hash bcrypt** y el usuario nace con
@@ -142,7 +142,7 @@ Tras cada ETL exitoso se refrescan automáticamente las vistas materializadas de
 portal. También se pueden refrescar a mano:
 
 ```bash
-php artisan comexhub:refrescar-vistas
+php artisan geodata:refrescar-vistas
 ```
 
 ---

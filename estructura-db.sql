@@ -1,5 +1,5 @@
 -- ============================================================================
---  COMEXHUB — Estructura de base de datos (PostgreSQL 14+)
+--  GEODATA — Estructura de base de datos (PostgreSQL 14+)
 --  Versión inicial: solo INE (microdato de comercio exterior).
 --
 --  Notas de diseño:

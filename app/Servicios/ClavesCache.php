@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Claves de cache compartidas entre los controladores (explorador admin,
  * explorador público, dashboards) y el comando que las precalienta
- * (ovxel:calentar-cache). Definirlas en un solo lugar evita que el calentador
+ * (geodata:calentar-cache). Definirlas en un solo lugar evita que el calentador
  * y los controladores se desincronicen.
  *
  * Todas incluyen la "version" de los datos (el último carga_id): cargar un

@@ -1,6 +1,6 @@
-# OVXEL — BLUEPRINT MAESTRO DE REDISEÑO COMPLETO
+# GEODATA — BLUEPRINT MAESTRO DE REDISEÑO COMPLETO
 
-> **Proyecto:** Ovxel — Plataforma de Comercio Exterior de Bolivia
+> **Proyecto:** Geodata — Plataforma de Comercio Exterior de Bolivia
 > **Stack:** Laravel 11 + Vue 3 (Composition API) + PostgreSQL 16 + Inertia.js
 > **Fecha:** Junio 2026
 > **Objetivo:** Ganar la competencia inter-universitaria nacional con una plataforma que centralice datos de INE, MERCOSUR, FAOSTAT y ALADI con visualizaciones profesionales, indicadores en tiempo real y exportación de datos.
@@ -621,7 +621,7 @@ INSERT INTO organizacion_detalle (organizacion_id, descripcion_corta, descripcio
 
 ### Navegación principal (Navbar):
 ```
-[Logo Ovxel] | Inicio | Organizaciones | Rankings | Comparador | Mapa Comercial | Indicadores | Línea de Tiempo | Acerca de | [Acceder]
+[Logo Geodata] | Inicio | Organizaciones | Rankings | Comparador | Mapa Comercial | Indicadores | Línea de Tiempo | Acerca de | [Acceder]
 ```
 **Total: 8 secciones** (antes eran 4, ahora son el doble — se ve completo sin parecer vacío)
 
@@ -832,7 +832,7 @@ Timeline vertical/horizontal interactivo (1992-2026) que muestra:
 
 ### 5.8 ACERCA DE
 
-- Descripción del proyecto Ovxel
+- Descripción del proyecto Geodata
 - Fuentes de datos y metodología
 - Equipo (foto + nombre de cada integrante)
 - Contacto
@@ -1142,7 +1142,7 @@ GET                 /admin/descargas          # Gestionar descargas
 
 ```bash
 # 1. Conectarse a pgAdmin con la contraseña: awd78951230
-# 2. Crear nueva base de datos: ovxel_db
+# 2. Crear nueva base de datos: geodata_db
 # 3. Ejecutar comercio.sql completo
 # 4. Ejecutar las tablas nuevas de la sección 4.1
 # 5. Ejecutar los INSERTs semilla de la sección 4.2
@@ -1236,26 +1236,26 @@ GET                 /admin/descargas          # Gestionar descargas
 - `.env` (todas las variables)
 - `app/Models/*.php` (agregar nuevos modelos)
 - `resources/js/app.js` (nueva estructura)
-- `tailwind.config.js` (paleta de colores Ovxel)
+- `tailwind.config.js` (paleta de colores Geodata)
 
 ---
 
-## PALETA DE COLORES OVXEL
+## PALETA DE COLORES GEODATA
 
 ```css
 :root {
-    --ovxel-navy: #1A2332;
-    --ovxel-red: #C53030;
-    --ovxel-red-light: #E53E3E;
-    --ovxel-gray-50: #F7FAFC;
-    --ovxel-gray-100: #EDF2F7;
-    --ovxel-gray-200: #E2E8F0;
-    --ovxel-gray-600: #718096;
-    --ovxel-gray-800: #2D3748;
-    --ovxel-blue: #3182CE;
-    --ovxel-green: #38A169;
-    --ovxel-gold: #D69E2E;
-    --ovxel-orange: #DD6B20;
+    --geodata-navy: #1A2332;
+    --geodata-red: #C53030;
+    --geodata-red-light: #E53E3E;
+    --geodata-gray-50: #F7FAFC;
+    --geodata-gray-100: #EDF2F7;
+    --geodata-gray-200: #E2E8F0;
+    --geodata-gray-600: #718096;
+    --geodata-gray-800: #2D3748;
+    --geodata-blue: #3182CE;
+    --geodata-green: #38A169;
+    --geodata-gold: #D69E2E;
+    --geodata-orange: #DD6B20;
 }
 ```
 
@@ -1274,7 +1274,7 @@ Este blueprint es la especificación completa del sistema. Cada sección describ
 
 **Credenciales:**
 - PostgreSQL (pgAdmin): contraseña `awd78951230`
-- Base de datos: crear como `ovxel_db`
+- Base de datos: crear como `geodata_db`
 
 **Tecnologías obligatorias:**
 - Laravel 11, Vue 3 (Composition API), PostgreSQL, Inertia.js, TailwindCSS, ApexCharts

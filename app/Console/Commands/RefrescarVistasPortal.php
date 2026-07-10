@@ -9,7 +9,7 @@ use Throwable;
 /**
  * Refresca las vistas materializadas del portal (Tarea 14).
  *
- * Se ejecuta manualmente (`php artisan comexhub:refrescar-vistas`) y automáticamente
+ * Se ejecuta manualmente (`php artisan geodata:refrescar-vistas`) y automáticamente
  * al final de cada ETL exitoso, para que los resumenes queden al día tras cada carga.
  *
  * Intenta REFRESH ... CONCURRENTLY (no bloquea lecturas; requiere índice único, que
@@ -17,7 +17,7 @@ use Throwable;
  */
 class RefrescarVistasPortal extends Command
 {
-    protected $signature = 'comexhub:refrescar-vistas {--sin-concurrencia : Forzar REFRESH normal (con bloqueo) en vez de CONCURRENTLY}';
+    protected $signature = 'geodata:refrescar-vistas {--sin-concurrencia : Forzar REFRESH normal (con bloqueo) en vez de CONCURRENTLY}';
 
     protected $description = 'Refresca las vistas materializadas de resumen del portal publico.';
 

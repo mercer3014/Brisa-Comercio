@@ -1,12 +1,12 @@
 ==============================================================================
- COMEXHUB - REDISENIO VISUAL + PREPARACION DEL PROYECTO (migrations y seeders)
+ GEODATA - REDISENIO VISUAL + PREPARACION DEL PROYECTO (migrations y seeders)
  Rol: Scrum Master (define requerimientos)  ->  Agente desarrollador (ejecuta)
  Stack: Laravel 11 + Inertia.js + Vue 3 + Tailwind CSS (Vite) + PostgreSQL
 ==============================================================================
 
 CONTEXTO
 --------
-El sistema ComexHub ya esta funcionando completo (portal publico: Inicio, Explorar,
+El sistema Geodata ya esta funcionando completo (portal publico: Inicio, Explorar,
 Rankings, Acerca de; y panel de administracion con todos sus modulos). Funciona bien,
 pero el DISENIO actual (azul generico, plano) no convence. Esta tanda tiene dos metas:
 
@@ -71,7 +71,7 @@ ESPECIFICACIONES:
 1. Barra superior delgada (utility bar) arriba del header, en azul muy oscuro, con un
    texto a la izquierda tipo "PROYECTO ACADEMICO - FCEE - UAGRM" y a la derecha la
    fuente y la fecha de ultima actualizacion ("FUENTE: INE - ACTUAL. [fecha]").
-2. Header principal: logo ComexHub + un espacio reservado para el escudo de la FCEE
+2. Header principal: logo Geodata + un espacio reservado para el escudo de la FCEE
    (placeholder por ahora), navegacion (Inicio, Explorar, Rankings, Acerca de) con el
    item activo marcado con una linea/acento ROJO debajo, y el boton "Acceder" como
    accion destacada (contorno o solido segun se vea mejor).

@@ -123,7 +123,7 @@ class CargaController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $campos = array_keys(config('comexhub.campos_canonicos'));
+        $campos = array_keys(config('geodata.campos_canonicos'));
 
         $datos = $request->validate([
             'token'           => ['required', 'string', 'regex:/^[a-f0-9\-]+\.(xlsx|xlsm|xls|csv|txt)$/i'],

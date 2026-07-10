@@ -28,7 +28,7 @@ class DetectorPerfil
      */
     public static function sugerirCampo(string $nombreColumna): ?string
     {
-        $alias = config('comexhub.alias_columnas', []);
+        $alias = config('geodata.alias_columnas', []);
         $norm = self::normalizar($nombreColumna);
 
         return $alias[$norm] ?? null;

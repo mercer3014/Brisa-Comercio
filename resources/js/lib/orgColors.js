@@ -16,8 +16,8 @@ export const COLORES_ORG_SIGLA = {
     FAOSTAT: '#C77D11',
 };
 
-/** Paleta Ovxel para series de ApexCharts (orden de aparición). */
-export const PALETA_OVXEL = [
+/** Paleta Geodata para series de ApexCharts (orden de aparición). */
+export const PALETA_GEODATA = [
     '#102A45',
     '#E31219',
     '#2E7D32',

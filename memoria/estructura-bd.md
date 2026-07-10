@@ -1,4 +1,4 @@
-# ComexHub — Estructura de la base de datos
+# Geodata — Estructura de la base de datos
 
 Base PostgreSQL `brisa`, esquema `public`, **39 tablas**. Referencia exacta:
 `estructura-db.sql` (raiz del proyecto). NO se modifican; se mapean con modelos Eloquent.

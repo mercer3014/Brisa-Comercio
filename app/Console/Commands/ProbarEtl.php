@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
  * desde el sistema de archivos sin pasar por el flujo web.
  *
  * Uso:
- *   php artisan ovxel:probar-etl <ruta_archivo> --org=1 --flujo=EXPORTACION [--gestión=2023] [--sync]
+ *   php artisan geodata:probar-etl <ruta_archivo> --org=1 --flujo=EXPORTACION [--gestión=2023] [--sync]
  *
  * Opciones:
  *   --org    organizacion_id (1=INE, 2=ALADI, 3=MERCOSUR, 4=FAOSTAT)
@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class ProbarEtl extends Command
 {
-    protected $signature = 'ovxel:probar-etl
+    protected $signature = 'geodata:probar-etl
         {archivo : Ruta absoluta o relativa (desde storage/app) del archivo Excel}
         {--org=1 : organizacion_id (1=INE, 2=ALADI, 3=MERCOSUR, 4=FAOSTAT)}
         {--flujo=EXPORTACION : tipo_flujo}

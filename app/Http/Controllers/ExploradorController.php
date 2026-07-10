@@ -44,7 +44,7 @@ class ExploradorController extends Controller
         // cambian cuando se carga un archivo nuevo (la version del cache es el
         // último carga_id). Totales+facetas se cachean sin la página, para que
         // paginar solo recalcule la tabla. Las claves viven en ClavesCache
-        // porque ovxel:calentar-cache las precalienta tras cada carga.
+        // porque geodata:calentar-cache las precalienta tras cada carga.
         $ver = \App\Servicios\ClavesCache::version();
 
         $agregados = Cache::remember(\App\Servicios\ClavesCache::explAgg($ver, $org, $filtros), \App\Servicios\ClavesCache::TTL, fn () => [

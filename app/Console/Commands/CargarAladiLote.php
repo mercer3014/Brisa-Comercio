@@ -17,11 +17,11 @@ use Illuminate\Support\Facades\DB;
  *   <base>/<PAIS>/IMPORTACIONES/<gestión>.xlsx
  *
  * Uso:
- *   php artisan ovxel:cargar-aladi "C:/Users/.../Desktop/ALADI" --fresh
+ *   php artisan geodata:cargar-aladi "C:/Users/.../Desktop/ALADI" --fresh
  */
 class CargarAladiLote extends Command
 {
-    protected $signature = 'ovxel:cargar-aladi
+    protected $signature = 'geodata:cargar-aladi
         {base : Carpeta base con una subcarpeta por pais miembro}
         {--fresh : Borrar los datos previos de ALADI (org 2) antes de cargar}
         {--pais= : Cargar solo un pais (nombre de la carpeta, ej. ARGENTINA)}
@@ -126,14 +126,14 @@ class CargarAladiLote extends Command
         if (! $this->option('no-refresh')) {
             $this->line('Refrescando vistas materializadas...');
             try {
-                \Illuminate\Support\Facades\Artisan::call('comexhub:refrescar-vistas');
+                \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas');
             } catch (\Throwable $e) {
                 $this->warn('  No se pudieron refrescar las vistas: '.$e->getMessage());
             }
         }
 
         $this->line('Precalentando cache...');
-        \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
+        \Illuminate\Support\Facades\Artisan::call('geodata:calentar-cache');
 
         $this->info("Listo. {$totalArchivos} archivo(s), ".number_format($totalFilas).' filas insertadas.');
         if (! empty($fallidos)) {

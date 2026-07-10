@@ -1,5 +1,5 @@
 ==============================================================================
- COMEXHUB - PLAN DE DESARROLLO DIRIGIDO (Segunda tanda: PORTAL PUBLICO)
+ GEODATA - PLAN DE DESARROLLO DIRIGIDO (Segunda tanda: PORTAL PUBLICO)
  Rol: Scrum Master (define requerimientos)  ->  Agente desarrollador (ejecuta)
  Stack: Laravel 11 + Inertia.js + Vue 3 + Tailwind CSS (Vite) + PostgreSQL
 ==============================================================================
@@ -36,7 +36,7 @@ B) PANEL DE ADMINISTRACION (ya existe): detras del login. Para administradores y
 
 Inspiracion de estilo (portales de estadisticas de comercio exterior): paginas claras,
 con tarjetas de indicadores grandes, rankings visuales, graficos y buscadores
-intuitivos. La diferencia de ComexHub es que debe ser MAS intuitivo y libre para
+intuitivos. La diferencia de Geodata es que debe ser MAS intuitivo y libre para
 explorar (no es de pago, no esconde la informacion detras de formularios).
 
 Importante sobre la base de datos: para indicadores y rankings NO hace falta cambiar la
@@ -63,7 +63,7 @@ ESPECIFICACIONES:
    - Rutas PRIVADAS (con autenticacion y permisos, como ya estan): todo el panel de
      administracion bajo un prefijo, por ejemplo /admin.
 2. Crear dos layouts Vue separados:
-   - LayoutPublico: barra superior simple con logo ComexHub, navegacion del portal
+   - LayoutPublico: barra superior simple con logo Geodata, navegacion del portal
      (Inicio, Explorar, Rankings, Acerca de) y un boton discreto "Acceder" arriba a la
      derecha que lleva al login.
    - LayoutAdmin: el layout actual con menu lateral (ya existe).
@@ -174,7 +174,7 @@ ESPECIFICACIONES:
    - resumen_mensual: por organizacion, anio, mes y flujo -> totales (para los graficos
      de evolucion).
 2. Indexar las vistas materializadas por organizacion y anio.
-3. Crear un comando artisan "comexhub:refrescar-vistas" que ejecute REFRESH MATERIALIZED
+3. Crear un comando artisan "geodata:refrescar-vistas" que ejecute REFRESH MATERIALIZED
    VIEW de todas, y llamarlo automaticamente al final de cada ETL exitoso (Tarea 6) para
    que los resumenes queden al dia tras cada carga.
 4. Las pantallas del portal (Tareas 12 y 13) deben leer de estas vistas cuando sea

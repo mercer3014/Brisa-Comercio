@@ -108,7 +108,7 @@ class CargadorFaostat
             ]);
 
             if ($refrescarVistas) {
-                \Illuminate\Support\Facades\Artisan::call('comexhub:refrescar-vistas');
+                \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas');
             }
         } catch (Throwable $e) {
             $carga->update(['estado' => 'FALLIDO']);

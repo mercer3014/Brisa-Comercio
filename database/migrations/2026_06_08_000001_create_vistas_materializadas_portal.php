@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  * `valor` = SUM(valor_fob_usd) para exportación (flujo 1) y SUM(valor_cif_frontera_usd)
  * para importación (flujo 2), coherente con AgregadorDashboard y ResumenPortal.
  *
- * Se refrescan con el comando `comexhub:refrescar-vistas` (tras cada ETL exitoso).
+ * Se refrescan con el comando `geodata:refrescar-vistas` (tras cada ETL exitoso).
  */
 return new class extends Migration
 {

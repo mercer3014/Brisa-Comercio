@@ -11,12 +11,12 @@ use Illuminate\Console\Command;
  * al storage). Detecta la gestión por el nombre del archivo o por el contenido.
  *
  * Uso:
- *   php artisan ovxel:cargar-ine "<carpeta>" --flujo=EXPORTACION
- *   php artisan ovxel:cargar-ine "<carpeta>" --flujo=IMPORTACION
+ *   php artisan geodata:cargar-ine "<carpeta>" --flujo=EXPORTACION
+ *   php artisan geodata:cargar-ine "<carpeta>" --flujo=IMPORTACION
  */
 class CargarIneLote extends Command
 {
-    protected $signature = 'ovxel:cargar-ine
+    protected $signature = 'geodata:cargar-ine
         {carpeta : Carpeta con los .xlsx del INE}
         {--flujo=EXPORTACION : EXPORTACION o IMPORTACION}
         {--desde=1990 : Año mínimo a cargar}

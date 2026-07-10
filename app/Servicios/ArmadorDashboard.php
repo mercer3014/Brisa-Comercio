@@ -6,7 +6,7 @@ namespace App\Servicios;
  * Arma la respuesta completa del dashboard admin para cualquier organización,
  * eligiendo el agregador según su arquitectura (INE = microdato, ALADI =
  * rankings, MERCOSUR = series por zona/producto, FAOSTAT = índices). Vive
- * como servicio para que el controlador y ovxel:calentar-cache construyan
+ * como servicio para que el controlador y geodata:calentar-cache construyan
  * EXACTAMENTE el mismo payload.
  */
 class ArmadorDashboard

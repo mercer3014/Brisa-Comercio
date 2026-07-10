@@ -115,7 +115,7 @@ async function previsualizar() {
 
 const camposOpciones = computed(() => preview.value?.campos ?? CAMPOS);
 
-// Lista de campos canonicos (debe coincidir con config/comexhub.php)
+// Lista de campos canonicos (debe coincidir con config/geodata.php)
 const CAMPOS = [
     'gestion', 'mes', 'tipo_operacion', 'flujo', 'codigo_nandina', 'descripcion_producto',
     'codigo_capitulo', 'codigo_seccion', 'codigo_cuci', 'codigo_gce', 'codigo_ciiu',

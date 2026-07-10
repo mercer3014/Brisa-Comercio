@@ -12,11 +12,11 @@ use Illuminate\Support\Facades\DB;
  * comerciales") desde una carpeta base, leyendo directamente del disco.
  *
  * Uso:
- *   php artisan ovxel:cargar-faostat "C:/Users/.../Desktop/FAOSTAT" --fresh
+ *   php artisan geodata:cargar-faostat "C:/Users/.../Desktop/FAOSTAT" --fresh
  */
 class CargarFaostatLote extends Command
 {
-    protected $signature = 'ovxel:cargar-faostat
+    protected $signature = 'geodata:cargar-faostat
         {base : Carpeta con los .xls de FAOSTAT (uno por pais)}
         {--fresh : Borrar los datos previos de FAOSTAT (org 4) antes de cargar}
         {--pais= : Cargar solo el archivo cuyo nombre empiece asi (ej. Bolivia)}
@@ -96,7 +96,7 @@ class CargarFaostatLote extends Command
 
         $this->newLine();
         $this->line('Precalentando cache...');
-        \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
+        \Illuminate\Support\Facades\Artisan::call('geodata:calentar-cache');
 
         $this->info('Listo. '.count($archivos).' archivo(s), '.number_format($totalFilas).' series insertadas.');
         if (! empty($fallidos)) {

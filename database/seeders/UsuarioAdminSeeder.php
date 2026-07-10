@@ -16,7 +16,7 @@ class UsuarioAdminSeeder extends Seeder
         // valores por defecto documentados en el README. La contrasenia se guarda SOLO
         // como hash bcrypt y se obliga a cambiarla en el primer ingreso (debe_cambiar_pwd).
         $usuario = env('ADMIN_USUARIO', 'admin');
-        $correo  = env('ADMIN_CORREO', 'admin@comexhub.local');
+        $correo  = env('ADMIN_CORREO', 'admin@geodata.local');
         $clave   = env('ADMIN_PASSWORD', 'Admin12345');
 
         $admin = Usuario::updateOrCreate(

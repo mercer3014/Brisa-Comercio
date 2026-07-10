@@ -50,7 +50,7 @@ class DashboardController extends Controller
         // Cache: las agregaciones (sobre todo las del microdato del INE, con
         // millones de filas) son costosas y solo cambian con una carga nueva
         // (la version del cache es el último carga_id). Las claves viven en
-        // ClavesCache porque ovxel:calentar-cache las precalienta.
+        // ClavesCache porque geodata:calentar-cache las precalienta.
         $ver = \App\Servicios\ClavesCache::version();
 
         $respuesta = Cache::remember(

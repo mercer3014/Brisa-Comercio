@@ -54,7 +54,7 @@ class PerfilMapeoController extends Controller
         return Inertia::render('Admin/Perfiles/Edit', [
             'perfil'          => $perfil,
             'columnas'        => $perfil->columnas()->orderBy('mapeo_id')->get(),
-            'camposCanonicos' => config('comexhub.campos_canonicos'),
+            'camposCanonicos' => config('geodata.campos_canonicos'),
         ]);
     }
 
@@ -76,7 +76,7 @@ class PerfilMapeoController extends Controller
      */
     public function guardarColumnas(Request $request, PerfilMapeo $perfil): RedirectResponse
     {
-        $campos = array_keys(config('comexhub.campos_canonicos'));
+        $campos = array_keys(config('geodata.campos_canonicos'));
 
         $datos = $request->validate([
             'columnas'                          => ['present', 'array'],

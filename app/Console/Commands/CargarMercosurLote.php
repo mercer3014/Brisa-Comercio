@@ -18,11 +18,11 @@ use Illuminate\Support\Facades\DB;
  *   <base>/MERCOSUR <version>/Por Items/*.xlsx   -> serie_comercio_producto_zona
  *
  * Uso:
- *   php artisan ovxel:cargar-mercosur "D:/MERCOSUR" --version=5 --fresh
+ *   php artisan geodata:cargar-mercosur "D:/MERCOSUR" --version=5 --fresh
  */
 class CargarMercosurLote extends Command
 {
-    protected $signature = 'ovxel:cargar-mercosur
+    protected $signature = 'geodata:cargar-mercosur
         {base=D:/MERCOSUR : Carpeta base que contiene las carpetas "MERCOSUR N"}
         {--bloque=5 : Versión del bloque a cargar (5 = 5 miembros)}
         {--fresh : Borrar los datos previos de MERCOSUR (org 3) antes de cargar}
@@ -82,7 +82,7 @@ class CargarMercosurLote extends Command
         }
 
         $this->line('Precalentando cache...');
-        \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
+        \Illuminate\Support\Facades\Artisan::call('geodata:calentar-cache');
 
         $this->info('Listo. Países: ' . number_format($totalPais) . ' filas · Items: ' . number_format($totalItem) . ' filas.');
         return self::SUCCESS;

@@ -193,7 +193,7 @@ class ProcesadorEtl
     private function refrescarVistasPortal(): void
     {
         try {
-            \Illuminate\Support\Facades\Artisan::call('comexhub:refrescar-vistas');
+            \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas');
         } catch (Throwable $e) {
             report($e);
         }

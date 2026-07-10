@@ -1,4 +1,4 @@
-# ComexHub — Bitacora de desarrollo
+# Geodata — Bitacora de desarrollo
 
 Registro cronologico. Al terminar cada tarea: que se hizo, archivos creados/modificados
 y decisiones tomadas.
@@ -15,7 +15,7 @@ y decisiones tomadas.
 2. **Conexion a PostgreSQL** verificada: base `brisa` en `127.0.0.1:5432`, usuario
    `postgres`, las 39 tablas del esquema ya estaban creadas por el equipo. PostgreSQL 18.2.
 3. **.env** reconfigurado: `DB_CONNECTION=pgsql`, host/puerto/base/usuario/contrasena,
-   `DB_SEARCH_PATH=public`. App: `APP_NAME=ComexHub`, locale `es`, URL `http://localhost:8000`.
+   `DB_SEARCH_PATH=public`. App: `APP_NAME=Geodata`, locale `es`, URL `http://localhost:8000`.
    (Queue, session y cache ya venian con driver `database`.)
 4. **Migraciones internas de Laravel** ejecutadas contra PostgreSQL: `sessions`,
    `cache`/`cache_locks`, `jobs`/`job_batches`/`failed_jobs`. Se EDITO la migracion
@@ -34,7 +34,7 @@ y decisiones tomadas.
    Catalogos, Administracion), area de contenido y mensajes flash. Paleta `marca-*`
    (azul) definida en `resources/css/app.css`.
 7. **Pagina Inicio** `resources/js/Pages/Inicio.vue` + ruta `/` (`routes/web.php`):
-   muestra "ComexHub", cuenta de organizaciones y estado de la conexion. La ruta
+   muestra "Geodata", cuenta de organizaciones y estado de la conexion. La ruta
    ejecuta una consulta real `DB::table('organizacion')->count()` como prueba de conexion.
 
 ### Verificacion (criterios de aceptacion)
@@ -127,7 +127,7 @@ y decisiones tomadas.
 
 ### Credenciales del administrador inicial
 - Usuario: **admin** / Contrasenia: **Admin12345** (hash bcrypt en `usuario.hash_contrasena`).
-  `debe_cambiar_pwd=true`. Correo: admin@comexhub.local.
+  `debe_cambiar_pwd=true`. Correo: admin@geodata.local.
 
 ### Modelo de permisos
 - 27 permisos con formato `modulo.accion` (ej. `usuario.ver`, `reporte.exportar`).
@@ -145,7 +145,7 @@ y decisiones tomadas.
 ### Estado: COMPLETADA
 
 ### Que se hizo
-- **config/comexhub.php**: lista unica de **campos canonicos** (27, con etiqueta/grupo/tipo)
+- **config/geodata.php**: lista unica de **campos canonicos** (27, con etiqueta/grupo/tipo)
   + tabla de **alias conocidos** (KILBRU/KILOS->peso_bruto_kg, PFINO/FINO->peso_fino_kg,
   CUCI3/CUCIR3->codigo_cuci, etc.). Compartida por backend, detector y frontend.
 - **App\Servicios\DetectorPerfil**: normaliza nombres (mayusculas, sin acentos/espacios),
@@ -410,7 +410,7 @@ y decisiones tomadas.
 
 ## ESTADO FINAL DEL PROTOTIPO (Tareas 1-10 COMPLETADAS)
 
-ComexHub queda como prototipo demostrable funcional end-to-end:
+Geodata queda como prototipo demostrable funcional end-to-end:
 - Entorno Laravel 12 + Inertia/Vue 3 + Tailwind v4 sobre PostgreSQL 18 (base `brisa`).
 - 39 modelos Eloquent mapeando el esquema existente.
 - Autenticacion con roles/permisos granulares (4 roles, 27 permisos), bloqueo por intentos,
@@ -562,7 +562,7 @@ Todos sobre `operacion_comercio_exterior o JOIN tiempo t`, WHERE org + gestion +
     AgregadorDashboard/ResumenPortal.
   - **Indices**: por cada vista, UNIQUE (org, gestion, flujo, dimension) -> permite REFRESH CONCURRENTLY,
     + indice por (organizacion_id, gestion).
-- **Comando** `php artisan comexhub:refrescar-vistas` (`App\Console\Commands\RefrescarVistasPortal`):
+- **Comando** `php artisan geodata:refrescar-vistas` (`App\Console\Commands\RefrescarVistasPortal`):
   REFRESH MATERIALIZED VIEW CONCURRENTLY de las 4 (cae a REFRESH normal si falla). Opcion `--sin-concurrencia`.
 - **Enganche al ETL**: `ProcesadorEtl::refrescarVistasPortal()` se llama tras el cierre exitoso del ETL
   (despues de la bitacora), tolerante a fallos (no rompe la carga si las vistas no existen).
@@ -573,7 +573,7 @@ Todos sobre `operacion_comercio_exterior o JOIN tiempo t`, WHERE org + gestion +
 - Migracion aplicada; vistas pobladas (resumen_anual_producto=33, resumen_anual_pais=32, resumen_mensual=72 filas).
 - **Totales identicos a la consulta directa**: EXPO 2024 vista = directo = 156,613,442.75. paises_destino=7,
   productos_distintos=8.
-- `comexhub:refrescar-vistas` ejecuta OK (CONCURRENTLY). Se dispara tras cada ETL exitoso.
+- `geodata:refrescar-vistas` ejecuta OK (CONCURRENTLY). Se dispara tras cada ETL exitoso.
 - Portada (Tarea 12) ahora servida desde las vistas: mismos 5 titulares, KPIs y 12 meses de evolucion.
 
 ### Decisiones
@@ -678,11 +678,11 @@ Todos sobre `operacion_comercio_exterior o JOIN tiempo t`, WHERE org + gestion +
 
 ## ESTADO FINAL — SEGUNDA TANDA (Tareas 11-16)
 
-Portal publico de ComexHub completo y funcional, separado del panel privado:
+Portal publico de Geodata completo y funcional, separado del panel privado:
 - **T11**: portal publico (LayoutPublico) en `/`, panel privado bajo `/admin` (LayoutAdmin), login en `/acceder`.
 - **T12**: portada con titulares automaticos, KPIs (con variacion), rankings destacados y evolucion mensual.
 - **T14**: 4 vistas materializadas (resumen anual producto/pais/departamento + mensual) con indices,
-  comando `comexhub:refrescar-vistas` y refresco automatico tras cada ETL; el portal lee de ellas.
+  comando `geodata:refrescar-vistas` y refresco automatico tras cada ETL; el portal lee de ellas.
 - **T13**: pagina de rankings (por valor/peso, top 10/20/50) y comparadores (dos anios / expo vs impo),
   con exportacion XLSX/CSV.
 - **T15**: explorador publico facetado con resumen visual (KPIs + 2 graficos), tabla detallada paginada,
@@ -737,7 +737,7 @@ catalogos (placeholders "Pais 54"). Lista de errores del panel pendiente del equ
 - `README.md` reescrito (era el de Laravel) con pasos de arranque desde cero: requisitos,
   composer/npm install, `.env`, `key:generate`, `migrate --seed`, `composer dev` / serve+queue+vite,
   usuario admin inicial y obligacion de cambiar contrasenia, cola/ETL, refresco de vistas, rutas.
-- `.env.example` actualizado: PostgreSQL (pgsql/brisa/search_path), APP_NAME=ComexHub, locale es,
+- `.env.example` actualizado: PostgreSQL (pgsql/brisa/search_path), APP_NAME=Geodata, locale es,
   y variables ADMIN_*.
 
 ### Decisiones

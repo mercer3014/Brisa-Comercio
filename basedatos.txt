@@ -1,15 +1,15 @@
 
 -- ============================================================================
---  OVXEL — BASE DE DATOS COMPLETA (FASE 0)
+--  GEODATA — BASE DE DATOS COMPLETA (FASE 0)
 --  Archivo unico y ejecutable de una sola vez en pgAdmin.
 --
 --  CONTIENE, EN ORDEN:
 --    1. comercio.sql        -> estructura base (INE + ALADI + MERCOSUR + FAOSTAT + CAN)
---    2. ovxel_adiciones.sql -> tablas nuevas, datos semilla y vistas materializadas
+--    2. geodata_adiciones.sql -> tablas nuevas, datos semilla y vistas materializadas
 --
 --  COMO USAR:
---    1. En pgAdmin crear la base de datos: ovxel_db
---    2. Abrir el Query Tool sobre ovxel_db
+--    1. En pgAdmin crear la base de datos: geodata_db
+--    2. Abrir el Query Tool sobre geodata_db
 --    3. Abrir este archivo y ejecutar (F5)
 --    4. Verificar al final con las consultas de comprobacion incluidas
 --
@@ -23,12 +23,12 @@
 -- ############################################################################
 
 -- ============================================================================
---  COMEXHUB - BASE DE DATOS UNIFICADA Y EXPLICATIVA (PostgreSQL 14+)
+--  GEODATA - BASE DE DATOS UNIFICADA Y EXPLICATIVA (PostgreSQL 14+)
 --  Sistema de centralizacion de EXPORTACIONES e IMPORTACIONES de comercio
 --  exterior de multiples organizaciones estadisticas.
 --
 --  Este unico script contiene:
---    (A) La estructura base de ComexHub (microdato del INE + sistema).
+--    (A) La estructura base de Geodata (microdato del INE + sistema).
 --    (B) La integracion de tres nuevas fuentes: ALADI, MERCOSUR y FAOSTAT.
 --
 --  COMO LEER ESTE SCRIPT (idea general antes de los detalles):
@@ -64,7 +64,7 @@
 
 
 -- ############################################################################
--- ##  PARTE A - ESTRUCTURA BASE DE COMEXHUB                                 ##
+-- ##  PARTE A - ESTRUCTURA BASE DE GEODATA                                 ##
 -- ##  (Catalogo central, mapeo de cabeceras, dimensiones del microdato,     ##
 -- ##   modulo de sistema y la tabla de hechos del microdato del INE.)       ##
 -- ############################################################################
@@ -999,11 +999,11 @@ CREATE INDEX idx_correlacion_producto ON correlacion_nandina (producto_id);
 
 
 -- ############################################################################
--- ##  BLOQUE 2 DE 2 : ADICIONES OVXEL (tablas nuevas + semilla + vistas)    ##
+-- ##  BLOQUE 2 DE 2 : ADICIONES GEODATA (tablas nuevas + semilla + vistas)    ##
 -- ############################################################################
 
 -- ============================================================================
---  OVXEL — ADICIONES A LA BASE DE DATOS (ejecutar DESPUÉS de comercio.sql)
+--  GEODATA — ADICIONES A LA BASE DE DATOS (ejecutar DESPUÉS de comercio.sql)
 --  Tablas nuevas para: serie por zona, serie por producto/zona, contenido
 --  dinámico, sistema de pagos/descargas, perfiles OAuth y vistas materializadas.
 -- ============================================================================
@@ -1252,8 +1252,8 @@ INSERT INTO contenido_portal (seccion, clave, tipo, valor, orden) VALUES
 ('home', 'hero_subtitulo', 'texto', 'Datos oficiales del INE, ALADI, MERCOSUR y FAOSTAT centralizados en una sola plataforma.', 2),
 ('home', 'hero_cta', 'texto', 'Explorar datos', 3),
 ('home', 'kpi_nota', 'texto', 'Datos actualizados al último periodo disponible. Fuente: INE Bolivia.', 10),
-('acerca_de', 'titulo', 'texto', 'Acerca de Ovxel', 1),
-('acerca_de', 'descripcion', 'html', '<p>Ovxel es una plataforma de análisis de comercio exterior de Bolivia que centraliza información de múltiples organizaciones estadísticas internacionales.</p>', 2),
+('acerca_de', 'titulo', 'texto', 'Acerca de Geodata', 1),
+('acerca_de', 'descripcion', 'html', '<p>Geodata es una plataforma de análisis de comercio exterior de Bolivia que centraliza información de múltiples organizaciones estadísticas internacionales.</p>', 2),
 ('acerca_de', 'mision', 'texto', 'Facilitar el acceso, análisis y comprensión de los datos de comercio exterior de Bolivia mediante herramientas visuales e interactivas.', 3);
 
 
@@ -1374,7 +1374,7 @@ COMMENT ON FUNCTION refrescar_vistas_materializadas IS 'Ejecutar después de cad
 
 
 -- ============================================================================
---  FIN DE ADICIONES OVXEL
+--  FIN DE ADICIONES GEODATA
 -- ============================================================================
 
 
@@ -1390,5 +1390,5 @@ COMMENT ON FUNCTION refrescar_vistas_materializadas IS 'Ejecutar después de cad
 -- SELECT count(*) AS zonas FROM zona_geoeconomica;                  -- esperado: 16
 -- SELECT count(*) AS paquetes FROM paquete_creditos;               -- esperado: 3
 -- ============================================================================
---  FIN DE OVXEL_DB_COMPLETA.SQL
+--  FIN DE GEODATA_DB_COMPLETA.SQL
 -- ============================================================================

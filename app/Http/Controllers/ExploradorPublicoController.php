@@ -60,7 +60,7 @@ class ExploradorPublicoController extends Controller
         // último carga_id). Totales+facetas+gráficos se cachean sin la página.
         // Mismas claves que el explorador admin (consultan lo mismo): calentar
         // una calienta la otra. Los gráficos son solo del público. Las claves
-        // viven en ClavesCache porque ovxel:calentar-cache las precalienta.
+        // viven en ClavesCache porque geodata:calentar-cache las precalienta.
         $ver = \App\Servicios\ClavesCache::version();
 
         $agregados = Cache::remember(\App\Servicios\ClavesCache::explAgg($ver, $org, $filtros), \App\Servicios\ClavesCache::TTL, fn () => [

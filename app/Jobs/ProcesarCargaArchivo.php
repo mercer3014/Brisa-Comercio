@@ -42,7 +42,7 @@ class ProcesarCargaArchivo implements ShouldQueue
         // cache caliente para que el explorador y los dashboards respondan al
         // instante con la nueva version.
         try {
-            \Illuminate\Support\Facades\Artisan::call('ovxel:calentar-cache');
+            \Illuminate\Support\Facades\Artisan::call('geodata:calentar-cache');
         } catch (\Throwable $e) {
             report($e);
         }

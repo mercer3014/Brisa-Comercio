@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class CalentarCache extends Command
 {
-    protected $signature = 'ovxel:calentar-cache {--org=* : Solo estas organizaciones (por defecto las 4)}';
+    protected $signature = 'geodata:calentar-cache {--org=* : Solo estas organizaciones (por defecto las 4)}';
 
     protected $description = 'Precalienta el cache de explorador y dashboards para todas las organizaciones.';
 

@@ -1,5 +1,5 @@
 ==============================================================================
- COMEXHUB - PLAN DE DESARROLLO DIRIGIDO
+ GEODATA - PLAN DE DESARROLLO DIRIGIDO
  Rol: Scrum Master (define requerimientos)  ->  Agente desarrollador (ejecuta)
  Stack: Laravel 11 + Inertia.js + Vue 3 + Tailwind CSS (Vite) + PostgreSQL
 ==============================================================================
@@ -14,7 +14,7 @@ Instrucciones de uso (para el equipo, no para el agente):
  CONTEXTO DEL SISTEMA (leer antes de empezar)
 ==============================================================================
 
-ComexHub es una plataforma web que centraliza datos de comercio exterior
+Geodata es una plataforma web que centraliza datos de comercio exterior
 (exportaciones e importaciones) de varias organizaciones estadisticas. Se empieza
 con una sola organizacion: el INE de Bolivia. El objetivo es:
 
@@ -52,7 +52,7 @@ Idea central de la base de datos:
 
 1. CARPETA DE MEMORIA. Crear en la raiz del proyecto una carpeta llamada "memoria/".
    Dentro, mantener y actualizar estos archivos:
-   - memoria/contexto-proyecto.md   -> que es ComexHub, su objetivo y arquitectura.
+   - memoria/contexto-proyecto.md   -> que es Geodata, su objetivo y arquitectura.
    - memoria/bitacora-desarrollo.md -> registro cronologico: al terminar cada tarea,
      anotar que se hizo, que archivos se crearon/modificaron y decisiones tomadas.
    - memoria/estructura-bd.md       -> resumen de tablas y como se mapean a modelos.
@@ -122,7 +122,7 @@ ESPECIFICACIONES:
    Laravel (jobs, cache, sessions).
 5. Crear un layout base con barra superior, menu lateral y area de contenido, en
    paleta azul corporativa y tipografia limpia.
-6. Crear una pagina protegida de prueba ("Inicio") que muestre "ComexHub".
+6. Crear una pagina protegida de prueba ("Inicio") que muestre "Geodata".
 
 CRITERIOS DE ACEPTACION:
 - El proyecto levanta con "npm run dev" y "php artisan serve".

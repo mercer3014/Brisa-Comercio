@@ -1,4 +1,4 @@
-# ComexHub — Pendientes
+# Geodata — Pendientes
 
 ## Requiere al equipo
 - **Lista de errores del panel (Tarea 16)**: el Scrum Master debe entregar el detalle de los errores

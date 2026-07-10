@@ -1,7 +1,7 @@
-# ComexHub — Contexto del proyecto
+# Geodata — Contexto del proyecto
 
 ## Que es
-ComexHub es una plataforma web que **centraliza datos de comercio exterior**
+Geodata es una plataforma web que **centraliza datos de comercio exterior**
 (exportaciones e importaciones) provenientes de varias organizaciones estadisticas.
 Se arranca con una sola organizacion: el **INE de Bolivia**.
 
@@ -37,7 +37,7 @@ Se arranca con una sola organizacion: el **INE de Bolivia**.
 5. Contrasenias solo como **hash bcrypt**, nunca en texto plano.
 
 ## Dos caras del sistema (desde Tarea 11)
-ComexHub tiene un **portal publico** (entrada del sitio, sin login) y un **panel privado**
+Geodata tiene un **portal publico** (entrada del sitio, sin login) y un **panel privado**
 (detras del login, bajo `/admin`).
 
 ### Rutas publicas (sin autenticacion — LayoutPublico)

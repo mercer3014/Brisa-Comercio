@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { PALETA_OVXEL } from '../../lib/orgColors';
+import { PALETA_GEODATA } from '../../lib/orgColors';
 
 const props = defineProps({
     type: { type: String, required: true },
@@ -8,7 +8,7 @@ const props = defineProps({
     opciones: { type: Object, default: () => ({}) },
     height: { type: [Number, String], default: 320 },
     cargando: { type: Boolean, default: false },
-    paleta: { type: Array, default: () => PALETA_OVXEL },
+    paleta: { type: Array, default: () => PALETA_GEODATA },
     chartId: { type: String, default: '' },
 });
 
@@ -32,7 +32,7 @@ const baseOpciones = computed(() => {
             animations: { easing: 'easeinout', speed: 450 },
             ...(props.chartId ? { id: props.chartId } : {}),
         },
-        colors: props.paleta?.length ? props.paleta : PALETA_OVXEL,
+        colors: props.paleta?.length ? props.paleta : PALETA_GEODATA,
         dataLabels: { enabled: false },
         legend: {
             show: true,

@@ -1,4 +1,4 @@
-# ComexHub — Sistema de diseno (identidad FCEE - UAGRM)
+# Geodata — Sistema de diseno (identidad FCEE - UAGRM)
 
 Identidad visual editorial e institucional. **Regla de oro del color: el AZUL manda,
 el ROJO es acento puntual.** Nada de grandes areas rojas; el portal debe verse serio y
