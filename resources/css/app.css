@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+/* Evita el scroll horizontal accidental en móvil (paneles full-bleed, etc.) */
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
 /* Scroll sin barra visible */
 .scrollbar-hidden {
     scrollbar-width: none;        /* Firefox */

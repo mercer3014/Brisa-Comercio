@@ -25,6 +25,25 @@ const f = reactive({
 const ranking = ref(null);
 const cargandoR = ref(false);
 
+// Cada organización cubre solo un subconjunto de dimensiones/métricas: INE es
+// la única con desglose por departamento, y ALADI no publica volumen físico
+// (ver RankingPortal::rankingAladi). Se ocultan las opciones no aplicables en
+// vez de dejar que el usuario las elija y vea "Sin datos para estos filtros".
+const ORG_INE = 1;
+const ORG_ALADI = 2;
+const dimensionesDisponibles = computed(() => f.organizacion_id === ORG_INE
+    ? [{ v: 'producto', l: 'Productos' }, { v: 'pais', l: 'Países' }, { v: 'departamento', l: 'Departamentos' }]
+    : [{ v: 'producto', l: 'Productos' }, { v: 'pais', l: 'Países' }]);
+const metricasDisponibles = computed(() => f.organizacion_id === ORG_ALADI
+    ? [{ v: 'valor', l: 'Valor (USD)' }]
+    : [{ v: 'valor', l: 'Valor (USD)' }, { v: 'peso', l: 'Volumen (kg)' }]);
+
+function ajustarFiltrosPorOrganizacion() {
+    if (!dimensionesDisponibles.value.some((d) => d.v === f.dimension)) f.dimension = 'producto';
+    if (!metricasDisponibles.value.some((m) => m.v === f.metrica)) f.metrica = 'valor';
+    if (!dimensionesDisponibles.value.some((d) => d.v === c.dimension)) c.dimension = 'producto';
+}
+
 // Cada organización tiene su propio rango de años con datos (INE llega a 2026,
 // ALADI a 2025, etc.): la lista de gestiones se pide por organización y al
 // cambiar de organización se salta a su gestión más reciente.
@@ -92,6 +111,7 @@ watch([() => f.gestion, () => f.flujo, () => f.dimension, () => f.metrica, () =>
 // disponibles y recargar (si la gestión cambio, el watch de arriba ya recarga).
 watch(() => f.organizacion_id, async () => {
     c.organizacion_id = f.organizacion_id;
+    ajustarFiltrosPorOrganizacion();
     const antes = f.gestion;
     await cargarGestiones();
     if (f.gestion === antes) cargarRanking();
@@ -199,15 +219,12 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
                 </label>
                 <label class="text-xs font-medium text-gris-500">Dimensión
                     <select v-model="f.dimension" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option value="producto">Productos</option>
-                        <option value="pais">Países</option>
-                        <option value="departamento">Departamentos</option>
+                        <option v-for="d in dimensionesDisponibles" :key="d.v" :value="d.v">{{ d.l }}</option>
                     </select>
                 </label>
                 <label class="text-xs font-medium text-gris-500">Medir por
                     <select v-model="f.metrica" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option value="valor">Valor (USD)</option>
-                        <option value="peso">Volumen (kg)</option>
+                        <option v-for="m in metricasDisponibles" :key="m.v" :value="m.v">{{ m.l }}</option>
                     </select>
                 </label>
                 <label class="text-xs font-medium text-gris-500">Posiciones

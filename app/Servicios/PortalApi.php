@@ -1404,11 +1404,23 @@ class PortalApi
     //  Filtros
     // =========================================================================
 
+    /**
+     * Países para el Comparador (que solo compara microdato INE): se restringe
+     * a los países con al menos un registro en operacion_comercio_exterior y se
+     * deduplica por nombre normalizado, porque el catálogo `pais` puede tener
+     * más de una fila para el mismo país con distinta grafía/mayúsculas (cada
+     * organización carga sus propios códigos de país; la tabla de equivalencias
+     * entre organizaciones queda pendiente, ver memoria/pendientes.md).
+     */
     public function filtroPaises(): array
     {
-        return DB::table('pais')->orderBy('nombre')
-            ->get(['pais_id as id', 'nombre', 'iso_alpha3'])
-            ->map(fn ($r) => ['id' => (int) $r->id, 'nombre' => $r->nombre, 'iso' => $r->iso_alpha3])->all();
+        return DB::table('operacion_comercio_exterior as o')
+            ->join('pais as p', 'p.pais_id', '=', 'o.pais_id')
+            ->selectRaw('MIN(p.pais_id) as id, MAX(p.nombre) as nombre, MAX(p.iso_alpha3) as iso')
+            ->groupBy(DB::raw('UPPER(TRIM(p.nombre))'))
+            ->orderByRaw('MAX(p.nombre)')
+            ->get()
+            ->map(fn ($r) => ['id' => (int) $r->id, 'nombre' => $r->nombre, 'iso' => $r->iso])->all();
     }
 
     public function filtroZonas(): array

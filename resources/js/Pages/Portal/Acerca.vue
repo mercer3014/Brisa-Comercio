@@ -142,7 +142,7 @@ import { Head, Link } from '@inertiajs/vue3';
         </div>
 
         <div class="flex flex-wrap gap-3">
-            <Link href="/explorar" class="btn btn-primario">Explorar los datos</Link>
+            <Link href="/organizaciones" class="btn btn-primario">Explorar los datos</Link>
             <Link href="/rankings" class="btn btn-contorno">Ver rankings</Link>
         </div>
     </section>

@@ -101,7 +101,7 @@ const opcionesChart = computed(() => {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4"><span class="w-7 h-px bg-rojo-500"></span> Herramienta interactiva</p>
             <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Comparador</h1>
-            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Compara países, productos o años usando datos reales del portal. Cada selector dispara una nueva consulta a `/api/v1/comparador`.</p>
+            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Compara países, productos o años usando datos reales del portal. Cada selector actualiza la comparación al instante.</p>
         </div>
     </section>
 
