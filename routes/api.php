@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/charts/top-departamentos', [ChartDataController::class, 'topDepartamentos']);
     Route::get('/charts/seccion-arancelaria', [ChartDataController::class, 'seccionArancelaria']);
     Route::get('/charts/transporte', [ChartDataController::class, 'transporte']);
+    Route::get('/charts/comercio-por-via', [ChartDataController::class, 'comercioPorVia']);
     Route::get('/charts/tnt-evolucion', [ChartDataController::class, 'tntEvolucion']);
     Route::get('/charts/mapa-flujos', [ChartDataController::class, 'mapaFlujos']);
 

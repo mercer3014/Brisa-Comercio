@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // assets con http:// y el navegador los bloquea por contenido mixto.
         $middleware->trustProxies(at: '*');
 
+        // Límite de tasa en /api/*: el limiter 'api' se define en AppServiceProvider.
+        $middleware->throttleApi();
+
         $middleware->web(append: [
             \App\Http\Middleware\ExpirarSesionInactiva::class,
             \App\Http\Middleware\HandleInertiaRequests::class,

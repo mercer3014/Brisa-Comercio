@@ -98,6 +98,14 @@ class ChartDataController extends Controller
         return $this->cache("transporte.$g", fn () => $this->api->transporte($g));
     }
 
+    public function comercioPorVia(Request $r): JsonResponse
+    {
+        $g = $this->gestion($r);
+        $org = $r->integer('organizacion_id') ?: PortalApi::ORG_INE;
+
+        return $this->cache("comercio-por-via.$g.$org", fn () => $this->api->comercioPorVia($g, $org));
+    }
+
     public function tntEvolucion(): JsonResponse
     {
         return $this->cache('tnt-evolucion', fn () => $this->api->tntEvolucion());

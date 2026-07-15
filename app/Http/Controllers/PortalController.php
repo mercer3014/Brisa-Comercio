@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Configuracion;
 use App\Servicios\ResumenPortal;
 use App\Servicios\ResumenPortalAladi;
+use App\Servicios\ResumenPortalFaostat;
 use App\Servicios\ResumenPortalMercosur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,15 +28,15 @@ class PortalController extends Controller
      * destacados y evolución mensual (Tarea 12). Se renderiza con datos iniciales
      * para la organización por defecto (INE) y su gestión más reciente con datos.
      */
-    public function inicio(ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): Response
+    public function inicio(ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi, ResumenPortalFaostat $resumenFaostat): Response
     {
         $base = $this->opcionesBase();
         $orgId = $base['organizacionDefecto'];
-        $gestion = $this->gestionMasReciente($orgId, $resumen, $resumenMercosur, $resumenAladi);
+        $gestion = $this->gestionMasReciente($orgId, $resumen, $resumenMercosur, $resumenAladi, $resumenFaostat);
 
         return Inertia::render('Portal/Inicio', array_merge($base, [
             'gestionInicial' => $gestion,
-            'portada'        => $this->portada($orgId, $gestion, $resumen, $resumenMercosur, $resumenAladi),
+            'portada'        => $this->portada($orgId, $gestion, $resumen, $resumenMercosur, $resumenAladi, $resumenFaostat),
         ]));
     }
 
@@ -43,7 +44,7 @@ class PortalController extends Controller
      * Datos de la portada en JSON, para refrescar al cambiar organización o gestión.
      * Público (sin autenticación), respetando SIEMPRE la organización seleccionada.
      */
-    public function datos(Request $request, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): JsonResponse
+    public function datos(Request $request, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi, ResumenPortalFaostat $resumenFaostat): JsonResponse
     {
         $datos = $request->validate([
             'organizacion_id' => ['required', 'integer'],
@@ -51,29 +52,31 @@ class PortalController extends Controller
         ]);
 
         $orgId = (int) $datos['organizacion_id'];
-        $gestion = $datos['gestion'] ?? $this->gestionMasReciente($orgId, $resumen, $resumenMercosur, $resumenAladi);
+        $gestion = $datos['gestion'] ?? $this->gestionMasReciente($orgId, $resumen, $resumenMercosur, $resumenAladi, $resumenFaostat);
 
-        return response()->json($this->portada($orgId, $gestion, $resumen, $resumenMercosur, $resumenAladi));
+        return response()->json($this->portada($orgId, $gestion, $resumen, $resumenMercosur, $resumenAladi, $resumenFaostat));
     }
 
     /**
-     * INE, MERCOSUR y ALADI guardan sus datos con arquitecturas distintas
-     * (microdato vs series por zona/producto vs rankings top-50): se elige el
-     * servicio según la organización, pero todos devuelven exactamente la
-     * misma forma de respuesta.
+     * INE, MERCOSUR, ALADI y FAOSTAT guardan sus datos con arquitecturas
+     * distintas (microdato vs series por zona/producto vs rankings top-50 vs
+     * indices agricolas): se elige el servicio según la organización, pero
+     * todos devuelven exactamente la misma forma de respuesta.
      */
-    private function gestionMasReciente(int $orgId, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): ?int
+    private function gestionMasReciente(int $orgId, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi, ResumenPortalFaostat $resumenFaostat): ?int
     {
         return match ($orgId) {
+            4       => $resumenFaostat->gestionMasReciente(),
             3       => $resumenMercosur->gestionMasReciente(),
             2       => $resumenAladi->gestionMasReciente(),
             default => $resumen->gestionMasReciente($orgId),
         };
     }
 
-    private function portada(int $orgId, ?int $gestion, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi): array
+    private function portada(int $orgId, ?int $gestion, ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi, ResumenPortalFaostat $resumenFaostat): array
     {
         return match ($orgId) {
+            4       => $resumenFaostat->portada($gestion),
             3       => $resumenMercosur->portada($gestion),
             2       => $resumenAladi->portada($gestion),
             default => $resumen->portada($orgId, $gestion),
@@ -124,6 +127,15 @@ class PortalController extends Controller
     public function comparador(): Response
     {
         return Inertia::render('Portal/Comparador', $this->opcionesBase());
+    }
+
+    /**
+     * Exportaciones e importaciones por vía de transporte (Marítimo /
+     * Terrestre / Aéreo / Otros): a donde llevan los paneles de la portada.
+     */
+    public function comercioPorVia(): Response
+    {
+        return Inertia::render('Portal/ComercioPorVia', $this->opcionesBase());
     }
 
     /**

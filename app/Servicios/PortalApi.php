@@ -89,7 +89,10 @@ class PortalApi
             ->where('o.organizacion_id', self::ORG_INE);
 
         if ($gestion) {
-            $q->where('t.gestion', $gestion);
+            // o.gestion es una copia indexada de t.gestion (índice idx_oce_org_gestion):
+            // filtrar aquí, en vez de en t.gestion, deja que Postgres descarte casi toda
+            // la tabla (4M+ filas) antes de llegar al JOIN con tiempo.
+            $q->where('o.gestion', $gestion);
         }
 
         return $q;
@@ -494,6 +497,112 @@ class PortalApi
                 [['name' => 'Valor', 'data' => $vias->map(fn ($r) => round((float) $r->valor))->all()]],
                 ['fuente' => 'INE', 'gestion' => $gestion, 'dimension' => 'via_comercio']
             ),
+        ];
+    }
+
+    /** Agrupación de medio_transporte en las 4 vías que muestra el portal público. */
+    private const GRUPOS_VIA = [
+        'maritimo'  => 'Marítimo',
+        'terrestre' => 'Terrestre',
+        'aereo'     => 'Aéreo',
+        'otros'     => 'Otros',
+    ];
+
+    /**
+     * Bolivia no tiene costa: lo que el publico entiende como "comercio
+     * maritimo" queda registrado en medio_transporte como intermodal
+     * (CARRETERO-MARITIMO, FERROVIARIO-MARITIMO: camion/tren hasta un puerto
+     * vecino y de ahi por barco). CARRETERA/FERROVIARIA sin ese tramo son
+     * "terrestre" puro; AEREA es aparte; el resto (fluvial, lacustre, postal,
+     * ductos, courier) cae en "otros".
+     */
+    private function grupoVia(string $medio): string
+    {
+        $m = mb_strtoupper($medio);
+
+        return match (true) {
+            str_contains($m, 'AEREA')    => 'aereo',
+            str_contains($m, 'MARITIMO') => 'maritimo',
+            in_array($m, ['CARRETERA', 'FERROVIARIA'], true) => 'terrestre',
+            default => 'otros',
+        };
+    }
+
+    /**
+     * Exportaciones e importaciones (separadas, en USD) agrupadas por vía de
+     * transporte: lo que muestran los paneles Marítimo/Terrestre/Aéreo/Otros
+     * de la portada publica.
+     *
+     * Solo el microdato del INE guarda medio de transporte por operación;
+     * ALADI/MERCOSUR/FAOSTAT llegan pre-agregados por país/zona/producto y no
+     * tienen esa columna en ninguna parte (verificado en su esquema). Para
+     * esas organizaciones se devuelve la estructura vacía documentada en vez
+     * de inventar un desglose que la fuente no publica.
+     */
+    public function comercioPorVia(?int $gestion, int $orgId = self::ORG_INE): array
+    {
+        $org = DB::table('organizacion')->where('organizacion_id', $orgId)->first();
+
+        if ($orgId !== self::ORG_INE) {
+            return [
+                'categorias' => [],
+                'series'     => [],
+                'items'      => [],
+                'meta'       => [
+                    'fuente'     => $org?->sigla ?? 'N/D',
+                    'gestion'    => $gestion,
+                    'unidad'     => 'USD',
+                    'disponible' => false,
+                    'nota'       => ($org?->sigla ?? 'Esta organización')." no publica desglose por vía de transporte (solo llegan totales por país/zona/producto).",
+                ],
+            ];
+        }
+
+        $gestion ??= $this->gestionReciente(self::ORG_INE);
+
+        $rows = $this->baseIne($gestion)
+            ->join('medio_transporte as m', 'm.medio_id', '=', 'o.medio_id')
+            ->selectRaw('m.descripcion as medio')
+            ->selectRaw("SUM({$this->valorExpo}) as expo")
+            ->selectRaw("SUM({$this->valorImpo}) as impo")
+            ->groupBy('m.descripcion')
+            ->get();
+
+        $totales = array_fill_keys(array_keys(self::GRUPOS_VIA), ['expo' => 0.0, 'impo' => 0.0]);
+        foreach ($rows as $r) {
+            $grupo = $this->grupoVia((string) $r->medio);
+            $totales[$grupo]['expo'] += (float) $r->expo;
+            $totales[$grupo]['impo'] += (float) $r->impo;
+        }
+
+        $items = [];
+        foreach (self::GRUPOS_VIA as $clave => $etiqueta) {
+            $expo = $totales[$clave]['expo'];
+            $impo = $totales[$clave]['impo'];
+            $items[] = [
+                'clave'   => $clave,
+                'label'   => $etiqueta,
+                'expo'    => round($expo),
+                'impo'    => round($impo),
+                'balanza' => round($expo - $impo),
+                'total'   => round($expo + $impo),
+            ];
+        }
+
+        return [
+            'categorias' => array_column($items, 'label'),
+            'series'     => [
+                ['name' => 'Exportaciones', 'data' => array_column($items, 'expo')],
+                ['name' => 'Importaciones', 'data' => array_column($items, 'impo')],
+            ],
+            'items' => $items,
+            'meta'  => [
+                'fuente'     => 'INE',
+                'gestion'    => $gestion,
+                'unidad'     => 'USD',
+                'disponible' => true,
+                'ultima_actualizacion' => now()->toIso8601String(),
+            ],
         ];
     }
 

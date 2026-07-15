@@ -28,23 +28,31 @@ use Inertia\Inertia;
 | Es la cara abierta del sistema: lo primero que ve cualquier visitante.
 | Usa el LayoutPublico. El panel de administracion vive aparte, bajo /admin.
 */
-Route::get('/', [PortalController::class, 'inicio'])->name('portal.inicio');
-Route::get('/portal/datos', [PortalController::class, 'datos'])->name('portal.datos');
-Route::get('/explorar', [ExploradorPublicoController::class, 'index'])->name('portal.explorar');
-Route::post('/explorar/consultar', [ExploradorPublicoController::class, 'consultar'])->name('portal.explorar.consultar');
-Route::get('/explorar/exportar', [ExploradorPublicoController::class, 'exportar'])->name('portal.explorar.exportar');
-Route::get('/rankings', [PortalController::class, 'rankings'])->name('portal.rankings');
-Route::get('/rankings/datos', [RankingController::class, 'datos'])->name('portal.rankings.datos');
-Route::get('/rankings/comparar', [RankingController::class, 'comparar'])->name('portal.rankings.comparar');
-Route::get('/rankings/exportar', [RankingController::class, 'exportar'])->name('portal.rankings.exportar');
-Route::get('/organizaciones', [PortalController::class, 'organizaciones'])->name('portal.organizaciones');
-Route::get('/organizaciones/{id}', [PortalController::class, 'organizacionDetalle'])
-    ->whereNumber('id')->name('portal.organizaciones.detalle');
-Route::get('/comparador', [PortalController::class, 'comparador'])->name('portal.comparador');
-Route::get('/mapa-comercial', [PortalController::class, 'mapaComercial'])->name('portal.mapa-comercial');
-Route::get('/indicadores', [PortalController::class, 'indicadores'])->name('portal.indicadores');
-Route::get('/linea-de-tiempo', [PortalController::class, 'lineaDeTiempo'])->name('portal.linea-de-tiempo');
-Route::get('/acerca', [PortalController::class, 'acerca'])->name('portal.acerca');
+Route::middleware('throttle:120,1')->group(function () {
+    Route::get('/', [PortalController::class, 'inicio'])->name('portal.inicio');
+    Route::get('/portal/datos', [PortalController::class, 'datos'])->name('portal.datos');
+    Route::get('/explorar', [ExploradorPublicoController::class, 'index'])->name('portal.explorar');
+    Route::post('/explorar/consultar', [ExploradorPublicoController::class, 'consultar'])->name('portal.explorar.consultar');
+    Route::get('/rankings', [PortalController::class, 'rankings'])->name('portal.rankings');
+    Route::get('/rankings/datos', [RankingController::class, 'datos'])->name('portal.rankings.datos');
+    Route::get('/rankings/comparar', [RankingController::class, 'comparar'])->name('portal.rankings.comparar');
+    Route::get('/organizaciones', [PortalController::class, 'organizaciones'])->name('portal.organizaciones');
+    Route::get('/organizaciones/{id}', [PortalController::class, 'organizacionDetalle'])
+        ->whereNumber('id')->name('portal.organizaciones.detalle');
+    Route::get('/comparador', [PortalController::class, 'comparador'])->name('portal.comparador');
+    Route::get('/comercio-por-via', [PortalController::class, 'comercioPorVia'])->name('portal.comercio-por-via');
+    Route::get('/mapa-comercial', [PortalController::class, 'mapaComercial'])->name('portal.mapa-comercial');
+    Route::get('/indicadores', [PortalController::class, 'indicadores'])->name('portal.indicadores');
+    Route::get('/linea-de-tiempo', [PortalController::class, 'lineaDeTiempo'])->name('portal.linea-de-tiempo');
+    Route::get('/acerca', [PortalController::class, 'acerca'])->name('portal.acerca');
+});
+
+// Exportaciones (Excel): generan archivos, más costosas que una consulta normal —
+// límite más estricto para que no se usen para tumbar el servidor a fuerza de descargas.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('/explorar/exportar', [ExploradorPublicoController::class, 'exportar'])->name('portal.explorar.exportar');
+    Route::get('/rankings/exportar', [RankingController::class, 'exportar'])->name('portal.rankings.exportar');
+});
 
 /*
 |--------------------------------------------------------------------------

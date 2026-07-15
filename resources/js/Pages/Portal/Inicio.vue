@@ -20,12 +20,10 @@ const hayDatos = computed(() => datos.value?.meta?.hay_datos);
 const meta = computed(() => datos.value?.meta ?? {});
 const ind = computed(() => datos.value?.indicadores ?? null);
 
-// INE, ALADI y MERCOSUR ya se leen aquí mismo, cada uno con su arquitectura.
-// FAOSTAT todavia no tiene un resumen equivalente para esta portada: manda a
-// su panel dedicado en /organizaciones/{id} en vez de mostrar una pantalla
-// vacia.
-const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === orgId.value));
-const tienePanelPropio = computed(() => ![1, 2, 3].includes(orgId.value));
+// INE, ALADI y MERCOSUR publican en USD; FAOSTAT publica indices comerciales
+// (base 2014-2016 = 100). Misma estructura de portada para las 4, pero con
+// formato y etiquetas distintas donde el dato no es un valor en dolares.
+const esFaostat = computed(() => orgId.value === 4);
 
 // Refresca la portada al cambiar organización o gestión.
 async function refrescar() {
@@ -86,6 +84,37 @@ function fmtNum(v) {
     return v == null ? '—' : v.toLocaleString('es-BO', { maximumFractionDigits: 0 });
 }
 
+function fmtIdx(v) {
+    if (v == null) return '—';
+    const abs = Math.abs(v);
+    if (abs >= 1e6) return `Índice ${(v / 1e6).toLocaleString('es-BO', { maximumFractionDigits: 1 })} M`;
+    if (abs >= 1e3) return `Índice ${(v / 1e3).toLocaleString('es-BO', { maximumFractionDigits: 1 })} mil`;
+    return `Índice ${v.toLocaleString('es-BO', { maximumFractionDigits: 1 })}`;
+}
+
+// FAOSTAT reporta indices (base 2014-2016 = 100), el resto valores en USD.
+const fmtValor = computed(() => (esFaostat.value ? fmtIdx : fmtUsd));
+
+// Etiquetas de las tarjetas de indicadores: distintas para FAOSTAT (indices)
+// que para INE/ALADI/MERCOSUR (USD).
+const etiquetas = computed(() => esFaostat.value
+    ? {
+        expo: 'Índice de exportación', impo: 'Índice de importación',
+        balanza: 'Diferencia expo - impo', balanzaPos: 'Expo > Impo', balanzaNeg: 'Impo > Expo',
+        paises: 'Países con datos', paisesSub: 'con series FAOSTAT',
+        productos: 'Productos distintos', productosSub: 'con índice comercial',
+        topProductos: 'Top 5 productos — índice de exportación',
+        topDestinos: 'Top 5 productos — índice de importación',
+    }
+    : {
+        expo: 'Exportaciones', impo: 'Importaciones',
+        balanza: 'Balanza comercial', balanzaPos: 'Superávit', balanzaNeg: 'Déficit',
+        paises: 'Países destino', paisesSub: 'de exportación',
+        productos: 'Productos distintos', productosSub: 'comercializados',
+        topProductos: 'Top 5 productos exportados',
+        topDestinos: 'Top 5 países destino',
+    });
+
 function fmtVar(v) {
     if (v == null) return null;
     const signo = v > 0 ? '+' : '';
@@ -106,6 +135,7 @@ const iconoPaths = (clave) => ICONO[clave] ?? ['M12 6v12m6-6H6'];
 // Set general en navy slate; el Top 1 destacado en crimson premium.
 function opcionesBarras(items) {
     const colores = items.map((_, i) => (i === 0 ? '#e11d48' : '#334155'));
+    const formatear = fmtValor.value;
     return {
         chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
         plotOptions: { bar: { horizontal: true, borderRadius: 6, borderRadiusApplication: 'end', barHeight: '46%', distributed: true } },
@@ -114,12 +144,12 @@ function opcionesBarras(items) {
         legend: { show: false },
         xaxis: {
             categories: items.map((i) => i.label),
-            labels: { formatter: (v) => fmtUsd(v), style: { fontSize: '10px', colors: '#94a3b8' } },
+            labels: { formatter: (v) => formatear(v), style: { fontSize: '10px', colors: '#94a3b8' } },
             axisBorder: { show: false },
             axisTicks: { show: false },
         },
         yaxis: { labels: { style: { fontSize: '11px', colors: '#475569' }, maxWidth: 160 } },
-        tooltip: { y: { formatter: (v) => fmtUsd(v) } },
+        tooltip: { y: { formatter: (v) => formatear(v) } },
         grid: { strokeDashArray: 4, borderColor: '#f1f5f9', yaxis: { lines: { show: false } } },
     };
 }
@@ -167,6 +197,7 @@ const modos = [
         titulo: 'Marítimo',
         descripcion: 'El gran volumen de la carga: contenedores que mueven la balanza comercial del país.',
         img: '/img/brisa/maritimo.png',
+        href: '/comercio-por-via?via=maritimo',
         // barco / contenedor
         icono: 'M3 13.5l1.5 5.25a1.5 1.5 0 001.44 1.08h11.12a1.5 1.5 0 001.44-1.08L21 13.5M4.5 13.5h15M5.25 13.5V8.25A1.5 1.5 0 016.75 6.75h10.5a1.5 1.5 0 011.5 1.5v5.25M12 4.5v2.25',
     },
@@ -175,6 +206,7 @@ const modos = [
         titulo: 'Terrestre',
         descripcion: 'Rutas y fronteras: el comercio que cruza por carretera con los países vecinos.',
         img: '/img/brisa/terrestre.png',
+        href: '/comercio-por-via?via=terrestre',
         // camión
         icono: 'M3 9.75A1.5 1.5 0 014.5 8.25h7.5v7.5H3v-5.25zM12 11.25h3.75l3 3v1.5H12v-4.5zM6.75 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.5 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
     },
@@ -183,6 +215,7 @@ const modos = [
         titulo: 'Aéreo',
         descripcion: 'Valor y velocidad: los bienes de alto valor que viajan por aire hacia el mundo.',
         img: '/img/brisa/aerio.png',
+        href: '/comercio-por-via?via=aereo',
         // avión
         icono: 'M3.75 12l16.5-6-6 16.5-2.25-7.5-8.25-3z',
     },
@@ -191,6 +224,7 @@ const modos = [
         titulo: 'El mundo',
         descripcion: 'Socios comerciales: los países de destino y origen que conectan a Bolivia con el mundo.',
         img: '/img/brisa/banderas.png',
+        href: '/mapa-comercial',
         // globo terráqueo
         icono: 'M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18',
     },
@@ -223,15 +257,15 @@ const modos = [
             <Link
                 v-for="m in modos"
                 :key="m.clave"
-                href="/organizaciones"
+                :href="m.href"
                 class="panel-modo group"
                 :aria-label="`Ver comercio por vía ${m.titulo}`"
             >
                 <img :src="m.img" :alt="`Vista aérea de transporte ${m.titulo.toLowerCase()}`" class="panel-modo__img" :loading="m.clave === 'maritimo' ? 'eager' : 'lazy'" />
                 <div class="panel-modo__velo"></div>
 
-                <!-- Contenido del panel (abajo-izquierda, despejando la barra inferior) -->
-                <div class="absolute inset-0 z-10 flex flex-col justify-end p-6 lg:p-8 pb-24 lg:pb-28">
+                <!-- Contenido del panel (abajo-izquierda) -->
+                <div class="absolute inset-0 z-10 flex flex-col justify-end p-6 lg:p-8">
                     <h2 class="titular-editorial text-3xl lg:text-4xl text-white">{{ m.titulo }}</h2>
                     <span class="mt-3 block h-0.5 w-10 bg-rojo-500 rounded-full"></span>
                     <div class="panel-modo__detalle">
@@ -244,51 +278,22 @@ const modos = [
                 </div>
             </Link>
         </div>
-
-        <!-- ===== BARRA DE MENÚ INFERIOR (estilo AJE) ===== -->
-        <div class="absolute inset-x-0 bottom-0 z-30">
-            <div class="relative bg-institucional-950/80 backdrop-blur-md border-t border-white/10">
-                <!-- Logo central que sobresale -->
-                <Link href="/" class="absolute left-1/2 -translate-x-1/2 -top-5 flex items-center gap-2 rounded-full bg-white shadow-flotante px-4 py-2 ring-1 ring-institucional-900/5">
-                    <span class="inline-flex w-7 h-7 items-center justify-center rounded-lg bg-rojo-600">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg>
-                    </span>
-                    <span class="font-bold text-[15px] tracking-tight text-institucional-900">Geodata</span>
-                </Link>
-
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-                    <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-white/80">
-                        <Link href="/organizaciones" class="hover:text-white transition-colors">Organizaciones</Link>
-                        <Link href="/rankings" class="hover:text-white transition-colors">Rankings</Link>
-                    </nav>
-                    <nav class="hidden md:flex items-center gap-7 text-sm font-semibold text-white/80">
-                        <Link href="/indicadores" class="hover:text-white transition-colors">Indicadores</Link>
-                        <Link href="/acceder" class="hover:text-white transition-colors">Acceder</Link>
-                    </nav>
-                    <!-- Móvil: enlace único centrado bajo el logo -->
-                    <Link href="/organizaciones" class="md:hidden ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-white">
-                        Organizaciones
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    </Link>
-                </div>
-            </div>
-        </div>
     </section>
 
     <!-- ============================ TIRA DE INDICADORES (con datos) ============================ -->
     <section v-if="hayDatos && ind" class="bg-white border-b border-gris-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="tarjeta p-5">
-                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">Exportaciones {{ meta.gestion }}</div>
-                <div class="text-[1.55rem] font-bold text-institucional-900 mt-1.5 leading-none">{{ fmtUsd(ind.valor_exportado) }}</div>
+                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">{{ etiquetas.expo }} {{ meta.gestion }}</div>
+                <div class="text-[1.55rem] font-bold text-institucional-900 mt-1.5 leading-none">{{ fmtValor(ind.valor_exportado) }}</div>
                 <div v-if="ind.variacion_expo != null" class="text-xs font-semibold mt-2"
                      :class="ind.variacion_expo >= 0 ? 'text-positivo' : 'text-rojo-600'">
                     {{ fmtVar(ind.variacion_expo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
                 </div>
             </div>
             <div class="tarjeta p-5">
-                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">Importaciones {{ meta.gestion }}</div>
-                <div class="text-[1.55rem] font-bold text-institucional-900 mt-1.5 leading-none">{{ fmtUsd(ind.valor_importado) }}</div>
+                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">{{ etiquetas.impo }} {{ meta.gestion }}</div>
+                <div class="text-[1.55rem] font-bold text-institucional-900 mt-1.5 leading-none">{{ fmtValor(ind.valor_importado) }}</div>
                 <div v-if="ind.variacion_impo != null" class="text-xs font-semibold mt-2"
                      :class="ind.variacion_impo >= 0 ? 'text-positivo' : 'text-rojo-600'">
                     {{ fmtVar(ind.variacion_impo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
@@ -297,12 +302,12 @@ const modos = [
             <div class="tarjeta p-5">
                 <div class="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">
                     <span class="w-1.5 h-1.5 rounded-full" :class="ind.balanza_comercial >= 0 ? 'bg-positivo' : 'bg-rojo-500'"></span>
-                    Balanza comercial
+                    {{ etiquetas.balanza }}
                 </div>
                 <div class="text-[1.55rem] font-bold mt-1.5 leading-none" :class="ind.balanza_comercial >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                    {{ fmtUsd(ind.balanza_comercial) }}
+                    {{ fmtValor(ind.balanza_comercial) }}
                 </div>
-                <div class="text-xs font-medium text-institucional-400 mt-1.5">{{ ind.balanza_comercial >= 0 ? 'Superávit' : 'Déficit' }} · {{ meta.gestion }}</div>
+                <div class="text-xs font-medium text-institucional-400 mt-1.5">{{ ind.balanza_comercial >= 0 ? etiquetas.balanzaPos : etiquetas.balanzaNeg }} · {{ meta.gestion }}</div>
             </div>
         </div>
     </section>
@@ -345,23 +350,10 @@ const modos = [
                 <div class="w-14 h-14 rounded-2xl bg-gris-50 flex items-center justify-center mx-auto mb-5">
                     <svg class="w-7 h-7 text-institucional-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h12M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-12 0L21 3"/></svg>
                 </div>
-                <template v-if="tienePanelPropio">
-                    <p class="titular-editorial text-2xl text-institucional-900">{{ orgActual?.nombre ?? 'Esta organización' }} tiene su propio panel</p>
-                    <p class="text-institucional-500 mt-2 leading-relaxed">
-                        Esta portada muestra el resumen del INE. Para ver los indicadores y gráficos completos de
-                        {{ orgActual?.sigla ?? orgActual?.nombre }}, entra a su panel dedicado.
-                    </p>
-                    <Link :href="`/organizaciones/${orgId}`" class="inline-flex items-center gap-1.5 mt-5 rounded-lg bg-rojo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rojo-700 transition-colors">
-                        Ver panel de {{ orgActual?.sigla ?? orgActual?.nombre }}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    </Link>
-                </template>
-                <template v-else>
-                    <p class="titular-editorial text-2xl text-institucional-900">No hay datos publicados</p>
-                    <p class="text-institucional-500 mt-2 leading-relaxed">
-                        Para este periodo aún no hay operaciones cargadas. Selecciona otra gestión en la barra superior.
-                    </p>
-                </template>
+                <p class="titular-editorial text-2xl text-institucional-900">No hay datos publicados</p>
+                <p class="text-institucional-500 mt-2 leading-relaxed">
+                    Para este periodo aún no hay operaciones cargadas. Selecciona otra gestión en la barra superior.
+                </p>
             </div>
         </div>
 
@@ -376,8 +368,8 @@ const modos = [
                 </div>
                 <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">Valor exportado</div>
-                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtUsd(ind.valor_exportado) }}</div>
+                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.expo }}</div>
+                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtValor(ind.valor_exportado) }}</div>
                         <div v-if="ind.variacion_expo != null" class="text-xs font-semibold mt-2.5"
                              :class="ind.variacion_expo >= 0 ? 'text-positivo' : 'text-rojo-600'">
                             {{ fmtVar(ind.variacion_expo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
@@ -385,8 +377,8 @@ const modos = [
                         <div v-else class="text-xs text-institucional-400 mt-2.5">Sin comparativo</div>
                     </div>
                     <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">Valor importado</div>
-                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtUsd(ind.valor_importado) }}</div>
+                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.impo }}</div>
+                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtValor(ind.valor_importado) }}</div>
                         <div v-if="ind.variacion_impo != null" class="text-xs font-semibold mt-2.5"
                              :class="ind.variacion_impo >= 0 ? 'text-positivo' : 'text-rojo-600'">
                             {{ fmtVar(ind.variacion_impo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
@@ -394,21 +386,21 @@ const modos = [
                         <div v-else class="text-xs text-institucional-400 mt-2.5">Sin comparativo</div>
                     </div>
                     <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">Balanza comercial</div>
+                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.balanza }}</div>
                         <div class="text-2xl font-bold mt-2 leading-none" :class="ind.balanza_comercial >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                            {{ fmtUsd(ind.balanza_comercial) }}
+                            {{ fmtValor(ind.balanza_comercial) }}
                         </div>
-                        <div class="text-xs text-institucional-400 mt-2.5">{{ ind.balanza_comercial >= 0 ? 'Superávit' : 'Déficit' }}</div>
+                        <div class="text-xs text-institucional-400 mt-2.5">{{ ind.balanza_comercial >= 0 ? etiquetas.balanzaPos : etiquetas.balanzaNeg }}</div>
                     </div>
                     <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">Países destino</div>
+                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.paises }}</div>
                         <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtNum(ind.paises_destino) }}</div>
-                        <div class="text-xs text-institucional-400 mt-2.5">de exportación</div>
+                        <div class="text-xs text-institucional-400 mt-2.5">{{ etiquetas.paisesSub }}</div>
                     </div>
                     <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">Productos distintos</div>
+                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.productos }}</div>
                         <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtNum(ind.productos_distintos) }}</div>
-                        <div class="text-xs text-institucional-400 mt-2.5">comercializados</div>
+                        <div class="text-xs text-institucional-400 mt-2.5">{{ etiquetas.productosSub }}</div>
                     </div>
                 </div>
             </section>
@@ -435,18 +427,18 @@ const modos = [
             <section class="pb-16 grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="tarjeta p-7">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">Top 5 productos exportados</h3>
+                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">{{ etiquetas.topProductos }}</h3>
                         <Link href="/rankings" class="text-rojo-600 text-xs font-semibold hover:text-rojo-700 transition-colors">Ranking completo →</Link>
                     </div>
-                    <apexchart v-if="serieProductos[0].data.length" type="bar" height="250" :options="opcProductos" :series="serieProductos" />
+                    <apexchart v-if="serieProductos[0].data.length" :key="`prod-${orgId}`" type="bar" height="250" :options="opcProductos" :series="serieProductos" />
                     <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos.</p>
                 </div>
                 <div class="tarjeta p-7">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">Top 5 países destino</h3>
+                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">{{ etiquetas.topDestinos }}</h3>
                         <Link href="/rankings" class="text-rojo-600 text-xs font-semibold hover:text-rojo-700 transition-colors">Ranking completo →</Link>
                     </div>
-                    <apexchart v-if="serieDestinos[0].data.length" type="bar" height="250" :options="opcDestinos" :series="serieDestinos" />
+                    <apexchart v-if="serieDestinos[0].data.length" :key="`dest-${orgId}`" type="bar" height="250" :options="opcDestinos" :series="serieDestinos" />
                     <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos.</p>
                 </div>
             </section>

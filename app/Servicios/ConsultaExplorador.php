@@ -68,9 +68,11 @@ class ConsultaExplorador
             }
         }
 
-        // Tiempo: gestión y mes.
+        // Tiempo: gestión y mes. Gestión filtra por o.gestion (columna indexada
+        // junto a organizacion_id) en vez de t.gestion: evita escanear la tabla
+        // completa antes de llegar al JOIN con tiempo (ver migración 2026_07_14).
         if ($excepto !== 'gestion' && ! empty($f['gestion'])) {
-            $q->whereIn('t.gestion', $f['gestion']);
+            $q->whereIn('o.gestion', $f['gestion']);
         }
         if ($excepto !== 'mes' && ! empty($f['mes'])) {
             $q->whereIn('t.mes', $f['mes']);
@@ -398,7 +400,7 @@ class ConsultaExplorador
             'gce'            => ['col' => 'o.gce_id'],
             'tnt'            => ['col' => 'o.tnt_id'],
             'cuode'          => ['col' => 'o.cuode_id'],
-            'gestion'        => ['col' => 't.gestion'],
+            'gestion'        => ['col' => 'o.gestion'],
             'mes'            => ['col' => 't.mes'],
             'zona'           => ['col' => 'paz.zona_id', 'join' => 'pais'],
             'capitulo'       => ['col' => 'pc.capitulo_id', 'join' => 'producto'],

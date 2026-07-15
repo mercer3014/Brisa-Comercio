@@ -1,8 +1,16 @@
 @import 'tailwindcss';
 
-/* Evita el scroll horizontal accidental en móvil (paneles full-bleed, etc.) */
+/* Evita el scroll horizontal accidental en móvil (paneles full-bleed, etc.).
+   Usa "clip" en vez de "hidden": con html/body en h-full (height:100%), un
+   overflow-x "hidden" fuerza (por la regla de la spec CSS que empareja los
+   ejes) que overflow-y pase a "auto", convirtiendo body en su propio
+   contenedor de scroll interno de 100vh en vez de que la pagina/ventana
+   haga scroll normal. Eso rompe window.scrollY (el header con scroll-hide
+   deja de detectar el scroll) y hace que el bloque inferior del hero
+   (position:absolute) quede pisando secciones muy por debajo. "clip" no
+   dispara ese emparejamiento y logra el mismo recorte horizontal. */
 html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100vw;
 }
 
