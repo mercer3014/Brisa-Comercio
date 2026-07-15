@@ -67,11 +67,17 @@ const opcionesFinales = computed(() => {
     return mezclar(baseOpciones.value, props.opciones);
 });
 
-const hayDatos = computed(() =>
-    Array.isArray(props.series)
-    && props.series.length > 0
-    && props.series.some((serie) => (Array.isArray(serie) ? serie.length : (serie?.data?.length ?? 0)) > 0)
-);
+const hayDatos = computed(() => {
+    if (!Array.isArray(props.series) || props.series.length === 0) {
+        return false;
+    }
+
+    if (['donut', 'pie', 'radialBar'].includes(props.type)) {
+        return props.series.some((valor) => Number(valor) !== 0);
+    }
+
+    return props.series.some((serie) => (Array.isArray(serie) ? serie.length : (serie?.data?.length ?? 0)) > 0);
+});
 
 </script>
 
