@@ -997,7 +997,7 @@ class PortalApi
             ->where('s.pais_id', $paisId)
             ->when($productoId, fn ($q) => $q->where('s.producto_codigo_externo_id', $productoId))
             ->orderBy('s.gestion')
-            ->get(['s.gestion', 's.valor', 'e.nombre_elemento as elemento']);
+            ->get(['s.gestion', 's.valor', 'e.elemento_id', 'e.codigo_elemento', 'e.nombre_elemento as elemento']);
 
         $producto = $productoId ? DB::table('producto_codigo_externo')
             ->where('producto_codigo_externo_id', $productoId)
@@ -1007,12 +1007,16 @@ class PortalApi
         $cat = $rows->pluck('gestion')->unique()->sort()->values()->map(fn ($g) => (string) $g)->all();
         $catIdx = array_flip($cat);
         $series = [];
-        foreach ($rows->groupBy('elemento') as $elemento => $grupo) {
+        foreach ($rows->groupBy('elemento_id') as $elementoId => $grupo) {
             $data = array_fill(0, count($cat), null);
             foreach ($grupo as $r) {
                 $data[$catIdx[(string) $r->gestion]] = $r->valor !== null ? (float) $r->valor : null;
             }
-            $series[] = ['name' => mb_strimwidth((string) $elemento, 0, 45, '…'), 'data' => $data];
+            $elemento = $grupo->first();
+            $series[] = [
+                'name' => $this->etiquetaElementoFaostat((string) $elemento->codigo_elemento, (string) $elemento->elemento),
+                'data' => $data,
+            ];
         }
 
         return $this->serie($cat, $series, [
@@ -1023,7 +1027,22 @@ class PortalApi
             'producto_id' => $productoId,
             'producto'  => $producto,
             'hay_datos' => ! empty($series),
+            'periodo'   => ! empty($cat) ? ['desde' => reset($cat), 'hasta' => end($cat)] : null,
+            'nota'      => 'Los índices FAOSTAT usan base 2014-2016 = 100. Un valor 200 representa el doble del promedio base.',
         ]);
+    }
+
+    private function etiquetaElementoFaostat(string $codigo, string $nombre): string
+    {
+        return match ($codigo) {
+            '462' => 'Índice de valor de importación',
+            '464' => 'Índice de valor unitario de importación',
+            '465' => 'Índice de volumen físico de importación',
+            '492' => 'Índice de valor de exportación',
+            '494' => 'Índice de valor unitario de exportación',
+            '495' => 'Índice de volumen físico de exportación',
+            default => mb_strimwidth($nombre, 0, 60, '...'),
+        };
     }
 
     /**
@@ -1061,6 +1080,8 @@ class PortalApi
 
         $pais = DB::table('pais')->where('pais_id', $paisId)->value('nombre');
 
+        $maxValor = (float) ($rows->max('valor') ?? 0);
+
         return $this->serie(
             $rows->pluck('label')->map(fn ($l) => mb_strimwidth((string) $l, 0, 40, '…'))->all(),
             [['name' => 'Índice de valor ('.($flujo === 'imp' ? 'importación' : 'exportación').')', 'data' => $rows->pluck('valor')->map(fn ($v) => round((float) $v, 1))->all()]],
@@ -1072,6 +1093,9 @@ class PortalApi
                 'pais_id'   => $paisId,
                 'pais'      => $pais,
                 'hay_datos' => $rows->isNotEmpty(),
+                'nota'      => $maxValor >= 1000
+                    ? 'Algunos índices son muy altos porque la base 2014-2016 pudo haber sido baja o casi nula; interpretar como variación relativa, no como valor monetario.'
+                    : 'Índices FAOSTAT con base 2014-2016 = 100; no representan USD ni volumen físico absoluto.',
             ]
         );
     }
