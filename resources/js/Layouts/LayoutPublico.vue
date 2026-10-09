@@ -159,10 +159,6 @@ const anioActual = new Date().getFullYear();
                         </div>
                     </div>
 
-                    <a href="https://www.ine.gob.bo" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-rojo-400 hover:text-rojo-300 transition-colors text-sm">
-                        Fuente: INE
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                    </a>
                 </div>
 
                 <div class="mt-8 pt-6 border-t border-white/10 text-xs text-white/30">

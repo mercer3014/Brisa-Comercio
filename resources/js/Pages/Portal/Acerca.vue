@@ -19,7 +19,7 @@ import { Head, Link } from '@inertiajs/vue3';
                 Transparencia de datos
             </span>
             <h1 class="titular-editorial text-4xl sm:text-5xl lg:text-6xl font-black mt-4">
-                Metodología<br><span class="subrayado-rojo">y Fuentes</span>
+                Metodología<br>y Fuentes
             </h1>
             <p class="text-white/70 text-lg mt-5 max-w-xl leading-relaxed">
                 Todo lo que necesitas saber sobre el origen, procesamiento y alcance
