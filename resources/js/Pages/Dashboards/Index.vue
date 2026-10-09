@@ -60,6 +60,10 @@ async function cargar() {
 const gestionesOrg = ref([...(props.gestiones ?? [])]);
 
 watch(orgId, async () => {
+    // Se limpian los datos de la organización anterior para que la pantalla
+    // de carga se muestre de inmediato en vez de dejar ver cifras viejas
+    // mientras llegan las nuevas.
+    d.value = null;
     if (!tabs.value.some((t) => t.key === tab.value)) {
         tab.value = 'general';
     }
@@ -206,7 +210,13 @@ const sinMicrodato = computed(() => !ORGS_SOPORTADAS.includes(orgId.value));
             </button>
         </div>
 
-        <div v-if="!d" class="text-center py-20 text-slate-400">Cargando indicadores...</div>
+        <div v-if="!d" class="flex flex-col items-center justify-center gap-3 py-24 text-slate-400">
+            <svg class="h-8 w-8 animate-spin text-marca-600" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span class="text-sm font-medium">Cargando indicadores de {{ orgActual?.sigla ?? orgActual?.nombre ?? 'la organización' }}...</span>
+        </div>
 
         <div v-else-if="sinMicrodato" class="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
             <p class="text-amber-800 font-medium">
@@ -234,13 +244,13 @@ const sinMicrodato = computed(() => !ORGS_SOPORTADAS.includes(orgId.value));
                     <div class="text-xs text-slate-500">Productos (CPC)</div>
                     <div class="text-xl font-bold whitespace-nowrap text-slate-800">{{ fmt(k.productos) }}</div>
                 </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                <div class="bg-white rounded-xl border border-slate-200 p-4 overflow-hidden">
                     <div class="text-xs text-slate-500">Índice valor expo (mediana)</div>
-                    <div class="text-xl font-bold whitespace-nowrap text-emerald-600">{{ fmtIdx(k.valor_exportacion) }}</div>
+                    <div class="text-lg font-bold leading-tight break-words text-emerald-600" :title="fmtIdx(k.valor_exportacion)">{{ fmtIdx(k.valor_exportacion) }}</div>
                 </div>
-                <div class="bg-white rounded-xl border border-slate-200 p-4">
+                <div class="bg-white rounded-xl border border-slate-200 p-4 overflow-hidden">
                     <div class="text-xs text-slate-500">Índice valor impo (mediana)</div>
-                    <div class="text-xl font-bold whitespace-nowrap text-amber-600">{{ fmtIdx(k.valor_importacion) }}</div>
+                    <div class="text-lg font-bold leading-tight break-words text-amber-600" :title="fmtIdx(k.valor_importacion)">{{ fmtIdx(k.valor_importacion) }}</div>
                 </div>
                 <div class="bg-white rounded-xl border border-slate-200 p-4">
                     <div class="text-xs text-slate-500">Var. interanual del índice</div>

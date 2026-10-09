@@ -14,6 +14,7 @@ const busqueda = ref('');
 const pagina = ref(1);
 const porPagina = ref(25);
 const cargando = ref(false);
+const cambiandoOrg = ref(false); // pantalla de carga completa al cambiar de organizacion
 const filtrosAbiertos = ref(false); // panel movil
 
 const filtros = reactive({
@@ -89,7 +90,7 @@ async function consultar() {
 
 function consultarDesdeFiltro() {
     pagina.value = 1;
-    consultar();
+    return consultar();
 }
 
 watch(filtros, consultarDesdeFiltro, { deep: true });
@@ -97,7 +98,17 @@ watch(busqueda, () => {
     clearTimeout(debounce);
     debounce = setTimeout(consultarDesdeFiltro, 350);
 });
-watch(orgId, consultarDesdeFiltro);
+watch(orgId, async () => {
+    // Pantalla de carga completa (no solo la opacidad de "cargando"): al
+    // cambiar de organizacion los datos de la anterior no deben quedar
+    // visibles mientras llegan los nuevos.
+    cambiandoOrg.value = true;
+    try {
+        await consultarDesdeFiltro();
+    } finally {
+        cambiandoOrg.value = false;
+    }
+});
 watch(pagina, consultar);
 
 function limpiarTodo() {
@@ -216,6 +227,16 @@ onMounted(() => {
                 <input v-model="busqueda" placeholder="Buscar por producto, país o aduana..."
                        class="campo px-4 py-3 mb-4" />
 
+                <!-- Pantalla de carga completa al cambiar de organización -->
+                <div v-if="cambiandoOrg" class="flex flex-col items-center justify-center gap-3 py-24 text-gris-400">
+                    <svg class="h-8 w-8 animate-spin text-rojo-600" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <span class="text-sm font-medium">Cargando datos de {{ opciones.organizaciones?.find((o) => o.organizacion_id === orgId)?.nombre ?? 'la organización' }}...</span>
+                </div>
+
+                <template v-else>
                 <!-- Resumen visual: KPIs -->
                 <div class="grid grid-cols-3 gap-3 mb-4" :class="{ 'opacity-60': cargando }">
                     <div class="tarjeta p-4">
@@ -297,6 +318,7 @@ onMounted(() => {
                         </div>
                     </div>
                 </div>
+                </template>
             </main>
         </div>
     </section>

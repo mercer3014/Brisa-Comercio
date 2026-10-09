@@ -246,14 +246,15 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
                             <button @click="exportar('csv')" class="text-xs px-2.5 py-1.5 rounded bg-gris-100 text-gris-700 hover:bg-gris-200 font-semibold">CSV</button>
                         </div>
                     </div>
-                    <table class="w-full text-sm">
+                    <div class="overflow-x-auto">
+                    <table class="w-full text-sm table-fixed">
                         <thead class="text-xs font-semibold text-institucional-500 uppercase tracking-wider border-b border-gris-200">
                             <tr>
                                 <th class="text-left py-2 w-8">#</th>
                                 <th class="text-left py-2">Nombre</th>
-                                <th class="text-right py-2">{{ ranking.unidad === 'kg' ? 'Peso' : 'Valor' }}</th>
-                                <th class="text-right py-2">% total</th>
-                                <th class="text-right py-2">% acum.</th>
+                                <th class="text-right py-2 w-28">{{ ranking.unidad === 'kg' ? 'Peso' : 'Valor' }}</th>
+                                <th class="text-right py-2 w-16">% total</th>
+                                <th class="text-right py-2 w-16">% acum.</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gris-100">
@@ -264,7 +265,7 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
                                     <span v-if="r.posicion === 1" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rojo-600 text-white text-xs font-bold">1</span>
                                     <span v-else class="text-gris-400 pl-1.5">{{ r.posicion }}</span>
                                 </td>
-                                <td class="py-2 font-medium" :class="r.posicion === 1 ? 'text-institucional-900' : 'text-gris-800'">{{ r.label }}</td>
+                                <td class="py-2 font-medium break-words" :class="r.posicion === 1 ? 'text-institucional-900' : 'text-gris-800'">{{ r.label }}</td>
                                 <td class="py-2 text-right font-semibold text-institucional-900">{{ fmtVal(r.valor) }}</td>
                                 <td class="py-2 text-right text-gris-600">{{ fmtPct(r.porcentaje) }}</td>
                                 <td class="py-2 text-right text-gris-400">{{ fmtPct(r.acumulado) }}</td>
@@ -272,6 +273,7 @@ const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion
                             <tr v-if="!ranking.filas.length"><td colspan="5" class="py-8 text-center text-gris-400">Sin datos para estos filtros.</td></tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <!-- Gráfico -->

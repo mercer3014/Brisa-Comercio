@@ -66,14 +66,19 @@ class AgregadorDashboardFaostat
     }
 
     /**
-     * Mediana del índice de valor: más robusta que el promedio, que se
-     * dispara con productos casi inexistentes en la base 2014-2016.
+     * Mediana del índice de valor para expo E impo EN UNA SOLA consulta (con
+     * FILTER) en vez de dos: evitar el escaneo/sort duplicado sobre las
+     * mismas ~30k filas es lo que más pesa en kpis(), que la necesita hasta
+     * dos veces (gestión actual y anterior para la variación interanual).
      */
-    private function mediana(?int $gestion, string $tipo): float
+    private function medianasParTipo(?int $gestion): array
     {
-        return (float) $this->base($gestion, $tipo)
-            ->selectRaw('percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) as m')
-            ->value('m');
+        $r = $this->base($gestion)
+            ->selectRaw("percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) FILTER (WHERE e.tipo_comercio = 'EXPORTACION') as expo")
+            ->selectRaw("percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) FILTER (WHERE e.tipo_comercio = 'IMPORTACION') as impo")
+            ->first();
+
+        return [(float) ($r->expo ?? 0), (float) ($r->impo ?? 0)];
     }
 
     public function kpis(?int $gestion = null): array
@@ -88,13 +93,13 @@ class AgregadorDashboardFaostat
             ->selectRaw('MAX(gestion) as anio_max')
             ->first();
 
-        $idxExpo = $this->mediana($gestion, 'EXPORTACION');
-        $idxImpo = $this->mediana($gestion, 'IMPORTACION');
+        [$idxExpo, $idxImpo] = $this->medianasParTipo($gestion);
 
         $variacion = null;
         if ($gestion) {
             $act = ($idxExpo + $idxImpo) / 2;
-            $ant = ($this->mediana($gestion - 1, 'EXPORTACION') + $this->mediana($gestion - 1, 'IMPORTACION')) / 2;
+            [$expoAnt, $impoAnt] = $this->medianasParTipo($gestion - 1);
+            $ant = ($expoAnt + $impoAnt) / 2;
             if ($ant > 0) {
                 $variacion = round((($act - $ant) / $ant) * 100, 1);
             }
@@ -162,9 +167,14 @@ class AgregadorDashboardFaostat
         );
     }
 
+    /** memo por (gestion,n): distribucionZona() y participacionPais() piden el mismo top-8 que ya calculó el otro. */
+    private array $topPaisesCache = [];
+
     public function topPaises(?int $gestion = null, int $n = 10): array
     {
-        return $this->base($gestion)
+        $clave = ($gestion ?? 'null').':'.$n;
+
+        return $this->topPaisesCache[$clave] ??= $this->base($gestion)
             ->join('pais as pa', 'pa.pais_id', '=', 's.pais_id')
             ->selectRaw('pa.nombre as label')
             ->selectRaw('percentile_cont(0.5) WITHIN GROUP (ORDER BY s.valor) as valor')
