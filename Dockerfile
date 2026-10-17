@@ -22,13 +22,15 @@ RUN apt-get update \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY docker/php/geodata.ini /usr/local/etc/php/conf.d/zz-geodata.ini
+COPY docker/apache/mpm.conf /etc/apache2/conf-available/zz-geodata.conf
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public \
     COMPOSER_ALLOW_SUPERUSER=1
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
  && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
  && sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.conf \
- && a2enmod rewrite
+ && a2enmod rewrite \
+ && a2enconf zz-geodata
 
 WORKDIR /var/www/html
 

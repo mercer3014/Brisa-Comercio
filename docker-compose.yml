@@ -36,7 +36,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    mem_limit: 512m
+    mem_limit: 768m
 
   worker:
     build: .
@@ -54,6 +54,12 @@ services:
   db:
     image: postgres:18-alpine
     restart: unless-stopped
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=640MB
+      -c work_mem=16MB
+      -c maintenance_work_mem=256MB
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Falta POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER}
@@ -65,7 +71,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    mem_limit: 512m
+    mem_limit: 1g
 
 volumes:
   geodata-pgdata:
