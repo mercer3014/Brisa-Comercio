@@ -196,7 +196,7 @@ const modos = [
         clave: 'maritimo',
         titulo: 'Marítimo',
         descripcion: 'El gran volumen de la carga: contenedores que mueven la balanza comercial del país.',
-        img: '/img/brisa/maritimo.png',
+        img: '/img/brisa/maritimo.webp',
         href: '/comercio-por-via?via=maritimo',
         // barco / contenedor
         icono: 'M3 13.5l1.5 5.25a1.5 1.5 0 001.44 1.08h11.12a1.5 1.5 0 001.44-1.08L21 13.5M4.5 13.5h15M5.25 13.5V8.25A1.5 1.5 0 016.75 6.75h10.5a1.5 1.5 0 011.5 1.5v5.25M12 4.5v2.25',
@@ -205,7 +205,7 @@ const modos = [
         clave: 'terrestre',
         titulo: 'Terrestre',
         descripcion: 'Rutas y fronteras: el comercio que cruza por carretera con los países vecinos.',
-        img: '/img/brisa/terrestre.png',
+        img: '/img/brisa/terrestre.webp',
         href: '/comercio-por-via?via=terrestre',
         // camión
         icono: 'M3 9.75A1.5 1.5 0 014.5 8.25h7.5v7.5H3v-5.25zM12 11.25h3.75l3 3v1.5H12v-4.5zM6.75 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.5 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
@@ -214,7 +214,7 @@ const modos = [
         clave: 'aerio',
         titulo: 'Aéreo',
         descripcion: 'Valor y velocidad: los bienes de alto valor que viajan por aire hacia el mundo.',
-        img: '/img/brisa/aerio.png',
+        img: '/img/brisa/aerio.webp',
         href: '/comercio-por-via?via=aereo',
         // avión
         icono: 'M3.75 12l16.5-6-6 16.5-2.25-7.5-8.25-3z',
@@ -223,7 +223,7 @@ const modos = [
         clave: 'banderas',
         titulo: 'El mundo',
         descripcion: 'Socios comerciales: los países de destino y origen que conectan a Bolivia con el mundo.',
-        img: '/img/brisa/banderas.png',
+        img: '/img/brisa/banderas.webp',
         href: '/mapa-comercial',
         // globo terráqueo
         icono: 'M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18',
