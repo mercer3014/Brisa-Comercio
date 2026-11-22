@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import './portal-mockup.css';
+@import './portal.css';
 
 /* Evita el scroll horizontal accidental en móvil (paneles full-bleed, etc.).
    Usa "clip" en vez de "hidden": con html/body en h-full (height:100%), un

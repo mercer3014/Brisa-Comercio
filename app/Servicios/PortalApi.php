@@ -28,8 +28,16 @@ class PortalApi
     public const ORG_MERCOSUR = 3;
     public const ORG_FAOSTAT  = 4;
 
-    private string $valorExpo = 'COALESCE(o.valor_fob_usd,0)';
-    private string $valorImpo = 'COALESCE(o.valor_cif_frontera_usd,0)';
+    /** Regla única de valor (App\Support\ReglaValor): FOB si exporta, CIF frontera si importa. */
+    private function valorExpo(): string
+    {
+        return \App\Support\ReglaValor::expo();
+    }
+
+    private function valorImpo(): string
+    {
+        return \App\Support\ReglaValor::impo();
+    }
 
     // =========================================================================
     //  Helpers de formato
@@ -128,8 +136,8 @@ class PortalApi
             }
 
             return $this->baseIne($g)
-                ->selectRaw("SUM({$this->valorExpo}) as expo")
-                ->selectRaw("SUM({$this->valorImpo}) as impo")
+                ->selectRaw("SUM({$this->valorExpo()}) as expo")
+                ->selectRaw("SUM({$this->valorImpo()}) as impo")
                 ->selectRaw('COUNT(*) as operaciones')
                 ->first();
         };
@@ -370,9 +378,9 @@ class PortalApi
 
         $rows = $this->baseIne($gestion)
             ->join('producto as p', 'p.producto_id', '=', 'o.producto_id')
-            ->selectRaw('p.codigo_nandina, p.descripcion as label')
+            ->selectRaw('p.codigo_nandina_txt as codigo_nandina, p.descripcion as label')
             ->selectRaw("SUM($valor) as valor")
-            ->groupBy('p.codigo_nandina', 'p.descripcion')
+            ->groupBy('p.codigo_nandina_txt', 'p.descripcion')
             ->orderByDesc('valor')->limit($limit)
             ->get();
 
@@ -422,7 +430,7 @@ class PortalApi
         $rows = $this->baseIne($gestion)
             ->join('departamento as d', 'd.departamento_id', '=', 'o.departamento_id')
             ->selectRaw('d.nombre as label')
-            ->selectRaw("SUM({$this->valorExpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()}) as valor")
             ->groupBy('d.nombre')
             ->orderByDesc('valor')->limit($limit)
             ->get();
@@ -472,7 +480,7 @@ class PortalApi
     public function transporte(?int $gestion): array
     {
         $gestion ??= $this->gestionReciente(self::ORG_INE);
-        $valExpImp = "{$this->valorExpo} + {$this->valorImpo}";
+        $valExpImp = "{$this->valorExpo()} + {$this->valorImpo()}";
 
         $medios = $this->baseIne($gestion)
             ->join('medio_transporte as m', 'm.medio_id', '=', 'o.medio_id')
@@ -522,7 +530,7 @@ class PortalApi
 
         return match (true) {
             str_contains($m, 'AEREA')    => 'aereo',
-            str_contains($m, 'MARITIMO') => 'maritimo',
+            str_contains($m, 'MARITIM') => 'maritimo', // el catálogo INE dice MARITIMA-CARRETERA / MARITIMA -FERROVIARIA
             in_array($m, ['CARRETERA', 'FERROVIARIA'], true) => 'terrestre',
             default => 'otros',
         };
@@ -563,8 +571,8 @@ class PortalApi
         $rows = $this->baseIne($gestion)
             ->join('medio_transporte as m', 'm.medio_id', '=', 'o.medio_id')
             ->selectRaw('m.descripcion as medio')
-            ->selectRaw("SUM({$this->valorExpo}) as expo")
-            ->selectRaw("SUM({$this->valorImpo}) as impo")
+            ->selectRaw("SUM({$this->valorExpo()}) as expo")
+            ->selectRaw("SUM({$this->valorImpo()}) as impo")
             ->groupBy('m.descripcion')
             ->get();
 
@@ -614,7 +622,7 @@ class PortalApi
             ->join('clasificacion_tnt as tn', 'tn.tnt_id', '=', 'o.tnt_id')
             ->where('o.organizacion_id', self::ORG_INE)
             ->selectRaw('t.gestion, tn.descripcion as clase')
-            ->selectRaw("SUM({$this->valorExpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()}) as valor")
             ->groupBy('t.gestion', 'tn.descripcion')
             ->orderBy('t.gestion')
             ->get();
@@ -1176,14 +1184,14 @@ class PortalApi
         // Si no se pide año, usar el más reciente con importaciones (ratios válidos).
         $gestion ??= $this->gestionCompletaIne();
 
-        $expo = (float) $this->baseIne($gestion)->selectRaw("SUM({$this->valorExpo}) as v")->value('v');
-        $impo = (float) $this->baseIne($gestion)->selectRaw("SUM({$this->valorImpo}) as v")->value('v');
+        $expo = (float) $this->baseIne($gestion)->selectRaw("SUM({$this->valorExpo()}) as v")->value('v');
+        $impo = (float) $this->baseIne($gestion)->selectRaw("SUM({$this->valorImpo()}) as v")->value('v');
         $operaciones = (int) $this->baseIne($gestion)->count('o.operacion_id');
 
         // Índice de concentración HHI por país (exportaciones).
         $paises = $this->baseIne($gestion)
-            ->selectRaw("SUM({$this->valorExpo}) as valor")
-            ->groupBy('o.pais_id')->having(DB::raw("SUM({$this->valorExpo})"), '>', 0)
+            ->selectRaw("SUM({$this->valorExpo()}) as valor")
+            ->groupBy('o.pais_id')->having(DB::raw("SUM({$this->valorExpo()})"), '>', 0)
             ->pluck('valor')->map(fn ($v) => (float) $v);
         $totalExp = $paises->sum();
         $hhi = $totalExp > 0
@@ -1459,12 +1467,15 @@ class PortalApi
     {
         $gestion ??= $this->gestionReciente(self::ORG_INE);
 
+        // GEO-12: el ISO sale de v_pais_canonico (homologación GEO-10), así el mapa
+        // ubica cada país aunque cambien los pais_id del catálogo.
         $rows = $this->baseIne($gestion)
             ->join('pais as p', 'p.pais_id', '=', 'o.pais_id')
-            ->selectRaw('o.pais_id, p.nombre as label, p.iso_alpha3 as iso')
-            ->selectRaw("SUM({$this->valorExpo}) as expo")
-            ->selectRaw("SUM({$this->valorImpo}) as impo")
-            ->groupBy('o.pais_id', 'p.nombre', 'p.iso_alpha3')
+            ->leftJoin('v_pais_canonico as vc', 'vc.pais_id', '=', 'o.pais_id')
+            ->selectRaw('o.pais_id, COALESCE(vc.nombre_canonico, p.nombre) as label, COALESCE(vc.iso3, p.iso_alpha3) as iso, vc.iso2 as iso2')
+            ->selectRaw("SUM({$this->valorExpo()}) as expo")
+            ->selectRaw("SUM({$this->valorImpo()}) as impo")
+            ->groupBy('o.pais_id', 'p.nombre', 'p.iso_alpha3', 'vc.nombre_canonico', 'vc.iso3', 'vc.iso2')
             ->get()
             ->map(function ($r) {
                 $expo = (float) $r->expo;
@@ -1473,7 +1484,8 @@ class PortalApi
                 return [
                     'pais_id' => (int) $r->pais_id,
                     'label'   => $r->label,
-                    'iso'     => $r->iso,
+                    'iso'     => $r->iso ? trim($r->iso) : null,
+                    'iso2'    => $r->iso2 ? trim($r->iso2) : null,
                     'expo'    => round($expo),
                     'impo'    => round($impo),
                     'saldo'   => round($expo - $impo),
@@ -1575,11 +1587,11 @@ class PortalApi
         return DB::table('producto')
             ->when($buscar, fn ($q) => $q->where(function ($qq) use ($buscar) {
                 $qq->whereRaw('LOWER(descripcion) LIKE ?', ['%' . mb_strtolower($buscar) . '%'])
-                    ->orWhereRaw('LOWER(codigo_nandina) LIKE ?', ['%' . mb_strtolower($buscar) . '%']);
+                    ->when(preg_replace('/\D/', '', $buscar) !== '', fn ($w) => $w->orWhere('codigo_nandina_txt', 'LIKE', '%' . preg_replace('/\D/', '', $buscar) . '%'));
             }))
             ->orderBy('descripcion')
             ->limit($limit)
-            ->get(['producto_id as id', 'codigo_nandina', 'descripcion'])
+            ->get(['producto_id as id', 'codigo_nandina_txt as codigo_nandina', 'descripcion'])
             ->map(fn ($r) => [
                 'id' => (int) $r->id,
                 'codigo' => $r->codigo_nandina,
@@ -1687,9 +1699,9 @@ class PortalApi
     private function exprFlujo(string $flujo): string
     {
         return match ($flujo) {
-            'imp'   => $this->valorImpo,
-            'ambos' => "{$this->valorExpo} + {$this->valorImpo}",
-            default => $this->valorExpo, // exp
+            'imp'   => $this->valorImpo(),
+            'ambos' => "{$this->valorExpo()} + {$this->valorImpo()}",
+            default => $this->valorExpo(), // exp
         };
     }
 

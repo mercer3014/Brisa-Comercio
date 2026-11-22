@@ -251,6 +251,7 @@ class ResumenPortal
     {
         return DB::table('resumen_mensual')
             ->where('organizacion_id', $orgId)->where('gestion', $gestion)
+            ->whereBetween('mes', [1, 12]) // mes 0 = registro anual, no va en la curva mensual
             ->selectRaw('mes')
             ->selectRaw('SUM(CASE WHEN flujo_id = ' . self::FLUJO_EXPORTACION . ' THEN valor ELSE 0 END) as expo')
             ->selectRaw('SUM(CASE WHEN flujo_id = ' . self::FLUJO_IMPORTACION . ' THEN valor ELSE 0 END) as impo')

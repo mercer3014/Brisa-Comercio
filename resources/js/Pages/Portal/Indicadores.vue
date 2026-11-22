@@ -1,197 +1,145 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Head } from '@inertiajs/vue3';
-import ChartCard from '../../Components/UI/ChartCard.vue';
-import AreaChart from '../../Components/Charts/AreaChart.vue';
-import { useChartData } from '../../Components/Composables/useChartData.js';
-import { fmtNum, fmtCompacto, fmtPct, ejeCompacto, fmtUsd } from '../../lib/format';
-import { colorOrg } from '../../lib/orgColors';
+/**
+ * Indicadores analíticos (estilo mockup, GEO-12) con datos reales:
+ * tasa de cobertura, saldo, valor unitario, HHI (todas las partidas/socios)
+ * y la serie histórica. La apertura comercial queda "sin datos" hasta que
+ * se cargue el PIB.
+ */
+import { ref, computed, watch } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
+import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import { fmtM, fmtPct, fmtNum, fmtUsd, etiquetaGestion, getJson } from '@/lib/gd';
 
 const props = defineProps({
-    organizaciones: { type: Array, default: () => [] },
-    organizacionDefecto: { type: Number, default: 1 },
+    cobertura: { type: Object, default: null },
+    gestionesPortal: { type: Array, default: () => [] },
+    gestionInicial: { type: Number, default: null },
+    datosIniciales: { type: Object, default: null },
 });
 
-// --- Estado de filtros -----------------------------------------------------
-const orgId = ref(props.organizacionDefecto || 1);
-const gestionSel = ref(null); // null => el backend elige el mejor año (último con importaciones)
-
-function cambiarOrg(id) {
-    if (orgId.value === id) return;
-    orgId.value = id;
-    gestionSel.value = null; // dejar que el backend elija el año por defecto de la nueva fuente
-}
-
-// --- Datos -----------------------------------------------------------------
-const { data: ind, cargando } = useChartData(
-    '/api/v1/indicadores',
-    () => ({ org: orgId.value, gestion: gestionSel.value || undefined }),
-);
-const { data: gestionesResp } = useChartData(
-    '/api/v1/filtros/gestiones',
-    () => ({ org: orgId.value }),
-);
-const { data: evol, cargando: cEvol } = useChartData('/api/v1/charts/evolucion-anual');
-
-const i = computed(() => ind.value ?? {});
-const esIne = computed(() => orgId.value === 1);
-const esFaostat = computed(() => orgId.value === 4);
-const color = computed(() => colorOrg(orgId.value));
-
-const gestiones = computed(() => gestionesResp.value?.data ?? []);
-const gestionActual = computed(() => gestionSel.value ?? i.value.gestion ?? null);
-const aniosConImp = computed(() => i.value.meta?.anios_con_importacion ?? []);
-
-// Sparkline de balanza desde la evolución anual (solo INE).
-const sparkBalanza = computed(() => {
-    const exp = evol.value?.series?.[0]?.data ?? [];
-    const imp = evol.value?.series?.[1]?.data ?? [];
-    return exp.map((e, idx) => e - (imp[idx] ?? 0));
+const gestion = ref(props.gestionInicial);
+const datos = ref(props.datosIniciales);
+const cargando = ref(false);
+watch(gestion, async (g) => {
+    cargando.value = true;
+    try {
+        datos.value = await getJson('/portal/v2/indicadores', { gestion: g });
+    } finally {
+        cargando.value = false;
+    }
 });
+const etq = (g) => etiquetaGestion(g, props.cobertura);
 
-// Catálogo de indicadores: se muestran solo los que la organización devuelve.
-const DESCRIPTORES = [
-    { key: 'indice_cobertura', label: 'Tasa de cobertura', fmt: fmtPct, formula: 'Exportaciones ÷ Importaciones × 100. >100% = superávit comercial.', color: '#38A169' },
-    { key: 'cobertura_exportaciones', label: 'Participación exportadora', fmt: fmtPct, formula: 'Exportaciones ÷ (Exportaciones + Importaciones) × 100.', color: '#C53030' },
-    { key: 'balanza_comercial', label: 'Balanza comercial', fmt: fmtCompacto, formula: 'Exportaciones − Importaciones (USD).', color: '#1A4B8C', spark: true },
-    { key: 'concentracion_hhi', label: 'Concentración (HHI)', fmt: fmtNum, formula: 'Σ (participación de cada mercado)². 0 = diversificado, 10000 = un solo mercado.', color: '#DD6B20' },
-    { key: 'participacion_top5', label: 'Participación top 5', fmt: fmtPct, formula: 'Peso de los 5 mayores ítems sobre el total.', color: '#DD6B20' },
-    { key: 'paises_destino', label: 'Mercados destino', fmt: fmtNum, formula: 'Número de países con exportaciones > 0.', color: '#3182CE' },
-    { key: 'zonas', label: 'Zonas geoeconómicas', fmt: fmtNum, formula: 'Número de zonas con registros.', color: '#3182CE' },
-    { key: 'productos_distintos', label: 'Productos distintos', fmt: fmtNum, formula: 'Cantidad de productos (NANDINA) distintos comerciados.', color: '#805AD5' },
-    { key: 'items_ranking', label: 'Ítems en ranking', fmt: fmtNum, formula: 'Número de ítems del ranking.', color: '#805AD5' },
-    { key: 'series', label: 'Series de índices', fmt: fmtNum, formula: 'Cantidad de series de índices comerciales (país × producto × elemento) del año. FAOSTAT publica índices (2014-2016 = 100), no USD.', color: '#0D9488' },
-    { key: 'exportaciones', label: 'Exportaciones', fmt: fmtCompacto, formula: 'Total exportado en el periodo (USD).', color: '#16A34A' },
-    { key: 'importaciones', label: 'Importaciones', fmt: fmtCompacto, formula: 'Total importado en el periodo (USD).', color: '#DC2626' },
-    { key: 'valor_total', label: 'Valor total', fmt: fmtCompacto, formula: 'Suma del valor de los ítems del ranking (USD).', color: '#16A34A' },
-    { key: 'valor_promedio_operacion', label: 'Valor medio por operación', fmt: fmtUsd, formula: '(Exportaciones + Importaciones) ÷ nº de operaciones.', color: '#0D9488' },
+const FORMULAS = [
+    { k: 'BC', t: 'Balanza comercial (BC)', d: 'BC = Exportaciones FOB − Importaciones CIF. Mide el saldo neto de divisas por comercio de bienes. Solo se calcula cuando la gestión tiene ambos flujos cargados.' },
+    { k: 'HHI', t: 'Índice Herfindahl (HHI)', d: 'HHI = Σ (participación de cada partida o país)². Escala 0–1: menos de 0,15 diversificado, 0,15–0,25 moderado, más de 0,25 concentrado. Se calcula con todas las partidas o socios, no solo con el top.' },
+    { k: 'TC', t: 'Tasa de cobertura (TC)', d: 'TC = Exportaciones / Importaciones × 100. Más de 100% indica que las exportaciones pagan todas las importaciones del periodo.' },
+    { k: 'VU', t: 'Valor unitario (VU)', d: 'VU = Valor FOB / Peso neto en toneladas. Un VU alto refleja productos de mucho valor por tonelada (oro, plata); uno bajo, graneles (gas, soya, zinc).' },
+    { k: 'GA', t: 'Grado de apertura (GA)', d: 'GA = (X + M) / PIB × 100. Requiere el PIB nominal en USD, que todavía no está cargado en la base: por eso el indicador figura como “sin datos”.' },
 ];
+const formula = ref(FORMULAS[0]);
 
-const tarjetas = computed(() =>
-    DESCRIPTORES
-        .filter((d) => i.value[d.key] != null)
-        .map((d) => ({
-            ...d,
-            valor: i.value[d.key],
-            spark: d.spark && esIne.value ? sparkBalanza.value : [],
-        })),
-);
+const hhiNivel = (h) => (h == null ? null : h > 0.25 ? '#dc2626' : h >= 0.15 ? '#f59e0b' : '#10b981');
 
-function sparkPath(d) {
-    if (!d || d.length < 2) return '';
-    const min = Math.min(...d), max = Math.max(...d), span = (max - min) || 1;
-    return d.map((v, idx) => `${idx === 0 ? 'M' : 'L'}${(idx / (d.length - 1) * 100).toFixed(1)},${(28 - (v - min) / span * 28).toFixed(1)}`).join(' ');
-}
-
-const opcEvol = computed(() => ({
-    xaxis: { categories: evol.value?.categorias ?? [] },
-    yaxis: { labels: { formatter: ejeCompacto } },
-    colors: ['#3182CE', '#C53030'],
-    tooltip: { y: { formatter: (v) => fmtUsd(v) } },
-}));
+// Serie de tasa de cobertura (solo años con ambos flujos)
+const serieTc = computed(() => (datos.value?.serie ?? []).filter((s) => s.cobertura != null));
+const serieExp = computed(() => datos.value?.serie ?? []);
+const maxExp = computed(() => Math.max(1, ...serieExp.value.map((s) => Math.max(s.exp ?? 0, s.imp ?? 0))));
 </script>
 
 <template>
     <Head title="Indicadores" />
-
-    <section class="bg-white border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4"><span class="w-7 h-px bg-rojo-500"></span> Tablero</p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Indicadores</h1>
-            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Indicadores del comercio exterior calculados sobre datos reales. Selecciona una organización y un año.</p>
+    <div class="page-wrap gd-pt">
+        <div class="gd-cab">
+            <div>
+                <span class="gd-kicker">● Métricas técnicas del laboratorio LICI</span>
+                <h2 class="gd-titulo">Indicadores Analíticos de Comercio Exterior</h2>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button class="tool-btn active">INE Bolivia</button>
+                <button class="tool-btn" disabled title="Sin datos cargados">FAOSTAT</button>
+                <button class="tool-btn" disabled title="Sin datos cargados">ALADI</button>
+                <button class="tool-btn" disabled title="Sin datos cargados">MERCOSUR</button>
+                <select v-model.number="gestion" class="inv-select">
+                    <option v-for="g in gestionesPortal" :key="g" :value="g">Gestión {{ etq(g) }}</option>
+                </select>
+                <Link class="tool-btn active" style="background:var(--navy)" href="/explorar">Explorador de datos →</Link>
+            </div>
         </div>
-    </section>
 
-    <!-- ===================== BARRA DE FILTROS ===================== -->
-    <section class="sticky top-[62px] z-20 bg-white/95 backdrop-blur-md border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-3">
-            <!-- Selector de organización -->
-            <div class="flex flex-wrap items-center gap-1.5">
-                <button
-                    v-for="o in organizaciones"
-                    :key="o.organizacion_id"
-                    @click="cambiarOrg(o.organizacion_id)"
-                    class="px-3.5 py-1.5 rounded-full text-sm font-semibold transition border"
-                    :class="orgId === o.organizacion_id
-                        ? 'text-white border-transparent shadow-sm'
-                        : 'bg-white text-institucional-600 border-gris-200 hover:border-gris-300'"
-                    :style="orgId === o.organizacion_id ? { backgroundColor: colorOrg(o.organizacion_id) } : {}"
-                >
-                    {{ o.sigla }}
-                </button>
+        <div :class="{ 'gd-cargando': cargando }">
+            <div class="ov-cards-4" style="margin-bottom:22px">
+                <div class="ov-item"><div class="ov-data">
+                    <strong>{{ datos?.tasa_cobertura != null ? fmtPct(datos.tasa_cobertura) : '—' }}</strong>
+                    <span>Tasa de cobertura · X / M × 100</span>
+                    <span v-if="datos?.tasa_cobertura == null" class="gd-tag-sindatos" style="margin-top:4px">Sin importaciones {{ gestion }}</span>
+                </div></div>
+                <div class="ov-item" :class="{ 'warn-border': datos?.saldo < 0 }"><div class="ov-data">
+                    <strong :style="{ color: datos?.saldo == null ? '' : (datos.saldo < 0 ? '#dc2626' : '#0d8a5a') }">{{ fmtM(datos?.saldo, true) }}</strong>
+                    <span>Saldo comercial<template v-if="datos?.saldo != null"> · {{ datos.saldo < 0 ? 'Déficit' : 'Superávit' }}</template></span>
+                    <span v-if="datos?.saldo == null" class="gd-tag-sindatos" style="margin-top:4px">Requiere exp. e imp.</span>
+                </div></div>
+                <div class="ov-item"><div class="ov-data">
+                    <strong>—</strong>
+                    <span>Apertura comercial · (X + M) / PIB</span>
+                    <span class="gd-tag-sindatos" style="margin-top:4px">Sin datos: PIB no cargado</span>
+                </div></div>
+                <div class="ov-item"><div class="ov-data">
+                    <strong>{{ datos?.valor_unitario_exp != null ? fmtUsd(datos.valor_unitario_exp) + ' / t' : '—' }}</strong>
+                    <span>Valor unitario medio de exportación<template v-if="datos?.toneladas_exp"> · {{ fmtNum(datos.toneladas_exp / 1e6, 2) }} M t</template></span>
+                </div></div>
             </div>
 
-            <div class="h-5 w-px bg-gris-200 hidden sm:block"></div>
-
-            <!-- Selector de año -->
-            <label class="flex items-center gap-2 text-sm">
-                <span class="text-gris-500 font-medium">Año</span>
-                <select
-                    v-model="gestionSel"
-                    class="rounded-lg border border-gris-200 bg-white px-3 py-1.5 text-sm font-semibold text-institucional-800 focus:outline-none focus:ring-2 focus:ring-rojo-500/30"
-                >
-                    <option :value="null">Más reciente con datos</option>
-                    <option v-for="g in gestiones" :key="g" :value="g">
-                        {{ g }}{{ esIne && aniosConImp.includes(g) ? ' ✓ con imp.' : '' }}
-                    </option>
-                </select>
-            </label>
-
-            <span v-if="cargando" class="text-xs text-gris-400 animate-pulse">Calculando…</span>
-        </div>
-    </section>
-
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        <!-- Aviso de cobertura de importaciones (INE) -->
-        <div v-if="esIne && i.hay_importaciones === false"
-             class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
-            <p>
-                El año <strong>{{ gestionActual }}</strong> solo tiene exportaciones cargadas, por eso los ratios que dependen de importaciones (tasa de cobertura, balanza real) no se muestran.
-                <template v-if="aniosConImp.length">Años con importaciones disponibles: <strong>{{ aniosConImp.join(', ') }}</strong>.</template>
-            </p>
-        </div>
-
-        <!-- Estado vacío FAOSTAT -->
-        <div v-if="esFaostat && !i.hay_datos" class="tarjeta p-10 text-center">
-            <p class="text-5xl mb-3">🌾</p>
-            <h3 class="titular-editorial text-2xl text-institucional-900 mb-2">FAOSTAT — sin datos aún</h3>
-            <p class="text-gris-500 max-w-md mx-auto">{{ i.meta?.nota || 'Los indicadores se activarán cuando se carguen los datos de FAOSTAT.' }}</p>
-        </div>
-
-        <!-- Scorecards -->
-        <template v-else>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div v-for="t in tarjetas" :key="t.key" class="tarjeta p-5 flex flex-col gap-2 group relative">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-gris-500">{{ t.label }}</p>
-                        <span class="relative">
-                            <svg class="w-4 h-4 text-gris-300 hover:text-gris-500 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
-                            <span class="absolute right-0 top-6 z-10 hidden group-hover:block w-56 p-2.5 rounded-lg bg-institucional-900 text-white text-[11px] leading-snug shadow-lg">
-                                <strong>Fórmula:</strong> {{ t.formula }}
-                            </span>
-                        </span>
+            <div class="grid-2">
+                <div class="bento-box">
+                    <div class="bento-h"><h3>Concentración (índice HHI)</h3><span class="badge-var">INE Bolivia · {{ etq(gestion) }}</span></div>
+                    <ul class="pill-bars-list">
+                        <li v-for="h in datos?.hhi ?? []" :key="h.clave" class="pill-bar-row">
+                            <span class="nm">{{ h.nombre }}</span>
+                            <div class="pill-track"><div v-if="h.valor != null" class="pill-fill" :style="{ width: Math.min(100, h.valor * 250) + '%', background: hhiNivel(h.valor) }"></div></div>
+                            <b class="vl">{{ h.valor != null ? fmtNum(h.valor, 3) : 'sin datos' }}</b>
+                        </li>
+                    </ul>
+                    <p class="hhi-note">Calculado con todas las partidas, países o departamentos de la gestión. Verde: diversificado (&lt; 0,15) · Ámbar: moderado (0,15–0,25) · Rojo: concentrado (&gt; 0,25). Los flujos sin datos cargados aparecen como “sin datos”.</p>
+                </div>
+                <div class="bento-box">
+                    <div class="bento-h"><h3>Fórmulas y Metodología Estandarizada (IIESJOM · LICI)</h3>
+                        <span style="font-size:0.75rem;color:var(--muted);font-weight:700">Haz clic en cada fórmula</span></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+                        <button v-for="f in FORMULAS" :key="f.k" class="tool-btn" :class="{ active: formula.k === f.k }" @click="formula = f">{{ f.t }}</button>
                     </div>
-                    <p class="text-3xl font-bold text-institucional-900">
-                        <span v-if="cargando" class="inline-block w-20 h-8 bg-gris-100 rounded animate-pulse"></span>
-                        <template v-else>{{ t.fmt(t.valor) }}</template>
-                    </p>
-                    <svg v-if="t.spark.length > 1" class="w-full h-7 mt-1" viewBox="0 0 100 28" preserveAspectRatio="none">
-                        <path :d="sparkPath(t.spark)" fill="none" :stroke="t.color" stroke-width="2" stroke-linecap="round" />
-                    </svg>
+                    <div style="padding:14px 16px;background:var(--soft);border-left:4px solid var(--wine);font-size:0.86rem">
+                        <b>{{ formula.t }}:</b> {{ formula.d }}
+                    </div>
                 </div>
             </div>
 
-            <div v-if="!cargando && !tarjetas.length" class="tarjeta p-10 text-center text-gris-500">
-                No hay indicadores disponibles para esta combinación de organización y año.
+            <div class="overview-panel" style="margin-top:22px">
+                <div class="bento-h">
+                    <div><h3>Exportaciones e importaciones por gestión</h3>
+                        <small class="prd-panel-sub">Millones de USD · las barras vacías son años sin datos cargados, no ceros</small></div>
+                    <GdCobertura :cobertura="cobertura" />
+                </div>
+                <svg :viewBox="`0 0 ${serieExp.length * 32 + 20} 230`" style="width:100%;height:auto" role="img">
+                    <g v-for="(s, i) in serieExp" :key="s.gestion" style="cursor:pointer" @click="gestion = s.gestion">
+                        <rect v-if="s.exp != null" :x="10 + i * 32" :y="200 - (s.exp / maxExp) * 180" width="13" :height="(s.exp / maxExp) * 180" fill="#10b981" :opacity="s.meses_exp < 12 ? 0.5 : 1"><title>{{ s.gestion }} exp: {{ fmtM(s.exp) }}</title></rect>
+                        <rect v-if="s.imp != null" :x="24 + i * 32" :y="200 - (s.imp / maxExp) * 180" width="13" :height="(s.imp / maxExp) * 180" fill="#3b82f6"><title>{{ s.gestion }} imp: {{ fmtM(s.imp) }}</title></rect>
+                        <rect v-else :x="24 + i * 32" y="190" width="13" height="10" fill="none" stroke="#cbd5e1" stroke-dasharray="2 2"><title>{{ s.gestion }}: importaciones sin datos</title></rect>
+                        <rect v-if="s.gestion === gestion" :x="7 + i * 32" y="12" width="32" height="190" fill="none" stroke="#12203d" stroke-width="1.5" />
+                        <text :x="24 + i * 32" y="218" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b" :transform="`rotate(-45 ${24 + i * 32} 218)`">{{ etq(s.gestion) }}</text>
+                    </g>
+                    <line x1="5" y1="200.5" :x2="serieExp.length * 32 + 15" y2="200.5" stroke="#cbd5e1" />
+                </svg>
+                <div v-if="serieTc.length" style="margin-top:14px">
+                    <h4 style="font-size:0.8rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Tasa de cobertura (X/M) en los años con ambos flujos</h4>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px">
+                        <span v-for="s in serieTc" :key="s.gestion" class="gd-cob" :style="{ color: s.cobertura >= 100 ? '#15803d' : '#b91c1c' }">{{ s.gestion }}: {{ fmtPct(s.cobertura) }}</span>
+                    </div>
+                </div>
+                <GdSinDatos v-else titulo="Todavía no hay ninguna gestión con exportaciones e importaciones a la vez" />
             </div>
-
-            <!-- Contexto: evolución histórica (INE) -->
-            <ChartCard v-if="esIne" titulo="Evolución exportaciones vs importaciones" fuente="INE — Bolivia" :cargando="cEvol"
-                :columnas="[{key:'a',label:'Año'},{key:'e',label:'Exp',alinear:'right'},{key:'i',label:'Imp',alinear:'right'}]"
-                :filas="(evol?.categorias??[]).map((c,idx)=>({a:c,e:evol?.series?.[0]?.data?.[idx] ?? 0,i:evol?.series?.[1]?.data?.[idx] ?? 0}))">
-                <AreaChart :series="(evol?.series ?? []).slice(0,2)" :categorias="evol?.categorias ?? []" :opciones="opcEvol" :apilada="false" :height="320" :cargando="cEvol" />
-            </ChartCard>
-        </template>
-    </section>
+            <p class="gd-nota">Fuente: INE (microdatos cargados en Geodata). FAOSTAT, ALADI y MERCOSUR se habilitarán aquí cuando tengan datos cargados.</p>
+        </div>
+    </div>
 </template>

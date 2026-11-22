@@ -15,6 +15,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Guarda: la tabla la crea la baseline (2026_06_05_000005); si no existe, no falla.
+        if (! \Illuminate\Support\Facades\Schema::hasTable('serie_indicador_agricola')) {
+            return;
+        }
         DB::statement('CREATE INDEX IF NOT EXISTS idx_agricola_elemento_gestion ON serie_indicador_agricola (elemento_id, gestion)');
     }
 

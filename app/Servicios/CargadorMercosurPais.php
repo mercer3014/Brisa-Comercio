@@ -3,6 +3,9 @@
 namespace App\Servicios;
 
 use App\Models\CargaArchivo;
+use App\Servicios\Concerns\CargaTransaccional;
+use App\Support\Organizaciones;
+use Illuminate\Database\QueryException;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,13 +22,28 @@ use Throwable;
  */
 class CargadorMercosurPais
 {
+    use CargaTransaccional;
+
     private const TAM_LOTE = 500;
-    private const ORG_ID   = 3;
 
     private int $fuenteId;
     private int $zonaId;
     private array $cachePais  = [];
     private array $cacheTiempo = [];
+    /** Gestiones de la zona ya reemplazadas en esta carga (borrado perezoso). */
+    private array $gestionesBorradas = [];
+    /** Claves naturales vistas en el archivo (para contar repetidas). */
+    private array $clavesVistas = [];
+    /** Resolver ISO 3166 (CAMBIOS_ISO.md) y carga en curso, para incidencias de países sin ISO. */
+    private ?ResolverPaisIso $iso = null;
+    private int $cargaIdIso = 0;
+    /** Rango de la columna pais.codigo_pais (SMALLINT). */
+    private const CODIGO_MIN = -32768;
+    private const CODIGO_MAX = 32767;
+
+    /** Clave natural (respaldada por un índice UNIQUE, ver migración 2026_11_22_000001). */
+    private const CLAVE_NATURAL = ['organizacion_id', 'zona_id', 'pais_id', 'gestion'];
+    private const COLUMNAS_VALOR = ['archivo_id', 'tiempo_id', 'exportaciones_usd', 'importaciones_fob_usd', 'importaciones_cif_usd', 'volumen_export_kg', 'volumen_import_kg'];
 
     public function __construct(private LectorArchivo $lector)
     {
@@ -40,6 +58,8 @@ class CargadorMercosurPais
 
         try {
             $ruta = $rutaDirecta ?? $this->resolverRuta($carga->carga_id);
+            $this->iso        = app(ResolverPaisIso::class);
+            $this->cargaIdIso = (int) $carga->carga_id;
             $ext  = pathinfo($ruta, PATHINFO_EXTENSION);
 
             $carga->update(['estado' => 'PROCESANDO']);
@@ -47,12 +67,16 @@ class CargadorMercosurPais
             $this->fuenteId = $this->resolverFuente();
             $this->zonaId   = $this->resolverZona($carga->nombre_archivo);
 
-            // Idempotencia: borrar filas previas de esta misma carga.
-            DB::table('serie_comercio_zona')->where('archivo_id', function ($q) use ($carga, $ext) {
-                $q->select('archivo_id')
-                  ->from('archivo_fuente')
-                  ->where('ruta_archivo', "cargas/{$carga->carga_id}/datos.{$ext}");
-            })->delete();
+            // La carga es atómica: DELETE previo + INSERTs en una sola transacción.
+            $this->iniciarTransaccion();
+
+            // Idempotencia por CLAVE NATURAL (zona, gestión): volver a subir el mismo
+            // archivo/zona/año reemplaza esas filas en vez de duplicarlas, sin
+            // importar desde qué carga o ruta vinieron. El borrado de cada gestión
+            // se hace al encontrarla en el archivo (dentro de la transacción).
+            $this->gestionesBorradas = [];
+            $this->clavesVistas = [];
+            $repetidas = 0;
 
             $archivoId = $this->crearArchivoFuente($carga, $ruta);
 
@@ -68,14 +92,24 @@ class CargadorMercosurPais
                     if ($row === null) {
                         continue;
                     }
+                    $this->borrarGestionSiCorresponde($row['gestion']);
+                    $clave = $row['gestion'].'|'.$row['pais_id'];
+                    if (isset($this->clavesVistas[$clave])) {
+                        $repetidas++; // misma clave dos veces en el archivo: gana la última
+                    }
+                    $this->clavesVistas[$clave] = true;
                     $lote[] = $row;
                     $validas++;
 
                     if (count($lote) >= self::TAM_LOTE) {
-                        DB::table('serie_comercio_zona')->insert($lote);
+                        $mal = $this->upsertLote('serie_comercio_zona', $lote, self::CLAVE_NATURAL, self::COLUMNAS_VALOR);
+                        $validas -= $mal; $errores += $mal;
                         $lote = [];
                     }
                 } catch (Throwable $e) {
+                    if ($e instanceof QueryException) {
+                        throw $e; // transacción abortada: se revierte la carga completa
+                    }
                     $errores++;
                 }
 
@@ -85,8 +119,11 @@ class CargadorMercosurPais
             }
 
             if (! empty($lote)) {
-                DB::table('serie_comercio_zona')->insert($lote);
+                $mal = $this->upsertLote('serie_comercio_zona', $lote, self::CLAVE_NATURAL, self::COLUMNAS_VALOR);
+                $validas -= $mal; $errores += $mal;
             }
+
+            $this->confirmarTransaccion();
 
             $carga->update([
                 'total_filas_leidas'  => $leidas,
@@ -101,14 +138,17 @@ class CargadorMercosurPais
                 'estado'           => 'EXITOSO',
                 'fecha_fin'        => now(),
                 'filas_procesadas' => $leidas,
-                'mensaje_log'      => "MERCOSUR_PAIS: {$validas}/{$leidas} filas insertadas en serie_comercio_zona.",
+                'mensaje_log'      => "MERCOSUR_PAIS: {$validas}/{$leidas} filas insertadas en serie_comercio_zona."
+                    .($repetidas ? " {$repetidas} fila(s) repetidas en el archivo (misma clave; se conservó la última)." : '')
+                    .' Gestiones reemplazadas: '.(implode(', ', array_keys($this->gestionesBorradas)) ?: 'ninguna').'.',
             ]);
 
             if ($refrescarVistas) {
                 \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas');
             }
         } catch (Throwable $e) {
-            $carga->update(['estado' => 'FALLIDO']);
+            $this->revertirTransaccion();
+            $carga->update(['estado' => 'FALLIDO', 'total_filas_validas' => 0]);
             $proceso->update([
                 'estado'      => 'FALLIDO',
                 'fecha_fin'   => now(),
@@ -147,9 +187,12 @@ class CargadorMercosurPais
             return null;
         }
         $paisId  = $this->resolverPais($isoStr, $nomStr);
+        // El trigger trg_pais_iso ya vinculó el país a pais_iso; si quedó SIN_MATCH,
+        // se deja una advertencia en Calidad (una sola vez por carga y país).
+        $this->iso?->registrarIncidenciaSiSinIso($paisId, $this->cargaIdIso);
 
         return [
-            'organizacion_id'       => self::ORG_ID,
+            'organizacion_id'       => $this->orgId(),
             'archivo_id'            => $archivoId,
             'zona_id'               => $this->zonaId,
             'pais_id'               => $paisId,
@@ -191,12 +234,12 @@ class CargadorMercosurPais
     private function resolverFuente(): int
     {
         $id = DB::table('fuente_datos')
-            ->where('organizacion_id', self::ORG_ID)
+            ->where('organizacion_id', $this->orgId())
             ->where('version_nomenclatura', 'MERCOSUR-base')
             ->value('fuente_id');
 
         return $id ? (int) $id : (int) DB::table('fuente_datos')->insertGetId([
-            'organizacion_id'      => self::ORG_ID,
+            'organizacion_id'      => $this->orgId(),
             'version_nomenclatura' => 'MERCOSUR-base',
             'fecha_descarga'       => now()->toDateString(),
         ], 'fuente_id');
@@ -239,41 +282,53 @@ class CargadorMercosurPais
 
         $id = null;
 
+        // Código numérico ISO 3166/M49 solo si cabe en pais.codigo_pais (SMALLINT).
+        $codigoNum = (preg_match('/^\d+(\.0+)?$/', $iso) && (int) $iso > 0 && (int) $iso <= self::CODIGO_MAX)
+            ? (int) $iso : null;
+
         // 1) Buscar por ISO numérico como codigo_pais, SOLO dentro de la fuente de
         // MERCOSUR. codigo_pais solo es único por fuente (UNIQUE(fuente_id,
         // codigo_pais)): buscar "en cualquier fuente" hacia mezclar el código
         // interno del INE con el ISO 3166 de MERCOSUR cuando coinciden por
         // casualidad (p.ej. 156 es "CEILAN" para el INE pero China en ISO 3166).
-        if (is_numeric($iso) && (int) $iso > 0) {
-            $id = DB::table('pais')->where('fuente_id', $this->fuenteId)->where('codigo_pais', (int) $iso)->value('pais_id');
+        if ($codigoNum !== null) {
+            $id = DB::table('pais')->where('fuente_id', $this->fuenteId)->where('codigo_pais', $codigoNum)->value('pais_id');
         }
 
         // 2) Buscar por iso_alpha2 o iso_alpha3 (también acotado a la fuente de MERCOSUR)
-        if (! $id && ! is_numeric($iso) && strlen($iso) <= 3 && $iso !== '') {
+        if (! $id && $codigoNum === null && preg_match('/^[A-Za-z]{2,3}$/', $iso)) {
+            $alpha = strtoupper($iso);
             $id = DB::table('pais')
                 ->where('fuente_id', $this->fuenteId)
-                ->where(fn ($q) => $q->where('iso_alpha2', $iso)->orWhere('iso_alpha3', $iso))
+                ->where(fn ($q) => $q->where('iso_alpha2', $alpha)->orWhere('iso_alpha3', $alpha))
                 ->value('pais_id');
         }
 
-        // 3) Buscar por nombre parcial (sólo en fuente MERCOSUR)
-        if (! $id && $nombre !== '') {
+        // 3) Buscar por nombre normalizado (mayúsculas, sin tildes ni puntuación,
+        // geo_normalizar_nombre de CAMBIOS_ISO.md), sólo en la fuente MERCOSUR y sólo
+        // entre filas sin código ISO propio: así una zona franca sin código se
+        // reutiliza en cada recarga en vez de crear otra fila.
+        if (! $id && $nombre !== '' && $codigoNum === null) {
             $id = DB::table('pais')
                 ->where('fuente_id', $this->fuenteId)
-                ->whereRaw('LOWER(nombre) = ?', [mb_strtolower($nombre)])
+                ->whereRaw('geo_normalizar_nombre(nombre) = geo_normalizar_nombre(?)', [$nombre])
+                ->orderByRaw('(codigo_pais < 0) DESC, pais_id')
                 ->value('pais_id');
         }
 
         // 4) Crear país en fuente MERCOSUR
         if (! $id) {
-            $codPais = is_numeric($iso) ? (int) $iso : (crc32($nombre ?: $iso) & 0x7FFFFFFF);
-            // Asegurar unicidad en la fuente
-            $existe = DB::table('pais')
-                ->where('fuente_id', $this->fuenteId)
-                ->where('codigo_pais', $codPais)
-                ->exists();
-            if ($existe) {
-                $codPais = (DB::table('pais')->where('fuente_id', $this->fuenteId)->max('codigo_pais') ?? 0) + 1;
+            // Con código ISO numérico se usa ese código (el trigger lo vincula por M49).
+            // Sin código (zonas francas, "Desconocido", alfa no reconocido) se usa un
+            // código interno NEGATIVO correlativo: nunca choca con un M49 (1..999) y
+            // siempre cabe en SMALLINT. Antes se usaba crc32(), que desbordaba la columna.
+            $codPais = $codigoNum;
+            if ($codPais === null || DB::table('pais')->where('fuente_id', $this->fuenteId)->where('codigo_pais', $codPais)->exists()) {
+                $min = (int) (DB::table('pais')->where('fuente_id', $this->fuenteId)->where('codigo_pais', '<', 0)->min('codigo_pais') ?? 0);
+                $codPais = $min - 1;
+                if ($codPais < self::CODIGO_MIN) {
+                    throw new \RuntimeException('Se agotaron los códigos internos de país de MERCOSUR (rango SMALLINT).');
+                }
             }
 
             // MERCOSUR usa zona=0 para países no catalogados
@@ -294,8 +349,10 @@ class CargadorMercosurPais
                 'zona_id'     => $zonaId0,
                 'codigo_pais' => $codPais,
                 'nombre'      => $nombre ?: "País $iso",
-                'iso_alpha2'  => (! is_numeric($iso) && strlen($iso) === 2) ? $iso : null,
-                'iso_alpha3'  => (! is_numeric($iso) && strlen($iso) === 3) ? $iso : null,
+                // El trigger trg_pais_iso valida estos valores contra pais_iso
+                // (uno inválido queda NULL / SIN_MATCH en vez de romper la FK).
+                'iso_alpha2'  => preg_match('/^[A-Za-z]{2}$/', $iso) ? strtoupper($iso) : null,
+                'iso_alpha3'  => preg_match('/^[A-Za-z]{3}$/', $iso) ? strtoupper($iso) : null,
             ], 'pais_id');
         }
 
@@ -323,10 +380,36 @@ class CargadorMercosurPais
         return (int) $id;
     }
 
+    /**
+     * Borra (una sola vez por carga) las filas existentes de esta organización,
+     * zona y gestión: así una recarga reemplaza y no duplica.
+     */
+    private function borrarGestionSiCorresponde(int $gestion): void
+    {
+        if (isset($this->gestionesBorradas[$gestion])) {
+            return;
+        }
+        DB::table('serie_comercio_zona')
+            ->where('organizacion_id', $this->orgId())
+            ->where('zona_id', $this->zonaId)
+            ->where('gestion', $gestion)
+            ->delete();
+        $this->gestionesBorradas[$gestion] = true;
+    }
+
     private function crearArchivoFuente(CargaArchivo $carga, string $ruta): int
     {
+        // ruta_archivo es UNIQUE en archivo_fuente: al recargar el mismo archivo
+        // (p.ej. el comando por lote con la misma ruta) se reutiliza su registro.
+        $existente = DB::table('archivo_fuente')->where('ruta_archivo', $ruta)->value('archivo_id');
+        if ($existente) {
+            DB::table('archivo_fuente')->where('archivo_id', $existente)->update(['fecha_carga' => now()]);
+
+            return (int) $existente;
+        }
+
         return (int) DB::table('archivo_fuente')->insertGetId([
-            'organizacion_id'  => self::ORG_ID,
+            'organizacion_id'  => $this->orgId(),
             'ruta_archivo'     => $ruta,
             'fecha_carga'      => now(),
         ], 'archivo_id');
@@ -334,7 +417,7 @@ class CargadorMercosurPais
 
     private function resolverRuta(int $cargaId): string
     {
-        foreach (['xlsx', 'xlsm', 'csv'] as $ext) {
+        foreach (['xlsx', 'xlsm', 'xls', 'csv'] as $ext) {
             $rel = "cargas/{$cargaId}/datos.{$ext}";
             if (Storage::disk('local')->exists($rel)) {
                 return Storage::disk('local')->path($rel);
@@ -343,7 +426,8 @@ class CargadorMercosurPais
         throw new \RuntimeException("Archivo de datos no encontrado para carga #{$cargaId}.");
     }
 
-    private function zonaDesdeNombre(string $nombreArchivo): string
+    /** Público: la previsualización del panel muestra la zona que se detectará. */
+    public function zonaDesdeNombre(string $nombreArchivo): string
     {
         $n = strtolower(str_replace(['_', '-'], ' ', pathinfo($nombreArchivo, PATHINFO_FILENAME)));
         $n = trim(preg_replace('/\s+/', ' ', $n));
@@ -411,5 +495,10 @@ class CargadorMercosurPais
     private function numNull(mixed $v): ?float
     {
         return ($v === null || $v === '') ? null : $this->num($v);
+    }
+
+    private function orgId(): int
+    {
+        return Organizaciones::id(Organizaciones::MERCOSUR);
     }
 }

@@ -1,394 +1,246 @@
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
-import { Head } from '@inertiajs/vue3';
-import axios from 'axios';
+/**
+ * Rankings y Comparador unificados (estilo mockup, GEO-12).
+ * Tabla de Pareto + barras agrupadas entre 2 y 6 gestiones, con datos reales
+ * de /portal/v2/rankings. Las gestiones sin datos del flujo se marcan como tales.
+ */
+import { ref, computed, watch, onMounted } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
+import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import { fmtM, fmtPct, fmtNum, etiquetaGestion, getJson, descargarCsv } from '@/lib/gd';
 
 const props = defineProps({
-    organizaciones: { type: Array, default: () => [] },
-    gestiones: { type: Array, default: () => [] },
-    organizacionDefecto: { type: Number, default: 1 },
+    cobertura: { type: Object, default: null },
+    gestionesPortal: { type: Array, default: () => [] },
     gestionInicial: { type: Number, default: null },
 });
 
-const tab = ref('ranking'); // 'ranking' | 'comparador'
+const COLORES = ['#e07b53', '#2f6f73', '#5e1224', '#3b82f6', '#f59e0b', '#7c5dfa'];
+const DIMENSIONES = [
+    { v: 'producto', t: 'Productos NANDINA' },
+    { v: 'pais', t: 'Países (ISO)' },
+    { v: 'departamento', t: 'Departamentos' },
+    { v: 'seccion', t: 'Secciones del SA' },
+];
 
-// --- Filtros del ranking ---
-const f = reactive({
-    organizacion_id: props.organizacionDefecto,
-    gestion: props.gestionInicial ?? props.gestiones?.[0] ?? null,
-    flujo: 1,
-    dimension: 'producto',
-    metrica: 'valor',
-    limite: 10,
-});
+const flujo = ref('exp');
+const dimension = ref('producto');
+const anios = ref([props.gestionInicial - 1, props.gestionInicial].filter(Boolean));
+const nuevoAnio = ref('');
+const buscar = ref('');
+const datos = ref(null);
+const cargando = ref(false);
 
-const ranking = ref(null);
-const cargandoR = ref(false);
+const aniosFlujo = computed(() => props.cobertura?.[flujo.value]?.anios ?? []);
+const etq = (g) => etiquetaGestion(g, props.cobertura, flujo.value);
 
-// Cada organización cubre solo un subconjunto de dimensiones/métricas: INE es
-// la única con desglose por departamento, y ALADI no publica volumen físico
-// (ver RankingPortal::rankingAladi). Se ocultan las opciones no aplicables en
-// vez de dejar que el usuario las elija y vea "Sin datos para estos filtros".
-const ORG_INE = 1;
-const ORG_ALADI = 2;
-const dimensionesDisponibles = computed(() => f.organizacion_id === ORG_INE
-    ? [{ v: 'producto', l: 'Productos' }, { v: 'pais', l: 'Países' }, { v: 'departamento', l: 'Departamentos' }]
-    : [{ v: 'producto', l: 'Productos' }, { v: 'pais', l: 'Países' }]);
-const metricasDisponibles = computed(() => f.organizacion_id === ORG_ALADI
-    ? [{ v: 'valor', l: 'Valor (USD)' }]
-    : [{ v: 'valor', l: 'Valor (USD)' }, { v: 'peso', l: 'Volumen (kg)' }]);
-
-function ajustarFiltrosPorOrganizacion() {
-    if (!dimensionesDisponibles.value.some((d) => d.v === f.dimension)) f.dimension = 'producto';
-    if (!metricasDisponibles.value.some((m) => m.v === f.metrica)) f.metrica = 'valor';
-    if (!dimensionesDisponibles.value.some((d) => d.v === c.dimension)) c.dimension = 'producto';
-}
-
-// Cada organización tiene su propio rango de años con datos (INE llega a 2026,
-// ALADI a 2025, etc.): la lista de gestiones se pide por organización y al
-// cambiar de organización se salta a su gestión más reciente.
-const gestionesOrg = ref([...props.gestiones]);
-
-async function cargarGestiones() {
+async function cargar() {
+    cargando.value = true;
     try {
-        const { data } = await axios.get('/api/v1/filtros/gestiones', { params: { org: f.organizacion_id } });
-        const lista = data?.data ?? [];
-        gestionesOrg.value = lista.length ? lista : [...props.gestiones];
-    } catch {
-        gestionesOrg.value = [...props.gestiones];
-    }
-    const g = gestionesOrg.value;
-    if (!g.includes(f.gestion)) f.gestion = g[0] ?? null;
-    if (!g.includes(c.gestion)) c.gestion = g[0] ?? null;
-    if (!g.includes(c.anio_b)) c.anio_b = g[0] ?? null;
-    if (!g.includes(c.anio_a)) c.anio_a = g[1] ?? g[0] ?? null;
-}
-
-async function cargarRanking() {
-    if (!f.gestion) return;
-    cargandoR.value = true;
-    try {
-        const { data } = await axios.get('/rankings/datos', { params: { ...f } });
-        ranking.value = data;
+        datos.value = await getJson('/portal/v2/rankings', { anios: anios.value, flujo: flujo.value, dimension: dimension.value, top: 10 });
     } finally {
-        cargandoR.value = false;
+        cargando.value = false;
     }
 }
+watch([flujo, dimension, anios], cargar, { deep: true });
+onMounted(cargar);
 
-function exportar(formato) {
-    const q = new URLSearchParams({ ...f, formato }).toString();
-    window.location.href = `/rankings/exportar?${q}`;
-}
-
-// --- Comparador ---
-const c = reactive({
-    modo: 'anios', // 'años' | 'flujos'
-    organizacion_id: props.organizacionDefecto,
-    dimension: 'producto',
-    flujo: 1,
-    anio_a: props.gestiones?.[1] ?? props.gestiones?.[0] ?? null,
-    anio_b: props.gestiones?.[0] ?? null,
-    gestion: props.gestionInicial ?? props.gestiones?.[0] ?? null,
-    limite: 10,
-});
-
-const comparador = ref(null);
-const cargandoC = ref(false);
-
-async function cargarComparador() {
-    cargandoC.value = true;
-    try {
-        const { data } = await axios.get('/rankings/comparar', { params: { ...c } });
-        comparador.value = data;
-    } finally {
-        cargandoC.value = false;
+// Al cambiar a un flujo sin datos en los años elegidos, propone los dos últimos con datos.
+watch(flujo, (f) => {
+    const disp = props.cobertura?.[f]?.anios ?? [];
+    if (disp.length && !anios.value.some((a) => disp.includes(a))) {
+        anios.value = disp.slice(-2);
     }
-}
-
-onMounted(cargarRanking);
-watch([() => f.gestion, () => f.flujo, () => f.dimension, () => f.metrica, () => f.limite], cargarRanking);
-// Al cambiar la organización: sincronizar el comparador, ajustar las gestiones
-// disponibles y recargar (si la gestión cambio, el watch de arriba ya recarga).
-watch(() => f.organizacion_id, async () => {
-    c.organizacion_id = f.organizacion_id;
-    ajustarFiltrosPorOrganizacion();
-    const antes = f.gestion;
-    await cargarGestiones();
-    if (f.gestion === antes) cargarRanking();
-    comparador.value = null;
-});
-watch(tab, (t) => { if (t === 'comparador' && !comparador.value) cargarComparador(); });
-
-// --- Formato ---
-function fmtUsd(v) {
-    if (v == null) return '—';
-    return 'USD ' + Number(v).toLocaleString('es-BO', { maximumFractionDigits: 0 });
-}
-function fmtVal(v) {
-    if (v == null) return '—';
-    const unidad = ranking.value?.unidad;
-    // FAOSTAT publica índices (2014-2016 = 100), no montos.
-    if (unidad === 'índice') return Number(v).toLocaleString('es-BO', { maximumFractionDigits: 1 });
-    return `${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 0 })} ${unidad === 'kg' ? 'kg' : 'USD'}`;
-}
-function fmtPct(v) {
-    return v == null ? '—' : `${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 1 })}%`;
-}
-function fmtVarPct(v) {
-    if (v == null) return '—';
-    const s = v > 0 ? '+' : '';
-    return `${s}${Number(v).toLocaleString('es-BO', { maximumFractionDigits: 1 })}%`;
-}
-
-// --- Gráfico de barras horizontales del ranking ---
-// Barras en azul institucional; el primer puesto (mayor) resaltado en rojo.
-const serieRanking = computed(() => [{
-    name: ranking.value?.metrica === 'peso' ? 'Peso' : 'Valor',
-    data: (ranking.value?.filas ?? []).map((r) => Math.round(r.valor)),
-}]);
-const opcRanking = computed(() => {
-    const filas = ranking.value?.filas ?? [];
-    return {
-        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
-        plotOptions: { bar: { horizontal: true, borderRadius: 6, borderRadiusApplication: 'end', barHeight: '46%', distributed: true } },
-        colors: filas.map((_, i) => (i === 0 ? '#e11d48' : '#334155')),
-        dataLabels: { enabled: false },
-        legend: { show: false },
-        xaxis: {
-            categories: filas.map((r) => r.label),
-            labels: { formatter: (v) => Number(v).toLocaleString('es-BO', { notation: 'compact' }), style: { colors: '#94a3b8' } },
-            axisBorder: { show: false }, axisTicks: { show: false },
-        },
-        yaxis: { labels: { maxWidth: 200, style: { fontSize: '11px', colors: '#475569' } } },
-        tooltip: { y: { formatter: (v) => fmtVal(v) } },
-        grid: { strokeDashArray: 4, borderColor: '#f1f5f9', yaxis: { lines: { show: false } } },
-    };
 });
 
-const gestionesDesc = computed(() => [...gestionesOrg.value]);
-const orgActual = computed(() => props.organizaciones.find((o) => o.organizacion_id === f.organizacion_id));
+function agregar() {
+    const a = Number(nuevoAnio.value);
+    if (a && !anios.value.includes(a) && anios.value.length < 6) anios.value = [...anios.value, a].sort();
+    nuevoAnio.value = '';
+}
+function quitar(a) {
+    if (anios.value.length > 2) anios.value = anios.value.filter((x) => x !== a);
+}
+
+const conDatos = computed(() => datos.value?.anios ?? []);
+const ref_ = computed(() => datos.value?.referencia);
+const ultimos2 = computed(() => conDatos.value.slice(-2));
+const colorDe = (a) => COLORES[anios.value.indexOf(a) % COLORES.length];
+
+const filas = computed(() => {
+    const q = buscar.value.trim().toLowerCase();
+    return (datos.value?.filas ?? []).filter((f) => !q || `${f.nombre} ${f.codigo ?? ''}`.toLowerCase().includes(q));
+});
+function variacion(f) {
+    const [a, b] = ultimos2.value;
+    if (!a || !b) return null;
+    const va = f.valores?.[a], vb = f.valores?.[b];
+    return va ? ((vb ?? 0) - va) / va * 100 : null;
+}
+const parcial = computed(() => conDatos.value.some((a) => (datos.value?.meses?.[a] ?? 12) < 12));
+
+// Gráfico de barras agrupadas (SVG)
+const ANCHO = 1100, ALTO = 300, BASE = 250;
+const grafico = computed(() => {
+    const f = filas.value.slice(0, 10);
+    const n = conDatos.value.length || 1;
+    const max = Math.max(1, ...f.flatMap((x) => conDatos.value.map((a) => x.valores?.[a] ?? 0)));
+    const grupo = ANCHO / Math.max(f.length, 1);
+    const barra = Math.min(46, (grupo - 24) / n);
+    return f.map((x, i) => ({
+        nombre: x.nombre.length > 15 ? x.nombre.slice(0, 14) + '…' : x.nombre,
+        completo: x.nombre,
+        cx: i * grupo + grupo / 2,
+        var: variacion(x),
+        barras: conDatos.value.map((a, j) => {
+            const v = x.valores?.[a] ?? 0;
+            const h = (v / max) * (BASE - 30);
+            return { a, v, h, x: i * grupo + grupo / 2 - (n * barra) / 2 + j * barra, w: barra - 3, y: BASE - h };
+        }),
+    }));
+});
+
+function descargar() {
+    const d = datos.value;
+    const cab = ['Posición', 'Código', 'Categoría', ...conDatos.value.map((a) => `${etq(a)} (USD)`), `% del total ${ref_.value}`, '% acumulado'];
+    const rows = filas.value.map((f) => [f.posicion, f.codigo ?? '', f.nombre, ...conDatos.value.map((a) => Math.round(f.valores?.[a] ?? 0)), f.pct, f.acum]);
+    rows.push(['', '', 'Resto', ...conDatos.value.map((a) => Math.round(d.resto?.[a] ?? 0)), '', '']);
+    rows.push(['', '', 'Total INE', ...conDatos.value.map((a) => Math.round(d.totales?.[a] ?? 0)), 100, '']);
+    descargarCsv(`geodata_ranking_${dimension.value}_${flujo.value}.csv`, [cab, ...rows]);
+}
 </script>
 
 <template>
-    <Head title="Rankings y comparadores" />
-
-    <!-- Encabezado luminoso -->
-    <section class="bg-white border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4">
-                <span class="w-7 h-px bg-rojo-500"></span> Rankings
-            </p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Quién lidera el comercio exterior</h1>
-            <p class="text-institucional-500 mt-4 max-w-xl leading-relaxed text-lg">Rankings por valor o volumen y comparadores entre periodos.</p>
-        </div>
-    </section>
-
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <!-- Pestanias -->
-        <div class="flex gap-2 border-b border-gris-200">
-            <button
-                v-for="t in [{k:'ranking',l:'Rankings'},{k:'comparador',l:'Comparadores'}]"
-                :key="t.k"
-                @click="tab = t.k"
-                class="relative px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition"
-                :class="tab === t.k ? 'border-rojo-600 text-institucional-900' : 'border-transparent text-gris-500 hover:text-institucional-900'"
-            >
-                {{ t.l }}
-            </button>
+    <Head title="Rankings y Comparador" />
+    <div class="page-wrap gd-pt">
+        <div class="gd-cab">
+            <div>
+                <span class="gd-kicker">● Análisis arancelario y contraste interanual</span>
+                <h2 class="gd-titulo">Rankings y Comparador</h2>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="tool-btn" :class="{ active: flujo === 'exp' }" @click="flujo = 'exp'">Exportaciones FOB</button>
+                <button class="tool-btn" :class="{ active: flujo === 'imp' }" @click="flujo = 'imp'">Importaciones CIF</button>
+                <button class="tool-btn" :disabled="!filas.length" @click="descargar">Descargar vista (Excel)</button>
+            </div>
         </div>
 
-        <!-- ============ RANKINGS ============ -->
-        <div v-show="tab === 'ranking'" class="mt-6">
-            <!-- Filtros -->
-            <div class="tarjeta p-4 grid grid-cols-2 md:grid-cols-6 gap-3">
-                <label class="text-xs font-medium text-gris-500">Organización
-                    <select v-model="f.organizacion_id" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.sigla || o.nombre }}</option>
+        <div class="overview-panel" style="padding:16px 20px;margin-bottom:20px">
+            <div class="rk-years">
+                <div class="rk-years-head">
+                    <b>Años a comparar</b>
+                    <small>Elige los años · mínimo 2, máximo 6</small>
+                </div>
+                <div class="rk-chips">
+                    <span v-for="a in anios" :key="a" class="rk-chip" :style="{ '--c': colorDe(a) }">
+                        <i></i>{{ etq(a) }}<template v-if="!aniosFlujo.includes(a)"> · sin datos</template>
+                        <button type="button" class="rk-x" :disabled="anios.length <= 2" :title="anios.length <= 2 ? 'Se necesitan al menos 2 años' : 'Quitar ' + a" @click="quitar(a)">×</button>
+                    </span>
+                </div>
+                <div class="rk-add">
+                    <select v-model="nuevoAnio" class="inv-select" :disabled="anios.length >= 6">
+                        <option value="">Año…</option>
+                        <option v-for="g in gestionesPortal.filter((x) => !anios.includes(x))" :key="g" :value="g" :disabled="!aniosFlujo.includes(g)">
+                            {{ etq(g) }}{{ aniosFlujo.includes(g) ? '' : ' (sin datos)' }}
+                        </option>
                     </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Gestión
-                    <select v-model="f.gestion" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
-                    </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Flujo
-                    <select v-model.number="f.flujo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option :value="1">Exportación</option>
-                        <option :value="2">Importación</option>
-                    </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Dimensión
-                    <select v-model="f.dimension" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option v-for="d in dimensionesDisponibles" :key="d.v" :value="d.v">{{ d.l }}</option>
-                    </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Medir por
-                    <select v-model="f.metrica" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option v-for="m in metricasDisponibles" :key="m.v" :value="m.v">{{ m.l }}</option>
-                    </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Posiciones
-                    <select v-model.number="f.limite" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option :value="10">Top 10</option>
-                        <option :value="20">Top 20</option>
-                        <option :value="50">Top 50</option>
-                    </select>
-                </label>
+                    <button class="tool-btn" :disabled="!nuevoAnio" @click="agregar">+ Agregar año</button>
+                </div>
+            </div>
+            <div class="rk-filters">
+                <select v-model="dimension" class="inv-select">
+                    <option v-for="d in DIMENSIONES" :key="d.v" :value="d.v">Dimensión: {{ d.t }}</option>
+                </select>
+                <select class="inv-select" disabled><option>Organización: INE Bolivia</option></select>
+                <select class="inv-select" disabled><option>Ordenar por: {{ ref_ ? etq(ref_) : '—' }}</option></select>
+                <input v-model="buscar" type="search" class="inv-search" placeholder="Buscar partida, código o país...">
+            </div>
+            <div style="margin-top:12px"><GdCobertura :cobertura="cobertura" /></div>
+        </div>
+
+        <div :class="{ 'gd-cargando': cargando }">
+            <div v-if="datos && !conDatos.length" class="overview-panel">
+                <GdSinDatos :titulo="`No hay ${flujo === 'exp' ? 'exportaciones' : 'importaciones'} cargadas para los años elegidos`"
+                            :mensaje="`Disponibles: ${cobertura?.[flujo]?.etiqueta}.`" />
             </div>
 
-            <div v-if="ranking" class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5" :class="{ 'opacity-60': cargandoR }">
-                <!-- Tabla -->
-                <div class="tarjeta p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="font-display font-bold text-institucional-900">{{ ranking.titulo }}</h3>
-                        <div class="flex gap-2">
-                            <button @click="exportar('xlsx')" class="text-xs px-2.5 py-1.5 rounded bg-positivo-suave text-positivo hover:opacity-80 font-semibold">Excel</button>
-                            <button @click="exportar('csv')" class="text-xs px-2.5 py-1.5 rounded bg-gris-100 text-gris-700 hover:bg-gris-200 font-semibold">CSV</button>
+            <template v-else-if="datos">
+                <div class="overview-panel">
+                    <div class="bento-h">
+                        <h3>Tabla de posiciones (Pareto) · {{ flujo === 'exp' ? 'Exportaciones FOB' : 'Importaciones CIF' }}</h3>
+                        <span class="badge-var">INE Bolivia · por {{ etq(ref_) }} · {{ fmtNum(datos.n_items) }} categorías</span>
+                    </div>
+                    <p v-if="datos.sin_datos?.length" style="margin:-4px 0 10px;font-size:0.8rem;color:#92400e">
+                        <span class="gd-tag-sindatos">Sin datos</span> {{ datos.sin_datos.join(', ') }}: no hay {{ flujo === 'exp' ? 'exportaciones' : 'importaciones' }} cargadas; se omiten de la tabla.
+                    </p>
+                    <div style="overflow-x:auto">
+                        <table class="data-table">
+                            <thead><tr>
+                                <th>#</th><th>Código</th><th>Categoría</th>
+                                <th v-for="a in conDatos" :key="a" class="gd-num">{{ etq(a) }}</th>
+                                <th v-if="ultimos2.length === 2" class="gd-num">Var. {{ etq(ultimos2[0]) }} → {{ etq(ultimos2[1]) }}</th>
+                                <th class="gd-num">% del total ({{ etq(ref_) }})</th><th class="gd-num">% acum.</th>
+                            </tr></thead>
+                            <tbody>
+                                <tr v-for="f in filas" :key="f.clave">
+                                    <td><b>{{ f.posicion }}</b></td>
+                                    <td style="font-family:monospace">{{ f.codigo ?? '—' }}</td>
+                                    <td><b>{{ f.nombre }}</b></td>
+                                    <td v-for="a in conDatos" :key="a" class="gd-num" :style="{ fontWeight: a === ref_ ? 800 : 500 }">{{ f.valores?.[a] != null ? fmtM(f.valores[a]) : '—' }}</td>
+                                    <td v-if="ultimos2.length === 2" class="gd-num">
+                                        <span v-if="variacion(f) != null" class="gd-var" :class="variacion(f) < 0 ? 'neg' : 'pos'">{{ fmtPct(variacion(f), true) }}</span><span v-else>—</span>
+                                    </td>
+                                    <td class="gd-num">{{ fmtPct(f.pct) }}</td>
+                                    <td class="gd-num">{{ fmtPct(f.acum) }}</td>
+                                </tr>
+                                <tr v-if="!buscar" style="color:var(--muted)">
+                                    <td>—</td><td></td><td>Resto (fuera del ranking)</td>
+                                    <td v-for="a in conDatos" :key="a" class="gd-num">{{ fmtM(datos.resto?.[a]) }}</td>
+                                    <td v-if="ultimos2.length === 2"></td>
+                                    <td class="gd-num">{{ fmtPct(datos.totales?.[ref_] ? datos.resto[ref_] / datos.totales[ref_] * 100 : null) }}</td><td class="gd-num">100%</td>
+                                </tr>
+                                <tr v-if="!buscar">
+                                    <td></td><td></td><td><b>Total INE Bolivia</b></td>
+                                    <td v-for="a in conDatos" :key="a" class="gd-num"><b>{{ fmtM(datos.totales?.[a]) }}</b></td>
+                                    <td v-if="ultimos2.length === 2" class="gd-num">
+                                        <span class="gd-var" :class="(datos.totales[ultimos2[1]] - datos.totales[ultimos2[0]]) < 0 ? 'neg' : 'pos'">{{ fmtPct((datos.totales[ultimos2[1]] - datos.totales[ultimos2[0]]) / datos.totales[ultimos2[0]] * 100, true) }}</span>
+                                    </td>
+                                    <td class="gd-num"><b>100%</b></td><td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p v-if="parcial" class="gd-nota" style="margin-top:10px">
+                        Atención: una o más gestiones están incompletas (preliminares). Comparar un año parcial con uno completo exagera la caída.
+                    </p>
+                </div>
+
+                <div class="overview-panel">
+                    <div class="bento-h">
+                        <div>
+                            <h3>Comparador: {{ conDatos.map(etq).join(' vs. ') }} (hasta 10 categorías)</h3>
+                            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:0.76rem;font-weight:700;color:var(--muted)">
+                                <span v-for="a in conDatos" :key="a" style="display:inline-flex;align-items:center;gap:6px"><i :style="{ width: '12px', height: '12px', background: colorDe(a), display: 'inline-block' }"></i>{{ etq(a) }}</span>
+                                <span v-if="ultimos2.length === 2">Debajo de cada grupo: variación % {{ etq(ultimos2[0]) }} → {{ etq(ultimos2[1]) }}</span>
+                            </div>
                         </div>
+                        <Link class="tool-btn" href="/comparador">Comparador avanzado →</Link>
                     </div>
-                    <div class="overflow-x-auto">
-                    <table class="w-full text-sm table-fixed">
-                        <thead class="text-xs font-semibold text-institucional-500 uppercase tracking-wider border-b border-gris-200">
-                            <tr>
-                                <th class="text-left py-2 w-8">#</th>
-                                <th class="text-left py-2">Nombre</th>
-                                <th class="text-right py-2 w-28">{{ ranking.unidad === 'kg' ? 'Peso' : 'Valor' }}</th>
-                                <th class="text-right py-2 w-16">% total</th>
-                                <th class="text-right py-2 w-16">% acum.</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gris-100">
-                            <tr v-for="r in ranking.filas" :key="r.posicion"
-                                class="transition-all duration-200 ease-out"
-                                :class="r.posicion === 1 ? 'bg-rojo-50' : 'hover:bg-gris-50'">
-                                <td class="py-2">
-                                    <span v-if="r.posicion === 1" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rojo-600 text-white text-xs font-bold">1</span>
-                                    <span v-else class="text-gris-400 pl-1.5">{{ r.posicion }}</span>
-                                </td>
-                                <td class="py-2 font-medium break-words" :class="r.posicion === 1 ? 'text-institucional-900' : 'text-gris-800'">{{ r.label }}</td>
-                                <td class="py-2 text-right font-semibold text-institucional-900">{{ fmtVal(r.valor) }}</td>
-                                <td class="py-2 text-right text-gris-600">{{ fmtPct(r.porcentaje) }}</td>
-                                <td class="py-2 text-right text-gris-400">{{ fmtPct(r.acumulado) }}</td>
-                            </tr>
-                            <tr v-if="!ranking.filas.length"><td colspan="5" class="py-8 text-center text-gris-400">Sin datos para estos filtros.</td></tr>
-                        </tbody>
-                    </table>
-                    </div>
+                    <svg :viewBox="`0 0 ${ANCHO} ${ALTO + 40}`" style="width:100%;height:auto" role="img">
+                        <g v-for="g in grafico" :key="g.completo">
+                            <g v-for="b in g.barras" :key="b.a">
+                                <rect :x="b.x" :y="b.y" :width="b.w" :height="b.h" :fill="colorDe(b.a)"><title>{{ g.completo }} · {{ b.a }}: {{ fmtM(b.v) }}</title></rect>
+                                <text v-if="b.a === ref_ && b.h > 0" :x="b.x + b.w / 2" :y="b.y - 6" text-anchor="middle" font-size="12" font-weight="800" fill="#2f4858">{{ fmtNum(b.v / 1e6) }}</text>
+                            </g>
+                            <text :x="g.cx" :y="BASE + 20" text-anchor="middle" font-size="12.5" font-weight="800" fill="#12203d">{{ g.nombre }}</text>
+                            <text v-if="g.var != null" :x="g.cx" :y="BASE + 38" text-anchor="middle" font-size="12" font-weight="800" :fill="g.var < 0 ? '#b91c1c' : '#15803d'">{{ fmtPct(g.var, true) }}</text>
+                        </g>
+                        <line x1="0" :y1="BASE" :x2="ANCHO" :y2="BASE" stroke="#cbd5e1" />
+                    </svg>
                 </div>
-
-                <!-- Gráfico -->
-                <div class="tarjeta p-5">
-                    <h3 class="font-display font-bold text-institucional-900 mb-2">Gráfico</h3>
-                    <apexchart v-if="ranking.filas.length" type="bar" :height="Math.max(260, ranking.filas.length * 28)" :options="opcRanking" :series="serieRanking" />
-                    <p v-else class="text-sm text-gris-400 py-8 text-center">Sin datos.</p>
-                </div>
-            </div>
+            </template>
+            <p class="gd-nota">Fuente: INE, vistas resumen anuales de Geodata (millones de USD corrientes). Países homologados con su código ISO; el ranking se ordena por la gestión más reciente elegida.</p>
         </div>
-
-        <!-- ============ COMPARADORES ============ -->
-        <div v-show="tab === 'comparador'" class="mt-6">
-            <div class="tarjeta p-4 grid grid-cols-2 md:grid-cols-7 gap-3">
-                <label class="text-xs font-medium text-gris-500">Organización
-                    <select v-model="f.organizacion_id" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">{{ o.sigla || o.nombre }}</option>
-                    </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Comparar
-                    <select v-model="c.modo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option value="anios">Dos años</option>
-                        <option value="flujos">Expo vs Impo</option>
-                    </select>
-                </label>
-                <label class="text-xs font-medium text-gris-500">Dimensión
-                    <select v-model="c.dimension" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option value="producto">Productos</option>
-                        <option value="pais">Países</option>
-                    </select>
-                </label>
-                <template v-if="c.modo === 'anios'">
-                    <label class="text-xs font-medium text-gris-500">Flujo
-                        <select v-model.number="c.flujo" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                            <option :value="1">Exportación</option>
-                            <option :value="2">Importación</option>
-                        </select>
-                    </label>
-                    <label class="text-xs font-medium text-gris-500">Año A
-                        <select v-model="c.anio_a" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                            <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
-                        </select>
-                    </label>
-                    <label class="text-xs font-medium text-gris-500">Año B
-                        <select v-model="c.anio_b" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                            <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
-                        </select>
-                    </label>
-                </template>
-                <template v-else>
-                    <label class="text-xs font-medium text-gris-500">Gestión
-                        <select v-model="c.gestion" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                            <option v-for="g in gestionesDesc" :key="g" :value="g">{{ g }}</option>
-                        </select>
-                    </label>
-                </template>
-                <label class="text-xs font-medium text-gris-500">Posiciones
-                    <select v-model.number="c.limite" class="mt-1 w-full rounded-lg border-gris-300 text-sm focus:ring-2 focus:ring-institucional-400">
-                        <option :value="10">Top 10</option>
-                        <option :value="20">Top 20</option>
-                        <option :value="50">Top 50</option>
-                    </select>
-                </label>
-                <div class="flex items-end">
-                    <button @click="cargarComparador" class="btn btn-secundario w-full">Comparar</button>
-                </div>
-            </div>
-
-            <div v-if="comparador" class="mt-5 tarjeta p-5" :class="{ 'opacity-60': cargandoC }">
-                <h3 class="font-display font-bold text-institucional-900 mb-3">{{ comparador.titulo }}</h3>
-
-                <!-- Comparar dos años -->
-                <table v-if="c.modo === 'anios'" class="w-full text-sm">
-                    <thead class="text-xs font-semibold text-institucional-500 uppercase tracking-wider border-b border-gris-200">
-                        <tr>
-                            <th class="text-left py-2">Nombre</th>
-                            <th class="text-right py-2">{{ comparador.anio_a }}</th>
-                            <th class="text-right py-2">{{ comparador.anio_b }}</th>
-                            <th class="text-right py-2">Variación</th>
-                            <th class="text-right py-2">%</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gris-100">
-                        <tr v-for="(r, i) in comparador.filas" :key="i" class="hover:bg-gris-50 transition-all duration-200 ease-out">
-                            <td class="py-2 text-gris-800 font-medium">{{ r.label }}</td>
-                            <td class="py-2 text-right text-gris-600">{{ fmtUsd(r.valor_a) }}</td>
-                            <td class="py-2 text-right text-gris-600">{{ fmtUsd(r.valor_b) }}</td>
-                            <td class="py-2 text-right font-semibold" :class="r.variacion >= 0 ? 'text-positivo' : 'text-negativo'">{{ fmtUsd(r.variacion) }}</td>
-                            <td class="py-2 text-right font-medium" :class="(r.variacion_pct ?? 0) >= 0 ? 'text-positivo' : 'text-negativo'">{{ fmtVarPct(r.variacion_pct) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <!-- Comparar expo vs impo -->
-                <table v-else class="w-full text-sm">
-                    <thead class="text-xs font-semibold text-institucional-500 uppercase tracking-wider border-b border-gris-200">
-                        <tr>
-                            <th class="text-left py-2">Nombre</th>
-                            <th class="text-right py-2">Exportación</th>
-                            <th class="text-right py-2">Importación</th>
-                            <th class="text-right py-2">Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gris-100">
-                        <tr v-for="(r, i) in comparador.filas" :key="i" class="hover:bg-gris-50 transition-all duration-200 ease-out">
-                            <td class="py-2 text-gris-800 font-medium">{{ r.label }}</td>
-                            <td class="py-2 text-right text-gris-600">{{ fmtUsd(r.expo) }}</td>
-                            <td class="py-2 text-right text-gris-600">{{ fmtUsd(r.impo) }}</td>
-                            <td class="py-2 text-right font-semibold" :class="r.balance >= 0 ? 'text-positivo' : 'text-negativo'">{{ fmtUsd(r.balance) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <p class="text-xs text-gris-400 mt-6">Fuente: {{ orgActual?.sigla || 'INE' }}. Los porcentajes del ranking se calculan sobre el total general de la dimension.</p>
-    </section>
+    </div>
 </template>

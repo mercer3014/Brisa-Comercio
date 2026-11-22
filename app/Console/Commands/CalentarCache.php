@@ -26,7 +26,7 @@ class CalentarCache extends Command
 
     public function handle(ConsultaExplorador $ce, ArmadorDashboard $armador, PortalApi $api): int
     {
-        $orgs = array_map('intval', (array) $this->option('org')) ?: [1, 2, 3, 4];
+        $orgs = array_map('intval', (array) $this->option('org')) ?: \App\Support\Organizaciones::conCargador();
         $ver = ClavesCache::version();
 
         foreach ($orgs as $org) {

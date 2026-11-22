@@ -7,13 +7,16 @@ import ChartCard from '../../Components/UI/ChartCard.vue';
 import EstadoVacio from '../../Components/UI/EstadoVacio.vue';
 import { useChartData } from '../../Components/Composables/useChartData.js';
 import { fmtCompacto, fmtUsd } from '../../lib/format';
+import { CENTROIDES } from '../../lib/centroides.js';
 
 const props = defineProps({
     gestiones: { type: Array, default: () => [] },
+    gestionInicial: { type: Number, default: null },
+    cobertura: { type: Object, default: null },
 });
 
 const estado = reactive({
-    gestion: props.gestiones?.[0] ?? null,
+    gestion: props.gestionInicial ?? props.gestiones?.[0] ?? null,
     flujo: 'ambos',
 });
 
@@ -130,7 +133,8 @@ function pintarMundo() {
     capaMundo = L.layerGroup().addTo(mapaMundo);
 
     items.value.forEach((item) => {
-        const coords = countryCoords[item.pais_id];
+        // GEO-12: primero por código ISO (tablas pais_iso de GEO-10); el mapa por pais_id queda de respaldo.
+        const coords = (item.iso2 && CENTROIDES[item.iso2]) || countryCoords[item.pais_id];
         if (!coords) return;
 
         const valor = estado.flujo === 'exp' ? item.expo : estado.flujo === 'imp' ? item.impo : item.total;
@@ -197,21 +201,18 @@ onBeforeUnmount(() => {
 <template>
     <Head title="Mapa Comercial" />
 
-    <section class="bg-white border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4">
-                <span class="w-7 h-px bg-rojo-500"></span> Geografía del comercio
-            </p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Mapa Comercial</h1>
-            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Flujos comerciales reales de Bolivia por país y una vista rápida del peso exportador por departamento.</p>
-        </div>
-    </section>
+    <!-- Encabezado estilo mockup (GEO-12) -->
+    <div class="page-wrap gd-pt" style="padding-bottom:0">
+        <span class="gd-kicker">● Geografía del comercio</span>
+        <h2 class="gd-titulo">Mapa Comercial</h2>
+        <p class="gd-sub">Flujos comerciales reales de Bolivia por país y una vista rápida del peso exportador por departamento.</p>
+    </div>
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         <div class="tarjeta p-4 flex flex-wrap items-end gap-3">
             <label class="text-xs font-medium text-gris-500">Año
                 <select v-model.number="estado.gestion" class="campo mt-1 py-2 text-sm w-32">
-                    <option v-for="g in gestiones" :key="g" :value="g">{{ g }}</option>
+                    <option v-for="g in gestiones" :key="g" :value="g">{{ g }}{{ cobertura && !cobertura.imp?.anios?.includes(g) ? ' (solo exp.)' : '' }}</option>
                 </select>
             </label>
             <label class="text-xs font-medium text-gris-500">Flujo
@@ -222,6 +223,9 @@ onBeforeUnmount(() => {
                 </select>
             </label>
             <p class="text-xs text-gris-400 ml-auto">Verde = exportación dominante · rojo = importación dominante.</p>
+            <p v-if="cobertura && !cobertura.imp?.anios?.includes(estado.gestion)" class="w-full text-xs" style="color:#92400e">
+                <span class="gd-tag-sindatos">Sin datos</span> No hay importaciones cargadas para {{ estado.gestion }} (disponibles: {{ cobertura.imp?.etiqueta }}); el mapa muestra solo exportaciones y las importaciones figuran en 0.
+            </p>
         </div>
 
         <div v-if="error" class="tarjeta p-8 text-center text-negativo">

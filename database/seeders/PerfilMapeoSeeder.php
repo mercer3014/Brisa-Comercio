@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Support\Organizaciones;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -71,7 +72,7 @@ class PerfilMapeoSeeder extends Seeder
 
         // V1 — estándar 1992-2017 (34 cols)
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'EXPORTACION',
             'etiqueta_version' => 'INE_EXP_V1',
             'descripcion'     => 'INE Exportaciones 1992-2017 (34 columnas estándar)',
@@ -79,7 +80,7 @@ class PerfilMapeoSeeder extends Seeder
 
         // V2 — 1996, agrega IDENT al inicio (35 cols)
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'EXPORTACION',
             'etiqueta_version' => 'INE_EXP_V2',
             'descripcion'     => 'INE Exportaciones 1996 (35 cols, agrega IDENT)',
@@ -99,7 +100,7 @@ class PerfilMapeoSeeder extends Seeder
             ['PFINO',  'peso_fino_kg',  true, false],
         ]);
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'EXPORTACION',
             'etiqueta_version' => 'INE_EXP_V3',
             'descripcion'     => 'INE Exportaciones 2018 (37 cols, agrega TCP/KILBRU/PFINO)',
@@ -119,7 +120,7 @@ class PerfilMapeoSeeder extends Seeder
         $baseExpSinKil = array_filter($baseExp, fn ($c) => ! in_array($c[0], ['KILNET', 'VALOR']));
         $baseExpSinKil = array_values($baseExpSinKil);
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'EXPORTACION',
             'etiqueta_version' => 'INE_EXP_V4',
             'descripcion'     => 'INE Exportaciones 2020-2025 (38 cols, ADUDES/FINO)',
@@ -136,7 +137,7 @@ class PerfilMapeoSeeder extends Seeder
             return $c;
         }, $baseExpSinKil);
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'EXPORTACION',
             'etiqueta_version' => 'INE_EXP_V5',
             'descripcion'     => 'INE Exportaciones 2022 (38 cols, VIASAL2/DESVIA2)',
@@ -152,7 +153,7 @@ class PerfilMapeoSeeder extends Seeder
             };
         }, $baseExpSinKil);
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'EXPORTACION',
             'etiqueta_version' => 'INE_EXP_V6',
             'descripcion'     => 'INE Exportaciones 2026 (38 cols, CUCIR3/GCE/CIIU3)',
@@ -191,7 +192,7 @@ class PerfilMapeoSeeder extends Seeder
 
         // V1 — 1992-2020 (29 cols, KILBRU)
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'IMPORTACION',
             'etiqueta_version' => 'INE_IMP_V1',
             'descripcion'     => 'INE Importaciones 1992-2020 (29 cols, KILBRU)',
@@ -205,7 +206,7 @@ class PerfilMapeoSeeder extends Seeder
 
         // V2 — 2021-2026 (29 cols, KILOS en lugar de KILBRU)
         $this->perfil([
-            'organizacion_id' => 1,
+            'organizacion_id' => Organizaciones::id('INE'),
             'tipo_flujo'      => 'IMPORTACION',
             'etiqueta_version' => 'INE_IMP_V2',
             'descripcion'     => 'INE Importaciones 2021-2026 (29 cols, KILOS)',
@@ -224,7 +225,7 @@ class PerfilMapeoSeeder extends Seeder
         // ===================================================================
 
         $this->perfil([
-            'organizacion_id' => 3,
+            'organizacion_id' => Organizaciones::id('MERCOSUR'),
             'tipo_flujo'      => 'MERCOSUR_PAIS',
             'etiqueta_version' => 'MERCOSUR_PAIS',
             'descripcion'     => 'MERCOSUR — Serie agregada por País/ISO 3166',
@@ -240,7 +241,7 @@ class PerfilMapeoSeeder extends Seeder
         ]);
 
         $this->perfil([
-            'organizacion_id' => 3,
+            'organizacion_id' => Organizaciones::id('MERCOSUR'),
             'tipo_flujo'      => 'MERCOSUR_ITEM',
             'etiqueta_version' => 'MERCOSUR_ITEM',
             'descripcion'     => 'MERCOSUR — Serie por Producto NCM (Item)',
@@ -260,7 +261,7 @@ class PerfilMapeoSeeder extends Seeder
         // ===================================================================
 
         $this->perfil([
-            'organizacion_id' => 2,
+            'organizacion_id' => Organizaciones::id('ALADI'),
             'tipo_flujo'      => 'ALADI_RANKING',
             'etiqueta_version' => 'ALADI_RANKING',
             'descripcion'     => 'ALADI — Ranking de productos por valor (N°, ÍTEM, VALOR, %)',
@@ -282,7 +283,7 @@ class PerfilMapeoSeeder extends Seeder
         $anioCol = [['Año', null, false, false, 'año del dato']];
 
         $this->perfil([
-            'organizacion_id' => 4,
+            'organizacion_id' => Organizaciones::id('FAOSTAT'),
             'tipo_flujo'      => 'FAOSTAT',
             'etiqueta_version' => 'FAOSTAT_POBLACION',
             'descripcion'     => 'FAOSTAT — Población rural y urbana',
@@ -293,7 +294,7 @@ class PerfilMapeoSeeder extends Seeder
         ]));
 
         $this->perfil([
-            'organizacion_id' => 4,
+            'organizacion_id' => Organizaciones::id('FAOSTAT'),
             'tipo_flujo'      => 'FAOSTAT',
             'etiqueta_version' => 'FAOSTAT_FERTILIZANTES',
             'descripcion'     => 'FAOSTAT — Consumo de fertilizantes (N, P, K)',
@@ -305,7 +306,7 @@ class PerfilMapeoSeeder extends Seeder
         ]));
 
         $this->perfil([
-            'organizacion_id' => 4,
+            'organizacion_id' => Organizaciones::id('FAOSTAT'),
             'tipo_flujo'      => 'FAOSTAT',
             'etiqueta_version' => 'FAOSTAT_SUBALIMENTACION',
             'descripcion'     => 'FAOSTAT — Prevalencia de subalimentación',
@@ -315,7 +316,7 @@ class PerfilMapeoSeeder extends Seeder
         ]));
 
         $this->perfil([
-            'organizacion_id' => 4,
+            'organizacion_id' => Organizaciones::id('FAOSTAT'),
             'tipo_flujo'      => 'FAOSTAT',
             'etiqueta_version' => 'FAOSTAT_CEREALES',
             'descripcion'     => 'FAOSTAT — Producción de cereales',

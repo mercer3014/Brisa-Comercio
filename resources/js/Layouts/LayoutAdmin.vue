@@ -50,7 +50,7 @@ const grupos = [
     {
         titulo: 'Datos',
         items: [
-            { titulo: 'Cargas',    ruta: '/admin/cargas',        icono: 'cargas',    permiso: 'carga.ver' },
+            { titulo: 'Gestión de datos', ruta: '/admin/cargas', icono: 'cargas', permiso: 'carga.ver', activoEn: ['/admin/cargas', '/admin/gestion'] },
             { titulo: 'Reportes',  ruta: '/admin/reportes',      icono: 'reportes',  permiso: 'reporte.ver' },
             { titulo: 'Calidad',   ruta: '/admin/calidad',       icono: 'calidad',   permiso: 'calidad.ver' },
             { titulo: 'Catálogos', ruta: '/admin/catalogos/pais',icono: 'catalogos', permiso: 'catalogo.ver' },
@@ -88,6 +88,8 @@ const paisesExpandido = ref(true);
 const rutaActual = computed(() => page.url);
 function esActivo(ruta) {
     if (ruta === '/admin') return rutaActual.value === '/admin';
+    const item = grupos.flatMap((g) => g.items).find((i) => i.ruta === ruta);
+    if (item?.activoEn) return item.activoEn.some((r) => rutaActual.value.startsWith(r));
     return rutaActual.value.startsWith(ruta);
 }
 

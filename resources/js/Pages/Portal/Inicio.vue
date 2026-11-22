@@ -1,491 +1,323 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
-import axios from 'axios';
+/**
+ * Portada del portal (estilo mockup GEODATA, GEO-12).
+ * Hero por vía de transporte + panorama + destacados. Todas las cifras
+ * vienen de /portal/v2/panorama (vistas resumen_* y hecho INE). Si un flujo
+ * no tiene datos para la gestión elegida, se muestra "Sin datos".
+ */
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import GdDona from '@/Components/Gd/GdDona.vue';
+import GdBarras from '@/Components/Gd/GdBarras.vue';
+import GdTop3 from '@/Components/Gd/GdTop3.vue';
+import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
+import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import { fmtM, fmtPct, fmtNum, etiquetaGestion, getJson } from '@/lib/gd';
 
 const props = defineProps({
-    organizaciones: { type: Array, default: () => [] },
-    gestiones: { type: Array, default: () => [] },
-    organizacionDefecto: { type: Number, default: 1 },
+    cobertura: { type: Object, default: null },
+    gestionesPortal: { type: Array, default: () => [] },
     gestionInicial: { type: Number, default: null },
-    portada: { type: Object, default: () => ({}) },
+    panorama: { type: Object, default: null },
 });
 
-const orgId = ref(props.organizacionDefecto);
-const gestion = ref(props.gestionInicial ?? props.gestiones?.[0] ?? null);
-const datos = ref(props.portada ?? {});
+const gestion = ref(props.gestionInicial);
+const datos = ref(props.panorama);
 const cargando = ref(false);
+const filtro = ref('');
 
-const hayDatos = computed(() => datos.value?.meta?.hay_datos);
-const meta = computed(() => datos.value?.meta ?? {});
-const ind = computed(() => datos.value?.indicadores ?? null);
-
-// INE, ALADI y MERCOSUR publican en USD; FAOSTAT publica indices comerciales
-// (base 2014-2016 = 100). Misma estructura de portada para las 4, pero con
-// formato y etiquetas distintas donde el dato no es un valor en dolares.
-const esFaostat = computed(() => orgId.value === 4);
-
-// Refresca la portada al cambiar organización o gestión.
-async function refrescar() {
+watch(gestion, async (g) => {
+    if (!g) return;
     cargando.value = true;
     try {
-        const { data } = await axios.get('/portal/datos', {
-            params: { organizacion_id: orgId.value, gestion: gestion.value },
-        });
-        datos.value = data;
+        datos.value = await getJson('/portal/v2/panorama', { gestion: g });
     } finally {
         cargando.value = false;
     }
-}
-
-// Cada organización tiene su propio rango de años con datos (INE llega a 2026,
-// ALADI a 2025, etc.): al cambiar de organización se ajusta la lista de
-// gestiones y se salta a la más reciente de esa organización.
-const gestionesOrg = ref([...props.gestiones]);
-
-watch(orgId, async () => {
-    try {
-        const { data } = await axios.get('/api/v1/filtros/gestiones', { params: { org: orgId.value } });
-        const lista = data?.data ?? [];
-        gestionesOrg.value = lista.length ? lista : [...props.gestiones];
-    } catch {
-        gestionesOrg.value = [...props.gestiones];
-    }
-    if (!gestionesOrg.value.includes(gestion.value)) {
-        gestion.value = gestionesOrg.value[0] ?? null; // el watch de gestión refresca
-    } else {
-        refrescar();
-    }
 });
-watch(gestion, refrescar);
 
-// --- Formato ---
-const MESES = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const etq = (g) => etiquetaGestion(g, props.cobertura);
+const hayExp = computed(() => datos.value?.exp?.valor != null);
+const hayImp = computed(() => datos.value?.imp?.valor != null);
+const anioConImp = computed(() => props.cobertura?.imp?.hasta ?? null);
+const anioConExp = computed(() => props.gestionInicial);
 
-function fmtUsd(v) {
-    if (v == null) return '—';
-    const abs = Math.abs(v);
-    if (abs >= 1e9) return `USD ${(v / 1e9).toLocaleString('es-BO', { maximumFractionDigits: 1 })} mil M`;
-    if (abs >= 1e6) return `USD ${(v / 1e6).toLocaleString('es-BO', { maximumFractionDigits: 1 })} M`;
-    if (abs >= 1e3) return `USD ${(v / 1e3).toLocaleString('es-BO', { maximumFractionDigits: 1 })} mil`;
-    return `USD ${v.toLocaleString('es-BO', { maximumFractionDigits: 0 })}`;
+// ---------------- Hero por vía ----------------
+const SLIDES = [
+    { clave: 'maritimo', titulo: 'MARÍTIMO', img: '/img/portal/maritimo.webp',
+      desc: 'Bolivia no tiene costa: el INE registra como marítimo el comercio intermodal por puertos del Pacífico (marítimo-carretera y marítimo-ferroviario).' },
+    { clave: 'terrestre', titulo: 'TERRESTRE', img: '/img/portal/terrestre.webp',
+      desc: 'Carretera y ferrocarril por los pasos de frontera con Chile, Perú, Brasil, Argentina y Paraguay.' },
+    { clave: 'aereo', titulo: 'AÉREO', img: '/img/portal/aereo.webp',
+      desc: 'Carga aérea y courier por los aeropuertos internacionales de Viru Viru, El Alto y Cochabamba.' },
+    { clave: 'otros', titulo: 'OTROS MEDIOS', img: '/img/portal/ductos.webp',
+      desc: 'Ductos, hidrovía (fluvial), lacustre, postal y otros medios intermodales.' },
+];
+const idx = ref(0);
+let timer = null;
+const via = computed(() => (datos.value?.vias ?? []).find((v) => v.clave === SLIDES[idx.value].clave) ?? null);
+function paso(d) {
+    idx.value = (idx.value + d + SLIDES.length) % SLIDES.length;
+    reiniciar();
+}
+function elegir(i) {
+    idx.value = i;
+    reiniciar();
+}
+function reiniciar() {
+    clearInterval(timer);
+    timer = setInterval(() => {
+        if (!document.hidden) idx.value = (idx.value + 1) % SLIDES.length;
+    }, 7000);
+}
+function posCard(i) {
+    const rel = (i - idx.value + SLIDES.length) % SLIDES.length;
+    return rel <= 2 ? `pos-${rel}` : 'pos-hidden';
+}
+onMounted(reiniciar);
+onUnmounted(() => clearInterval(timer));
+
+// ---------------- Panorama ----------------
+const topExp = computed(() => (datos.value?.top_exp ?? [])
+    .filter((p) => !filtro.value || (p.descripcion + ' ' + p.codigo).toLowerCase().includes(filtro.value.toLowerCase()))
+    .map((p) => ({ nombre: p.descripcion, valor: p.valor, titulo: `${p.codigo} · ${p.descripcion}`, id: p.producto_id })));
+const topImp = computed(() => (datos.value?.top_imp ?? [])
+    .filter((p) => !filtro.value || (p.descripcion + ' ' + p.codigo).toLowerCase().includes(filtro.value.toLowerCase()))
+    .map((p) => ({ nombre: p.descripcion, valor: p.valor, titulo: `${p.codigo} · ${p.descripcion}`, id: p.producto_id })));
+
+function abrirProducto(it, flujo) {
+    router.visit(`/productos?gestion=${gestion.value}&flujo=${flujo}&producto=${it.id}`);
 }
 
-function fmtKg(v) {
-    if (v == null) return '—';
-    const abs = Math.abs(v);
-    if (abs >= 1e9) return `${(v / 1e9).toLocaleString('es-BO', { maximumFractionDigits: 1 })} mil M kg`;
-    if (abs >= 1e6) return `${(v / 1e6).toLocaleString('es-BO', { maximumFractionDigits: 1 })} M kg`;
-    if (abs >= 1e3) return `${(v / 1e3).toLocaleString('es-BO', { maximumFractionDigits: 1 })} mil kg`;
-    return `${v.toLocaleString('es-BO', { maximumFractionDigits: 0 })} kg`;
-}
+const saldo = computed(() => datos.value?.saldo);
+const deficit = computed(() => saldo.value != null && saldo.value < 0);
 
-function fmtNum(v) {
-    return v == null ? '—' : v.toLocaleString('es-BO', { maximumFractionDigits: 0 });
-}
-
-function fmtIdx(v) {
-    if (v == null) return '—';
-    const abs = Math.abs(v);
-    if (abs >= 1e6) return `Índice ${(v / 1e6).toLocaleString('es-BO', { maximumFractionDigits: 1 })} M`;
-    if (abs >= 1e3) return `Índice ${(v / 1e3).toLocaleString('es-BO', { maximumFractionDigits: 1 })} mil`;
-    return `Índice ${v.toLocaleString('es-BO', { maximumFractionDigits: 1 })}`;
-}
-
-// FAOSTAT reporta indices (base 2014-2016 = 100), el resto valores en USD.
-const fmtValor = computed(() => (esFaostat.value ? fmtIdx : fmtUsd));
-
-// Etiquetas de las tarjetas de indicadores: distintas para FAOSTAT (indices)
-// que para INE/ALADI/MERCOSUR (USD).
-const etiquetas = computed(() => esFaostat.value
-    ? {
-        expo: 'Índice de exportación', impo: 'Índice de importación',
-        balanza: 'Diferencia expo - impo', balanzaPos: 'Expo > Impo', balanzaNeg: 'Impo > Expo',
-        paises: 'Países con datos', paisesSub: 'con series FAOSTAT',
-        productos: 'Productos distintos', productosSub: 'con índice comercial',
-        topProductos: 'Top 5 productos — índice de exportación',
-        topDestinos: 'Top 5 productos — índice de importación',
-    }
-    : {
-        expo: 'Exportaciones', impo: 'Importaciones',
-        balanza: 'Balanza comercial', balanzaPos: 'Superávit', balanzaNeg: 'Déficit',
-        paises: 'Países destino', paisesSub: 'de exportación',
-        productos: 'Productos distintos', productosSub: 'comercializados',
-        topProductos: 'Top 5 productos exportados',
-        topDestinos: 'Top 5 países destino',
-    });
-
-function fmtVar(v) {
-    if (v == null) return null;
-    const signo = v > 0 ? '+' : '';
-    return `${signo}${v.toLocaleString('es-BO', { maximumFractionDigits: 1 })}%`;
-}
-
-// --- Iconos coherentes (set outline) por titular ---
-const ICONO = {
-    producto_exportado:      ['M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5', 'M7.5 9l4.5-4.5m0 0L16.5 9M12 4.5v12'],
-    producto_importado:      ['M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5', 'M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3'],
-    destino_exportacion:     ['M12 21a9 9 0 100-18 9 9 0 000 18z', 'M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18'],
-    origen_importacion:      ['M12 21a9 9 0 100-18 9 9 0 000 18z', 'M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18'],
-    departamento_exportador: ['M15 10.5a3 3 0 11-6 0 3 3 0 016 0z', 'M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z'],
-};
-const iconoPaths = (clave) => ICONO[clave] ?? ['M12 6v12m6-6H6'];
-
-// --- Mini gráficos de barras horizontales (estilizadas: delgadas, redondeadas) ---
-// Set general en navy slate; el Top 1 destacado en crimson premium.
-function opcionesBarras(items) {
-    const colores = items.map((_, i) => (i === 0 ? '#e11d48' : '#334155'));
-    const formatear = fmtValor.value;
-    return {
-        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'Plus Jakarta Sans, sans-serif' },
-        plotOptions: { bar: { horizontal: true, borderRadius: 6, borderRadiusApplication: 'end', barHeight: '46%', distributed: true } },
-        colors: colores,
-        dataLabels: { enabled: false },
-        legend: { show: false },
-        xaxis: {
-            categories: items.map((i) => i.label),
-            labels: { formatter: (v) => formatear(v), style: { fontSize: '10px', colors: '#94a3b8' } },
-            axisBorder: { show: false },
-            axisTicks: { show: false },
-        },
-        yaxis: { labels: { style: { fontSize: '11px', colors: '#475569' }, maxWidth: 160 } },
-        tooltip: { y: { formatter: (v) => formatear(v) } },
-        grid: { strokeDashArray: 4, borderColor: '#f1f5f9', yaxis: { lines: { show: false } } },
-    };
-}
-const serieProductos = computed(() => [{ name: 'Exportado', data: (datos.value.top_productos ?? []).map((i) => Math.round(i.valor)) }]);
-const serieDestinos = computed(() => [{ name: 'Exportado', data: (datos.value.top_destinos ?? []).map((i) => Math.round(i.valor)) }]);
-const opcProductos = computed(() => opcionesBarras(datos.value.top_productos ?? []));
-const opcDestinos = computed(() => opcionesBarras(datos.value.top_destinos ?? []));
-
-// --- Gráfico de Comercio Exterior estilo INE: líneas exp/imp + barras de saldo ---
-const serieEvolucion = computed(() => {
-    const ev = datos.value.evolucion ?? [];
+const destacados = computed(() => {
+    const d = datos.value;
+    if (!d) return [];
+    const e = d.top_exp?.[0], i = d.top_imp?.[0], de = d.destinos?.[0], o = d.origenes?.[0], dp = d.departamentos?.[0];
     return [
-        { name: 'Exportaciones', type: 'line', data: ev.map((e) => Math.round(e.expo)) },
-        { name: 'Importaciones', type: 'line', data: ev.map((e) => Math.round(e.impo)) },
-        { name: 'Saldo Comercial', type: 'column', data: ev.map((e) => Math.round((e.expo ?? 0) - (e.impo ?? 0))) },
+        { tag: 'Mayor exportación', titulo: e?.descripcion, sub: e ? `NANDINA ${e.codigo}` : '', valor: e?.valor, pct: e?.pct, base: 'exp.' },
+        { tag: 'Mayor importación', titulo: i?.descripcion, sub: i ? `NANDINA ${i.codigo}` : '', valor: i?.valor, pct: i?.pct, base: 'imp.' },
+        { tag: 'Destino #1', titulo: de?.nombre, sub: 'País de destino', valor: de?.valor, pct: de?.pct, base: 'exp.' },
+        { tag: 'Proveedor #1', titulo: o?.nombre, sub: 'País de origen', valor: o?.valor, pct: o?.pct, base: 'imp.' },
+        { tag: 'Departamento líder', titulo: dp?.nombre, sub: 'Exportación departamental', valor: dp?.valor, pct: dp?.pct, base: 'exp.' },
     ];
 });
-const opcEvolucion = computed(() => ({
-    chart: { type: 'line', stacked: false, toolbar: { show: false }, height: 420, fontFamily: 'Plus Jakarta Sans, sans-serif' },
-    colors: ['#2E7D32', '#C62828', '#A8D0E6'], // verde expo, rojo impo, celeste saldo (estilo INE)
-    stroke: { curve: 'straight', width: [3, 3, 0] },
-    markers: { size: [4.5, 4.5, 0], strokeWidth: 0, hover: { size: 6 } },
-    plotOptions: { bar: { columnWidth: '60%', borderRadius: 2 } },
-    fill: { opacity: [1, 1, 0.9] },
-    dataLabels: { enabled: false },
-    xaxis: {
-        categories: (datos.value.evolucion ?? []).map((e) => MESES[e.mes]),
-        labels: { style: { colors: '#64748b', fontSize: '11px' }, rotate: -45, rotateAlways: false },
-        axisBorder: { show: true, color: '#e2e8f0' },
-        axisTicks: { show: false },
-    },
-    yaxis: {
-        title: { text: 'En millones de dólares', style: { color: '#64748b', fontWeight: 600, fontSize: '12px' } },
-        labels: { formatter: (v) => fmtUsd(v), style: { colors: '#94a3b8' } },
-    },
-    tooltip: { shared: true, intersect: false, y: { formatter: (v) => fmtUsd(v) } },
-    legend: { position: 'bottom', horizontalAlign: 'center', fontWeight: 600, labels: { colors: '#334155' }, markers: { radius: 12 } },
-    grid: { strokeDashArray: 4, borderColor: '#eef2f7' },
-}));
 
-// --- Modos de transporte del hero inmersivo (paneles estilo AJE) ---
-const modos = [
-    {
-        clave: 'maritimo',
-        titulo: 'Marítimo',
-        descripcion: 'El gran volumen de la carga: contenedores que mueven la balanza comercial del país.',
-        img: '/img/brisa/maritimo.webp',
-        href: '/comercio-por-via?via=maritimo',
-        // barco / contenedor
-        icono: 'M3 13.5l1.5 5.25a1.5 1.5 0 001.44 1.08h11.12a1.5 1.5 0 001.44-1.08L21 13.5M4.5 13.5h15M5.25 13.5V8.25A1.5 1.5 0 016.75 6.75h10.5a1.5 1.5 0 011.5 1.5v5.25M12 4.5v2.25',
-    },
-    {
-        clave: 'terrestre',
-        titulo: 'Terrestre',
-        descripcion: 'Rutas y fronteras: el comercio que cruza por carretera con los países vecinos.',
-        img: '/img/brisa/terrestre.webp',
-        href: '/comercio-por-via?via=terrestre',
-        // camión
-        icono: 'M3 9.75A1.5 1.5 0 014.5 8.25h7.5v7.5H3v-5.25zM12 11.25h3.75l3 3v1.5H12v-4.5zM6.75 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.5 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
-    },
-    {
-        clave: 'aerio',
-        titulo: 'Aéreo',
-        descripcion: 'Valor y velocidad: los bienes de alto valor que viajan por aire hacia el mundo.',
-        img: '/img/brisa/aerio.webp',
-        href: '/comercio-por-via?via=aereo',
-        // avión
-        icono: 'M3.75 12l16.5-6-6 16.5-2.25-7.5-8.25-3z',
-    },
-    {
-        clave: 'banderas',
-        titulo: 'El mundo',
-        descripcion: 'Socios comerciales: los países de destino y origen que conectan a Bolivia con el mundo.',
-        img: '/img/brisa/banderas.webp',
-        href: '/mapa-comercial',
-        // globo terráqueo
-        icono: 'M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18M12 3a15 15 0 000 18',
-    },
-];
+const periodo = computed(() => datos.value?.exp?.periodo ?? datos.value?.imp?.periodo ?? gestion.value);
 </script>
 
 <template>
-    <Head title="Comercio exterior de Bolivia" />
+    <Head title="Inicio" />
 
-    <!-- ============================ HERO INMERSIVO FULL-SCREEN (ESTILO AJE / BRÚJULA) ============================ -->
-    <section class="relative bg-institucional-950 text-white overflow-hidden">
-        <h1 class="sr-only">La brújula del comercio exterior de Bolivia — exportaciones, importaciones y balanza comercial por vía marítima, terrestre y aérea.</h1>
-
-        <!-- Velo superior para legibilidad del titular/marca -->
-        <div class="pointer-events-none absolute inset-x-0 top-0 z-20 h-44 bg-gradient-to-b from-institucional-950/75 to-transparent"></div>
-
-        <!-- Marca + titular superpuestos (despejando el header fijo) -->
-        <div class="pointer-events-none absolute top-24 lg:top-28 left-0 right-0 z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p class="inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white">
-                <span class="w-1.5 h-1.5 rounded-full bg-rojo-500"></span>
-                Comercio exterior · Bolivia
-            </p>
-            <p class="titular-editorial mt-4 text-3xl sm:text-5xl lg:text-[3.4rem] text-white max-w-2xl leading-[1.05] [text-shadow:0_2px_18px_rgba(16,32,58,0.5)]">
-                Comercio exterior de Bolivia <span class="text-rojo-500">de un vistazo</span>
-            </p>
-        </div>
-
-        <!-- Paneles full-bleed: marítimo / terrestre / aéreo -->
-        <div class="paneles-transporte">
-            <Link
-                v-for="m in modos"
-                :key="m.clave"
-                :href="m.href"
-                class="panel-modo group"
-                :aria-label="`Ver comercio por vía ${m.titulo}`"
-            >
-                <img :src="m.img" :alt="`Vista aérea de transporte ${m.titulo.toLowerCase()}`" class="panel-modo__img" :loading="m.clave === 'maritimo' ? 'eager' : 'lazy'" />
-                <div class="panel-modo__velo"></div>
-
-                <!-- Contenido del panel (abajo-izquierda) -->
-                <div class="absolute inset-0 z-10 flex flex-col justify-end p-6 lg:p-8">
-                    <h2 class="titular-editorial text-3xl lg:text-4xl text-white">{{ m.titulo }}</h2>
-                    <span class="mt-3 block h-0.5 w-10 bg-rojo-500 rounded-full"></span>
-                    <div class="panel-modo__detalle">
-                        <p class="mt-3 text-sm text-white/85 leading-relaxed max-w-xs">{{ m.descripcion }}</p>
+    <!-- ================= HERO POR VÍA ================= -->
+    <section class="fox-hero">
+        <div v-for="(s, i) in SLIDES" :key="s.clave" class="fox-bg-layer" :class="{ active: i === idx }"
+             :style="{ backgroundImage: `url(${s.img})` }"></div>
+        <div class="fox-grid">
+            <div class="fox-info">
+                <div class="fox-kicker-row">
+                    <span class="fox-kicker"><i></i> COMERCIO EXTERIOR DE BOLIVIA</span>
+                    <span class="fox-year" title="Gestión seleccionada">{{ etq(gestion) }}</span>
+                </div>
+                <div class="fox-roller-mask">
+                    <div class="fox-roller-track" :style="{ transform: `translateY(-${idx * (100 / SLIDES.length)}%)` }">
+                        <div v-for="s in SLIDES" :key="s.clave" class="fox-roller-item">{{ s.titulo }}</div>
                     </div>
-                    <!-- Botón "+" estilo AJE -->
-                    <span class="mt-4 inline-flex w-11 h-11 items-center justify-center rounded-full border border-white/40 bg-white/10 backdrop-blur-sm text-white transition-all group-hover:bg-rojo-600 group-hover:border-rojo-600 group-hover:scale-110">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                    </span>
                 </div>
-            </Link>
-        </div>
-    </section>
-
-    <!-- ============================ TIRA DE INDICADORES (con datos) ============================ -->
-    <section v-if="hayDatos && ind" class="bg-white border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="tarjeta p-5">
-                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">{{ etiquetas.expo }} {{ meta.gestion }}</div>
-                <div class="text-[1.55rem] font-bold text-institucional-900 mt-1.5 leading-none">{{ fmtValor(ind.valor_exportado) }}</div>
-                <div v-if="ind.variacion_expo != null" class="text-xs font-semibold mt-2"
-                     :class="ind.variacion_expo >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                    {{ fmtVar(ind.variacion_expo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
+                <p class="fox-desc">{{ SLIDES[idx].desc }}</p>
+                <div class="fox-stats" aria-live="polite" :key="idx + '-' + gestion">
+                    <div class="fox-stat exp">
+                        <small>Exportaciones FOB</small>
+                        <strong>{{ via && via.exp ? fmtM(via.exp) : '—' }}</strong>
+                        <em v-if="via && via.exp === 0">Sin registro en el INE</em>
+                        <em v-else-if="!hayExp">Sin datos en {{ gestion }}</em>
+                    </div>
+                    <div class="fox-stat imp">
+                        <small>Importaciones CIF</small>
+                        <strong>{{ via && via.imp ? fmtM(via.imp) : '—' }}</strong>
+                        <em v-if="!hayImp">Sin datos cargados para {{ gestion }}</em>
+                        <em v-else-if="via && via.imp === 0">Sin registro en el INE</em>
+                    </div>
                 </div>
+                <Link class="fox-explore-btn" :href="`/comercio-por-via`"><span>Explorar Vía</span><span>→</span></Link>
             </div>
-            <div class="tarjeta p-5">
-                <div class="text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">{{ etiquetas.impo }} {{ meta.gestion }}</div>
-                <div class="text-[1.55rem] font-bold text-institucional-900 mt-1.5 leading-none">{{ fmtValor(ind.valor_importado) }}</div>
-                <div v-if="ind.variacion_impo != null" class="text-xs font-semibold mt-2"
-                     :class="ind.variacion_impo >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                    {{ fmtVar(ind.variacion_impo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
+            <div class="fox-cards-col">
+                <div class="fox-cards-track">
+                    <article v-for="(s, i) in SLIDES" :key="s.clave" class="fox-card" :class="posCard(i)" @click="elegir(i)">
+                        <div class="fox-card-img" :style="{ backgroundImage: `url(${s.img})` }">
+                            <div class="fox-card-foot"><span class="fox-card-name">Transporte {{ s.titulo.toLowerCase() }}</span></div>
+                        </div>
+                    </article>
                 </div>
-            </div>
-            <div class="tarjeta p-5">
-                <div class="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-wider text-institucional-400">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="ind.balanza_comercial >= 0 ? 'bg-positivo' : 'bg-rojo-500'"></span>
-                    {{ etiquetas.balanza }}
+                <div class="fox-controls">
+                    <div class="fox-arrows">
+                        <button class="fox-arr-btn" aria-label="Anterior" @click="paso(-1)">‹</button>
+                        <button class="fox-arr-btn" aria-label="Siguiente" @click="paso(1)">›</button>
+                    </div>
+                    <div class="fox-counter">0{{ idx + 1 }} / 0{{ SLIDES.length }}</div>
                 </div>
-                <div class="text-[1.55rem] font-bold mt-1.5 leading-none" :class="ind.balanza_comercial >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                    {{ fmtValor(ind.balanza_comercial) }}
-                </div>
-                <div class="text-xs font-medium text-institucional-400 mt-1.5">{{ ind.balanza_comercial >= 0 ? etiquetas.balanzaPos : etiquetas.balanzaNeg }} · {{ meta.gestion }}</div>
             </div>
         </div>
     </section>
 
-    <!-- ============================ BARRA DE FILTROS (minimalista, horizontal) ============================ -->
-    <div class="border-y border-gris-100 bg-gris-50/70 backdrop-blur-sm sticky top-[62px] z-20">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center gap-x-8 gap-y-3">
-            <span class="text-[11px] font-bold uppercase tracking-[0.15em] text-institucional-400">Periodo de análisis</span>
-
-            <div class="flex items-center gap-2.5">
-                <label class="text-sm font-medium text-institucional-500">Organización</label>
-                <select v-model="orgId" class="rounded-lg border border-gris-200 bg-white px-3 py-1.5 text-sm font-semibold text-institucional-800 focus:outline-none focus:border-rojo-500 focus:ring-2 focus:ring-rojo-500/20 transition">
-                    <option v-for="o in organizaciones" :key="o.organizacion_id" :value="o.organizacion_id">
-                        {{ o.nombre }}{{ o.sigla ? ` (${o.sigla})` : '' }}
+    <div class="page-wrap" style="padding-top:0">
+        <!-- ================= BARRA DE FILTROS ================= -->
+        <div class="inv-welcome-bar">
+            <div><h2>Panorama Comercial de Bolivia · Gestión {{ etq(gestion) }}</h2></div>
+            <div class="inv-search-wrap">
+                <input v-model="filtro" type="search" class="inv-search" placeholder="Filtrar producto en Top 10...">
+                <select class="inv-select" disabled title="Por ahora solo el INE tiene microdatos cargados">
+                    <option>Fuente: INE Bolivia</option>
+                </select>
+                <select v-model.number="gestion" class="inv-select">
+                    <option v-for="g in gestionesPortal" :key="g" :value="g">
+                        Gestión {{ etq(g) }}{{ cobertura?.imp?.anios?.includes(g) ? '' : ' (solo exp.)' }}
                     </option>
                 </select>
             </div>
-
-            <div class="flex items-center gap-2.5">
-                <label class="text-sm font-medium text-institucional-500">Gestión</label>
-                <select v-model="gestion" class="rounded-lg border border-gris-200 bg-white px-3 py-1.5 text-sm font-semibold text-institucional-800 focus:outline-none focus:border-rojo-500 focus:ring-2 focus:ring-rojo-500/20 transition">
-                    <option v-for="g in gestionesOrg" :key="g" :value="g">{{ g }}</option>
-                    <option v-if="!gestionesOrg.length" :value="null">Sin datos</option>
-                </select>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================ CONTENIDO ============================ -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" :class="{ 'opacity-60 pointer-events-none': cargando }">
-
-        <!-- Sin datos -->
-        <div v-if="!hayDatos" class="py-20">
-            <div class="tarjeta max-w-xl mx-auto p-12 text-center">
-                <div class="w-14 h-14 rounded-2xl bg-gris-50 flex items-center justify-center mx-auto mb-5">
-                    <svg class="w-7 h-7 text-institucional-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h12M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-12 0L21 3"/></svg>
-                </div>
-                <p class="titular-editorial text-2xl text-institucional-900">No hay datos publicados</p>
-                <p class="text-institucional-500 mt-2 leading-relaxed">
-                    Para este periodo aún no hay operaciones cargadas. Selecciona otra gestión en la barra superior.
-                </p>
-            </div>
         </div>
 
-        <template v-else>
-            <!-- INDICADORES KPI -->
-            <section v-if="ind" class="py-16">
-                <div class="flex items-end justify-between mb-7">
-                    <div>
-                        <h2 class="titular-editorial text-3xl text-institucional-900">Indicadores de {{ meta.gestion }}</h2>
-                        <p class="text-institucional-500 mt-1.5">Las cifras clave del comercio exterior en el periodo.</p>
-                    </div>
+        <div :class="{ 'gd-cargando': cargando }">
+            <!-- ================= INDICADORES PRINCIPALES ================= -->
+            <section class="overview-panel">
+                <div class="ov-title">
+                    <span>Indicadores principales</span>
+                    <small class="year-tag">Fuente: INE Bolivia · {{ periodo }}</small>
                 </div>
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.expo }}</div>
-                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtValor(ind.valor_exportado) }}</div>
-                        <div v-if="ind.variacion_expo != null" class="text-xs font-semibold mt-2.5"
-                             :class="ind.variacion_expo >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                            {{ fmtVar(ind.variacion_expo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
-                        </div>
-                        <div v-else class="text-xs text-institucional-400 mt-2.5">Sin comparativo</div>
-                    </div>
-                    <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.impo }}</div>
-                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtValor(ind.valor_importado) }}</div>
-                        <div v-if="ind.variacion_impo != null" class="text-xs font-semibold mt-2.5"
-                             :class="ind.variacion_impo >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                            {{ fmtVar(ind.variacion_impo) }} <span class="text-institucional-400 font-medium">vs {{ ind.gestion_anterior }}</span>
-                        </div>
-                        <div v-else class="text-xs text-institucional-400 mt-2.5">Sin comparativo</div>
-                    </div>
-                    <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.balanza }}</div>
-                        <div class="text-2xl font-bold mt-2 leading-none" :class="ind.balanza_comercial >= 0 ? 'text-positivo' : 'text-rojo-600'">
-                            {{ fmtValor(ind.balanza_comercial) }}
-                        </div>
-                        <div class="text-xs text-institucional-400 mt-2.5">{{ ind.balanza_comercial >= 0 ? etiquetas.balanzaPos : etiquetas.balanzaNeg }}</div>
-                    </div>
-                    <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.paises }}</div>
-                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtNum(ind.paises_destino) }}</div>
-                        <div class="text-xs text-institucional-400 mt-2.5">{{ etiquetas.paisesSub }}</div>
-                    </div>
-                    <div class="tarjeta p-6">
-                        <div class="text-xs font-semibold text-institucional-400 uppercase tracking-wide">{{ etiquetas.productos }}</div>
-                        <div class="text-2xl font-bold text-institucional-900 mt-2 leading-none">{{ fmtNum(ind.productos_distintos) }}</div>
-                        <div class="text-xs text-institucional-400 mt-2.5">{{ etiquetas.productosSub }}</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- LO MAS DESTACADO -->
-            <section class="pb-16">
-                <h2 class="titular-editorial text-3xl text-institucional-900 mb-7">Lo más destacado</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div v-for="t in datos.titulares" :key="t.clave" class="tarjeta tarjeta-hover p-6 flex gap-4 items-start">
-                        <span class="shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-xl bg-rojo-50 text-rojo-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path v-for="(d, i) in iconoPaths(t.clave)" :key="i" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" :d="d" />
-                            </svg>
+                <div class="ov-cards-4">
+                    <div class="ov-item"><div class="ov-data">
+                        <strong>{{ fmtM(datos?.exp?.valor) }}</strong>
+                        <span>Exportaciones FOB
+                            <template v-if="datos?.exp?.variacion != null"> · <b :class="datos.exp.variacion < 0 ? 'neg' : 'pos'">{{ fmtPct(datos.exp.variacion, true) }}</b> vs {{ datos.exp.periodo_anterior }}</template>
                         </span>
-                        <div>
-                            <p class="text-institucional-800 leading-snug font-medium">{{ t.texto }}</p>
-                            <p v-if="t.etiqueta" class="text-xs text-rojo-600 font-semibold mt-2">{{ t.etiqueta }}</p>
+                    </div></div>
+                    <div class="ov-item"><div class="ov-data">
+                        <strong>{{ fmtM(datos?.imp?.valor) }}</strong>
+                        <span v-if="hayImp">Importaciones CIF
+                            <template v-if="datos.imp.variacion != null"> · <b :class="datos.imp.variacion > 0 ? 'neg' : 'pos'">{{ fmtPct(datos.imp.variacion, true) }}</b> vs {{ datos.imp.periodo_anterior }}</template>
+                        </span>
+                        <span v-else>Importaciones CIF · <span class="gd-tag-sindatos">Sin datos {{ gestion }}</span></span>
+                    </div></div>
+                    <div class="ov-item"><div class="ov-data">
+                        <strong>{{ fmtNum(datos?.partidas_exp) }} partidas</strong>
+                        <span>Subpartidas NANDINA exportadas<template v-if="datos?.partidas_imp != null"> · {{ fmtNum(datos.partidas_imp) }} importadas</template></span>
+                    </div></div>
+                    <div class="ov-item" :class="{ 'warn-border': deficit }">
+                        <div class="ov-data">
+                            <strong :style="{ color: saldo == null ? '' : (deficit ? '#dc2626' : '#0d8a5a') }">{{ fmtM(saldo, true) }}</strong>
+                            <span v-if="saldo != null">Balanza comercial ({{ deficit ? 'déficit' : 'superávit' }})</span>
+                            <span v-else>Balanza comercial · requiere exp. e imp. del mismo año</span>
                         </div>
+                        <span class="ov-info-badge" title="Exportaciones FOB menos importaciones CIF">i</span>
                     </div>
+                </div>
+                <div style="margin-top:12px"><GdCobertura :cobertura="cobertura" /></div>
+            </section>
+
+            <!-- ================= EXPORTACIONES ================= -->
+            <section class="inv-middle-grid">
+                <div class="bento-box">
+                    <div>
+                        <div class="bento-h"><h3>Alcance Global</h3><span class="year-tag">{{ etq(gestion) }}</span></div>
+                        <strong style="font-size:1.85rem;font-weight:800;color:var(--navy);display:block">{{ fmtNum(datos?.paises_exp) }} países</strong>
+                        <span style="font-size:0.82rem;color:var(--muted);font-weight:600">Mercados de destino activos</span>
+                        <GdTop3 titulo="TOP 3 · DESTINOS DE EXPORTACIÓN" :items="datos?.destinos ?? []" />
+                    </div>
+                    <div style="padding-top:14px;border-top:1px solid var(--line);margin-top:14px">
+                        <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:700">TASA DE COBERTURA (X/M)</small>
+                        <strong v-if="datos?.tasa_cobertura != null" style="font-size:1.25rem;color:var(--exp)">{{ fmtPct(datos.tasa_cobertura) }}</strong>
+                        <span v-else class="gd-tag-sindatos">Sin importaciones {{ gestion }}</span>
+                    </div>
+                </div>
+
+                <div class="bento-box">
+                    <div class="bento-h">
+                        <div>
+                            <h3>Estructura de exportación</h3>
+                            <span class="badge-var" style="display:inline-block;margin-top:6px">Tradicional vs. No tradicional</span>
+                        </div>
+                        <span class="year-tag" style="align-self:flex-start;padding-top:3px">{{ etq(gestion) }}</span>
+                    </div>
+                    <GdDona v-if="datos?.tnt?.length" :partes="datos.tnt" />
+                    <GdSinDatos v-else titulo="Sin exportaciones en esta gestión" />
+                </div>
+
+                <div class="bento-box">
+                    <div class="bento-h">
+                        <h3>Top Productos Exportados (Millones USD)</h3>
+                        <Link class="tool-btn" :href="`/productos?gestion=${gestion}&flujo=exp`">Ver productos →</Link>
+                    </div>
+                    <GdBarras :items="topExp" @elegir="abrirProducto($event, 'exp')"
+                              :vacio="filtro ? `Ningún producto del Top 10 coincide con “${filtro}”.` : 'Sin exportaciones en esta gestión.'" />
                 </div>
             </section>
 
-            <!-- RANKINGS DESTACADOS -->
-            <section class="pb-16 grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div class="tarjeta p-7">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">{{ etiquetas.topProductos }}</h3>
-                        <Link href="/rankings" class="text-rojo-600 text-xs font-semibold hover:text-rojo-700 transition-colors">Ranking completo →</Link>
+            <!-- ================= IMPORTACIONES ================= -->
+            <section v-if="hayImp" class="inv-middle-grid">
+                <div class="bento-box">
+                    <div>
+                        <div class="bento-h"><h3>Orígenes globales</h3><span class="year-tag">{{ etq(gestion) }}</span></div>
+                        <strong style="font-size:1.85rem;font-weight:800;color:var(--navy);display:block">{{ fmtM(datos.imp.valor) }}</strong>
+                        <span style="font-size:0.82rem;color:var(--muted);font-weight:600">Importaciones CIF · {{ fmtNum(datos.paises_imp) }} países de origen</span>
+                        <GdTop3 titulo="TOP 3 · ORÍGENES DE IMPORTACIÓN" :items="datos.origenes ?? []" />
                     </div>
-                    <apexchart v-if="serieProductos[0].data.length" :key="`prod-${orgId}`" type="bar" height="250" :options="opcProductos" :series="serieProductos" />
-                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos.</p>
-                </div>
-                <div class="tarjeta p-7">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-bold text-lg text-institucional-900 tracking-tight">{{ etiquetas.topDestinos }}</h3>
-                        <Link href="/rankings" class="text-rojo-600 text-xs font-semibold hover:text-rojo-700 transition-colors">Ranking completo →</Link>
+                    <div style="padding-top:14px;border-top:1px solid var(--line);margin-top:14px">
+                        <small style="display:block;font-size:0.72rem;color:var(--muted);font-weight:700">RELACIÓN M/X (IMP. / EXP.)</small>
+                        <strong style="font-size:1.25rem;color:var(--imp)">{{ fmtPct(datos.relacion_mx) }}</strong>
                     </div>
-                    <apexchart v-if="serieDestinos[0].data.length" :key="`dest-${orgId}`" type="bar" height="250" :options="opcDestinos" :series="serieDestinos" />
-                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos.</p>
                 </div>
+                <div class="bento-box">
+                    <div class="bento-h">
+                        <div>
+                            <h3>Estructura de importación</h3>
+                            <span class="badge-var" style="display:inline-block;margin-top:6px">Uso o destino económico (CUODE)</span>
+                        </div>
+                        <span class="year-tag" style="align-self:flex-start;padding-top:3px">{{ etq(gestion) }}</span>
+                    </div>
+                    <GdDona :partes="datos.cuode ?? []" :colores="['#3b6fb6', '#bcd0ee', '#7ea6dc', '#e2e8f0']" />
+                </div>
+                <div class="bento-box">
+                    <div class="bento-h">
+                        <h3>Top Productos Importados (Millones USD)</h3>
+                        <Link class="tool-btn" :href="`/productos?gestion=${gestion}&flujo=imp`">Ver productos →</Link>
+                    </div>
+                    <GdBarras :items="topImp" color="#3b82f6" @elegir="abrirProducto($event, 'imp')" />
+                </div>
+            </section>
+            <section v-else class="overview-panel">
+                <GdSinDatos :titulo="`Importaciones ${gestion}: todavía no están cargadas`"
+                            :mensaje="`En la base de datos solo hay importaciones del INE para ${cobertura?.imp?.etiqueta ?? '—'}. Orígenes, estructura CUODE, top de importados, balanza y tasa de cobertura aparecerán cuando se carguen.`">
+                    <button v-if="anioConImp" class="tool-btn" style="margin-top:8px" @click="gestion = anioConImp">Ver la última gestión con importaciones ({{ anioConImp }}) →</button>
+                </GdSinDatos>
             </section>
 
-            <!-- COMERCIO EXTERIOR DE BOLIVIA (estilo INE) -->
-            <section class="pb-16">
-                <div class="tarjeta p-7">
-                    <div class="text-center mb-4">
-                        <h3 class="font-bold text-lg sm:text-xl text-institucional-900 tracking-wide uppercase">Comercio Exterior de Bolivia</h3>
-                        <span class="text-xs text-institucional-400">{{ meta.fuente }} · {{ meta.gestion }}</span>
+            <!-- ================= LO MÁS DESTACADO ================= -->
+            <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+                <h3 style="font-size:1.15rem;font-weight:800;color:var(--navy)">Lo más destacado</h3>
+                <span class="year-tag">Fuente: INE Bolivia · {{ periodo }}</span>
+            </div>
+            <div class="hl-grid-5">
+                <article v-for="h in destacados" :key="h.tag" class="hl-card">
+                    <div>
+                        <small style="font-size:0.68rem;font-weight:800;color:var(--wine);text-transform:uppercase">{{ h.tag }}</small>
+                        <h4 style="font-size:1rem;font-weight:800;color:var(--navy);margin:6px 0 2px">{{ h.titulo || 'Sin datos' }}</h4>
+                        <span style="font-size:0.75rem;color:var(--muted)">{{ h.titulo ? h.sub : `No hay datos de este flujo en ${gestion}` }}</span>
                     </div>
-                    <apexchart v-if="serieEvolucion[0].data.length" type="line" height="420" :options="opcEvolucion" :series="serieEvolucion" />
-                    <p v-else class="text-sm text-institucional-400 py-10 text-center">Sin datos mensuales para esta gestión.</p>
-                </div>
-            </section>
+                    <div style="padding-top:10px;border-top:1px solid var(--line);font-weight:800;color:var(--wine);font-size:0.92rem">
+                        <template v-if="h.valor != null">{{ fmtM(h.valor) }} ({{ fmtPct(h.pct) }} de {{ h.base }})</template>
+                        <span v-else class="gd-tag-sindatos">Sin datos</span>
+                    </div>
+                </article>
+            </div>
 
-            <!-- ACCESOS RAPIDOS (tarjetas claras premium) -->
-            <section class="pb-20 grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <Link href="/organizaciones" class="group tarjeta tarjeta-hover p-7 flex flex-col">
-                    <span class="kpi-icon w-11 h-11 bg-rojo-50 text-rojo-600 group-hover:bg-rojo-600 group-hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
-                    </span>
-                    <h4 class="font-bold text-lg text-institucional-900 mt-5 group-hover:text-rojo-700 transition-colors">Explorar los datos</h4>
-                    <p class="text-sm text-institucional-500 mt-1.5 leading-relaxed">Conoce las 4 fuentes y sus indicadores.</p>
-                    <span class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-rojo-600">
-                        Ir a Organizaciones
-                        <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    </span>
-                </Link>
-                <Link href="/rankings" class="group tarjeta tarjeta-hover p-7 flex flex-col">
-                    <span class="kpi-icon w-11 h-11 bg-institucional-50 text-institucional-700 group-hover:bg-institucional-900 group-hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
-                    </span>
-                    <h4 class="font-bold text-lg text-institucional-900 mt-5 group-hover:text-rojo-700 transition-colors">Rankings y comparadores</h4>
-                    <p class="text-sm text-institucional-500 mt-1.5 leading-relaxed">Compara años, productos y países.</p>
-                    <span class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-rojo-600">
-                        Ver Rankings
-                        <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    </span>
-                </Link>
-                <Link href="/acerca" class="group tarjeta tarjeta-hover p-7 flex flex-col">
-                    <span class="kpi-icon w-11 h-11 bg-positivo-suave text-positivo group-hover:bg-positivo group-hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
-                    </span>
-                    <h4 class="font-bold text-lg text-institucional-900 mt-5 group-hover:text-rojo-700 transition-colors">Metodología y fuentes</h4>
-                    <p class="text-sm text-institucional-500 mt-1.5 leading-relaxed">Alcance, definiciones y origen de los datos.</p>
-                    <span class="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-rojo-600">
-                        Leer más
-                        <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    </span>
-                </Link>
-            </section>
-        </template>
+            <p class="gd-nota">
+                Fuente: Instituto Nacional de Estadística (INE), microdatos de comercio exterior cargados en Geodata.
+                Exportaciones a valor FOB e importaciones a valor CIF frontera, en dólares corrientes.
+                <template v-if="datos?.exp?.preliminar"> La gestión {{ gestion }} es preliminar ({{ datos.exp.periodo }}); las variaciones comparan el mismo periodo del año anterior.</template>
+                Los años sin importaciones cargadas muestran “sin datos”, no cero.
+            </p>
+        </div>
     </div>
 </template>

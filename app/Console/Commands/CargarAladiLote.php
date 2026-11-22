@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\CargaArchivo;
 use App\Servicios\CargadorAladi;
 use Illuminate\Console\Command;
+use App\Support\Organizaciones;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,6 +24,7 @@ class CargarAladiLote extends Command
 {
     protected $signature = 'geodata:cargar-aladi
         {base : Carpeta base con una subcarpeta por pais miembro}
+        {--permitir-fallos : Con --fresh, confirmar igual aunque algun archivo falle}
         {--fresh : Borrar los datos previos de ALADI (org 2) antes de cargar}
         {--pais= : Cargar solo un pais (nombre de la carpeta, ej. ARGENTINA)}
         {--no-refresh : No refrescar las vistas materializadas al terminar}';
@@ -54,8 +56,10 @@ class CargarAladiLote extends Command
         }
 
         if ($this->option('fresh')) {
-            $this->warn('Borrando datos previos de ALADI (org 2) en ranking_comercio...');
-            DB::table('ranking_comercio')->where('organizacion_id', 2)->delete();
+            // Todo el lote va en una transacción: el borrado solo se confirma si la recarga sale bien.
+            DB::beginTransaction();
+            $this->warn('Borrando datos previos de ALADI en ranking_comercio (se confirma al final)...');
+            DB::table('ranking_comercio')->where('organizacion_id', Organizaciones::id(Organizaciones::ALADI))->delete();
         }
 
         $soloPais = strtoupper((string) $this->option('pais'));
@@ -98,7 +102,7 @@ class CargarAladiLote extends Command
 
                     $nombre = "{$pais}/{$carpeta}/".basename($ruta);
                     $carga = CargaArchivo::create([
-                        'organizacion_id' => 2,
+                        'organizacion_id' => Organizaciones::id(Organizaciones::ALADI),
                         'usuario_id'      => 1,
                         'nombre_archivo'  => $nombre,
                         'tipo_flujo'      => $tipoFlujo,
@@ -120,6 +124,10 @@ class CargarAladiLote extends Command
                     $totalArchivos++;
                 }
             }
+        }
+
+        if (! $this->cerrarTransaccionFresh($fallidos)) {
+            return self::FAILURE;
         }
 
         $this->newLine();
@@ -145,5 +153,30 @@ class CargarAladiLote extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Con --fresh todo el lote corre en UNA transacción: si algún archivo falla
+     * se revierte el borrado previo y los datos anteriores quedan intactos
+     * (salvo --permitir-fallos). Devuelve false si se revirtió.
+     */
+    private function cerrarTransaccionFresh(array $fallidos): bool
+    {
+        if (! $this->option('fresh') || DB::transactionLevel() === 0) {
+            return true;
+        }
+        if (! empty($fallidos) && ! $this->option('permitir-fallos')) {
+            DB::rollBack(0);
+            $this->error(count($fallidos).' archivo(s) fallaron; se revirtió todo el lote --fresh. Los datos anteriores quedan intactos:');
+            foreach ($fallidos as $f) {
+                $this->line("  - {$f}");
+            }
+            $this->line('Use --permitir-fallos para confirmar igualmente los archivos que sí cargaron.');
+
+            return false;
+        }
+        DB::commit();
+
+        return true;
     }
 }

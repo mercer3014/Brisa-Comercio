@@ -11,11 +11,12 @@ class OrganizacionIneSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1) INE como primera organización (organizacion_id = 1 esperado).
+        // 1) INE: se busca por SIGLA (UNIQUE) para no crear un segundo INE si la
+        //    BD ya lo tiene (basedatos.txt / baseline lo crea con tilde y id = 1).
         $ine = Organizacion::updateOrCreate(
-            ['nombre' => 'Instituto Nacional de Estadistica de Bolivia'],
+            ['sigla' => 'INE'],
             [
-                'sigla'     => 'INE',
+                'nombre'    => 'Instituto Nacional de Estadística de Bolivia',
                 'pais_iso3' => 'BOL',
                 'url'       => 'https://www.ine.gob.bo',
                 'activo'    => true,

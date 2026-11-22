@@ -7,6 +7,7 @@ use App\Servicios\ResumenPortal;
 use App\Servicios\ResumenPortalAladi;
 use App\Servicios\ResumenPortalFaostat;
 use App\Servicios\ResumenPortalMercosur;
+use App\Servicios\PortalVistas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,16 +29,33 @@ class PortalController extends Controller
      * destacados y evolución mensual (Tarea 12). Se renderiza con datos iniciales
      * para la organización por defecto (INE) y su gestión más reciente con datos.
      */
-    public function inicio(ResumenPortal $resumen, ResumenPortalMercosur $resumenMercosur, ResumenPortalAladi $resumenAladi, ResumenPortalFaostat $resumenFaostat): Response
+    public function inicio(PortalVistas $vistas): Response
     {
-        $base = $this->opcionesBase();
-        $orgId = $base['organizacionDefecto'];
-        $gestion = $this->gestionMasReciente($orgId, $resumen, $resumenMercosur, $resumenAladi, $resumenFaostat);
+        // Rediseño GEO-12: portada estilo mockup con datos reales del INE.
+        $gestion = $vistas->gestionDefecto();
 
-        return Inertia::render('Portal/Inicio', array_merge($base, [
+        return Inertia::render('Portal/Inicio', array_merge($this->opcionesBase(), [
+            'cobertura'      => $vistas->cobertura(),
+            'gestionesPortal' => $vistas->gestiones(),
             'gestionInicial' => $gestion,
-            'portada'        => $this->portada($orgId, $gestion, $resumen, $resumenMercosur, $resumenAladi, $resumenFaostat),
+            'panorama'       => $gestion ? $vistas->panorama($gestion) : null,
         ]));
+    }
+
+    /**
+     * Productos del comercio exterior (página nueva del mockup): treemap,
+     * composición por sección SA, ranking, ficha y tabla por partida.
+     */
+    public function productos(PortalVistas $vistas): Response
+    {
+        $gestion = $vistas->gestionDefecto();
+
+        return Inertia::render('Portal/Productos', [
+            'cobertura'      => $vistas->cobertura(),
+            'gestionesPortal' => $vistas->gestiones(),
+            'gestionInicial' => $gestion,
+            'datosIniciales' => $gestion ? $vistas->productos($gestion, 'exp') : null,
+        ]);
     }
 
     /**
@@ -86,29 +104,40 @@ class PortalController extends Controller
     /**
      * Rankings y comparadores (Tarea 13).
      */
-    public function rankings(ResumenPortal $resumen): Response
+    public function rankings(PortalVistas $vistas): Response
     {
-        $base = $this->opcionesBase();
+        $g = $vistas->gestionDefecto();
 
-        return Inertia::render('Portal/Rankings', array_merge($base, [
-            'gestionInicial' => $resumen->gestionMasReciente($base['organizacionDefecto']),
-        ]));
+        return Inertia::render('Portal/Rankings', [
+            'cobertura'      => $vistas->cobertura(),
+            'gestionesPortal' => $vistas->gestiones(),
+            'gestionInicial' => $g,
+        ]);
     }
 
     /**
      * Página informativa "Acerca de" el portal.
      */
-    public function acerca(): Response
+    public function acerca(PortalVistas $vistas): Response
     {
-        return Inertia::render('Portal/Acerca', $this->opcionesBase());
+        $fuentes = $vistas->estadoFuentes();
+
+        return Inertia::render('Portal/Acerca', array_merge($this->opcionesBase(), [
+            'cobertura' => $vistas->cobertura(),
+            'registros' => array_sum(array_column($fuentes, 'filas')),
+            'fuentesConDatos' => count(array_filter($fuentes, fn ($f) => $f['filas'] > 0)),
+        ]));
     }
 
     /**
      * Índice de organizaciones (las 4 fuentes). La página consume la API Fase 3.
      */
-    public function organizaciones(): Response
+    public function organizaciones(PortalVistas $vistas): Response
     {
-        return Inertia::render('Portal/Organizaciones', $this->opcionesBase());
+        return Inertia::render('Portal/Organizaciones', array_merge($this->opcionesBase(), [
+            'fuentes'   => $vistas->estadoFuentes(),
+            'cobertura' => $vistas->cobertura(),
+        ]));
     }
 
     /**
@@ -133,33 +162,52 @@ class PortalController extends Controller
      * Exportaciones e importaciones por vía de transporte (Marítimo /
      * Terrestre / Aéreo / Otros): a donde llevan los paneles de la portada.
      */
-    public function comercioPorVia(): Response
+    public function comercioPorVia(PortalVistas $vistas): Response
     {
-        return Inertia::render('Portal/ComercioPorVia', $this->opcionesBase());
+        // GEO-12: vista estilo mockup (tarjetas con foto por vía + desglose por medio).
+        $g = $vistas->gestionDefecto();
+
+        return Inertia::render('Portal/ComercioPorVia', [
+            'cobertura'      => $vistas->cobertura(),
+            'gestionesPortal' => $vistas->gestiones(),
+            'gestionInicial' => $g,
+            'detalle'        => $g ? $vistas->viasDetalle($g) : null,
+        ]);
     }
 
     /**
      * Mapa comercial (choropleth mundial + departamentos).
      */
-    public function mapaComercial(): Response
+    public function mapaComercial(PortalVistas $vistas): Response
     {
-        return Inertia::render('Portal/MapaComercial', $this->opcionesBase());
+        return Inertia::render('Portal/MapaComercial', array_merge($this->opcionesBase(), [
+            'gestiones'      => $vistas->gestiones() ?: $this->opcionesBase()['gestiones'],
+            'gestionInicial' => $vistas->gestionDefecto(),
+            'cobertura'      => $vistas->cobertura(),
+        ]));
     }
 
     /**
      * Scorecard de indicadores transversales.
      */
-    public function indicadores(): Response
+    public function indicadores(PortalVistas $vistas): Response
     {
-        return Inertia::render('Portal/Indicadores', $this->opcionesBase());
+        $g = $vistas->gestionDefecto();
+
+        return Inertia::render('Portal/Indicadores', [
+            'cobertura'      => $vistas->cobertura(),
+            'gestionesPortal' => $vistas->gestiones(),
+            'gestionInicial' => $g,
+            'datosIniciales' => $g ? $vistas->indicadores($g) : null,
+        ]);
     }
 
     /**
      * Línea de tiempo 1992-2026 con variación anual e hitos.
      */
-    public function lineaDeTiempo(): Response
+    public function lineaDeTiempo(PortalVistas $vistas): Response
     {
-        return Inertia::render('Portal/LineaDeTiempo', $this->opcionesBase());
+        return Inertia::render('Portal/LineaDeTiempo', $vistas->lineaDeTiempo());
     }
 
     /**

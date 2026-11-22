@@ -174,15 +174,12 @@ onMounted(() => {
     <Head title="Explorar datos" />
 
     <!-- Encabezado luminoso -->
-    <section class="bg-white border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4">
-                <span class="w-7 h-px bg-rojo-500"></span> Explorador
-            </p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Explora el detalle de las operaciones</h1>
-            <p class="text-institucional-500 mt-4 max-w-xl leading-relaxed text-lg">Filtra a gusto y descarga el resultado. Fuente: INE — Bolivia.</p>
-        </div>
-    </section>
+    <!-- Encabezado estilo mockup (GEO-12) -->
+    <div class="page-wrap gd-pt" style="padding-bottom:0">
+        <span class="gd-kicker">● Explorador</span>
+        <h2 class="gd-titulo">Explora el detalle de las operaciones</h2>
+        <p class="gd-sub">Filtra a gusto y descarga el resultado. Fuente: INE — Bolivia.</p>
+    </div>
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div class="flex items-center justify-end">

@@ -3,6 +3,9 @@
 namespace App\Servicios;
 
 use App\Models\CargaArchivo;
+use App\Servicios\Concerns\CargaTransaccional;
+use App\Support\Organizaciones;
+use Illuminate\Database\QueryException;
 use Generator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -27,11 +30,14 @@ use Throwable;
  */
 class CargadorFaostat
 {
+    use CargaTransaccional;
+
     private const TAM_LOTE = 1000;
-    private const ORG_ID   = 4;
 
     private int $fuenteId;
     private array $cachePais     = [];
+    /** carga_id en curso, para registrar incidencias de países sin ISO 3166. */
+    private ?int $cargaIdIso = null;
     private array $cacheElemento = [];
     private array $cacheSimbolo  = [];
     private array $cacheProducto = [];
@@ -54,7 +60,11 @@ class CargadorFaostat
             $carga->update(['estado' => 'PROCESANDO']);
 
             $this->fuenteId = $this->resolverFuente();
+            $this->cargaIdIso = (int) $carga->carga_id;
             $archivoId = $this->crearArchivoFuente($carga, $ruta);
+
+            // La carga es atómica: DELETE previo + INSERTs en una sola transacción.
+            $this->iniciarTransaccion();
 
             // Idempotencia: recargar el mismo archivo reemplaza sus filas.
             DB::table('serie_indicador_agricola')->where('archivo_id', $archivoId)->delete();
@@ -75,10 +85,14 @@ class CargadorFaostat
                     $validas++;
 
                     if (count($lote) >= self::TAM_LOTE) {
-                        DB::table('serie_indicador_agricola')->insert($lote);
+                        $mal = $this->insertarLote('serie_indicador_agricola', $lote);
+                        $validas -= $mal; $errores += $mal;
                         $lote = [];
                     }
                 } catch (Throwable $e) {
+                    if ($e instanceof QueryException) {
+                        throw $e; // transacción abortada: se revierte la carga completa
+                    }
                     $errores++;
                 }
 
@@ -88,8 +102,11 @@ class CargadorFaostat
             }
 
             if (! empty($lote)) {
-                DB::table('serie_indicador_agricola')->insert($lote);
+                $mal = $this->insertarLote('serie_indicador_agricola', $lote);
+                $validas -= $mal; $errores += $mal;
             }
+
+            $this->confirmarTransaccion();
 
             $carga->update([
                 'total_filas_leidas'  => $leidas,
@@ -111,7 +128,8 @@ class CargadorFaostat
                 \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas');
             }
         } catch (Throwable $e) {
-            $carga->update(['estado' => 'FALLIDO']);
+            $this->revertirTransaccion();
+            $carga->update(['estado' => 'FALLIDO', 'total_filas_validas' => 0]);
             $proceso->update([
                 'estado'      => 'FALLIDO',
                 'fecha_fin'   => now(),
@@ -193,7 +211,7 @@ class CargadorFaostat
         }
 
         return [
-            'organizacion_id'            => self::ORG_ID,
+            'organizacion_id'            => $this->orgId(),
             'archivo_id'                 => $archivoId,
             'pais_id'                    => $this->resolverPais($m49, $area),
             'producto_codigo_externo_id' => $this->resolverProducto($codProd, $producto),
@@ -214,12 +232,12 @@ class CargadorFaostat
     private function resolverFuente(): int
     {
         $id = DB::table('fuente_datos')
-            ->where('organizacion_id', self::ORG_ID)
+            ->where('organizacion_id', $this->orgId())
             ->where('version_nomenclatura', 'FAOSTAT-base')
             ->value('fuente_id');
 
         return $id ? (int) $id : (int) DB::table('fuente_datos')->insertGetId([
-            'organizacion_id'      => self::ORG_ID,
+            'organizacion_id'      => $this->orgId(),
             'version_nomenclatura' => 'FAOSTAT-base',
             'fecha_descarga'       => now()->toDateString(),
         ], 'fuente_id');
@@ -246,6 +264,11 @@ class CargadorFaostat
                 'codigo_pais' => $codigo,
                 'nombre'      => substr($nombre, 0, 150) ?: "País {$m49}",
             ], 'pais_id');
+        }
+
+        // ISO 3166: el trigger trg_pais_iso ya vinculó la fila por M49; si no, avisar en Calidad.
+        if ($this->cargaIdIso) {
+            app(ResolverPaisIso::class)->registrarIncidenciaSiSinIso((int) $id, $this->cargaIdIso);
         }
 
         return $this->cachePais[$clave] = (int) $id;
@@ -324,7 +347,7 @@ class CargadorFaostat
         }
 
         $id = DB::table('producto_codigo_externo')
-            ->where('organizacion_id', self::ORG_ID)
+            ->where('organizacion_id', $this->orgId())
             ->where('nomenclatura', 'CPC')
             ->where('codigo_externo', $codigo)
             ->value('producto_codigo_externo_id');
@@ -332,7 +355,7 @@ class CargadorFaostat
         if (! $id) {
             $id = DB::table('producto_codigo_externo')->insertGetId([
                 'producto_id'         => null,
-                'organizacion_id'     => self::ORG_ID,
+                'organizacion_id'     => $this->orgId(),
                 'nomenclatura'        => 'CPC',
                 'codigo_externo'      => substr($codigo, 0, 30),
                 'descripcion_externa' => $nombre !== '' ? substr($nombre, 0, 300) : null,
@@ -374,7 +397,7 @@ class CargadorFaostat
         }
 
         return (int) DB::table('archivo_fuente')->insertGetId([
-            'organizacion_id' => self::ORG_ID,
+            'organizacion_id' => $this->orgId(),
             'ruta_archivo'    => $ruta,
             'fecha_carga'     => now(),
         ], 'archivo_id');
@@ -424,5 +447,10 @@ class CargadorFaostat
     private function numNull(mixed $v): ?float
     {
         return ($v === null || $v === '') ? null : $this->num($v);
+    }
+
+    private function orgId(): int
+    {
+        return Organizaciones::id(Organizaciones::FAOSTAT);
     }
 }

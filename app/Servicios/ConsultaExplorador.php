@@ -168,7 +168,7 @@ class ConsultaExplorador
 
         $row = $this->aplicar($this->base($orgId), $f)
             ->selectRaw('COUNT(*) as total')
-            ->selectRaw('COALESCE(SUM(COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)),0) as valor')
+            ->selectRaw('COALESCE(SUM('.\App\Support\ReglaValor::total().'),0) as valor')
             ->selectRaw('COALESCE(SUM(COALESCE(o.peso_bruto_kg,0)),0) as peso')
             ->first();
 
@@ -246,8 +246,9 @@ class ConsultaExplorador
             ->leftJoin('via_comercio as vi', 'vi.via_id', '=', 'o.via_id')
             ->join('tipo_operacion as top', 'top.tipo_operacion_id', '=', 'o.tipo_operacion_id')
             ->select([
-                'o.operacion_id', 't.gestion', 't.mes', 'top.nombre as tipo_operacion',
-                'p.codigo_nandina', 'p.descripcion as producto', 'pa.nombre as pais',
+                'o.operacion_id', 't.gestion',
+                DB::raw("CASE WHEN t.mes = 0 THEN 'Anual' ELSE t.mes::text END as mes"), 'top.nombre as tipo_operacion',
+                'p.codigo_nandina_txt as codigo_nandina', 'p.descripcion as producto', 'pa.nombre as pais',
                 'dep.nombre as departamento', 'm.descripcion as medio', 'vi.descripcion as via',
                 'o.peso_bruto_kg', 'o.peso_neto_kg',
                 'o.valor_fob_usd', 'o.valor_cif_frontera_usd',
@@ -339,7 +340,8 @@ class ConsultaExplorador
             return ['top_paises' => $topPaises, 'top_productos' => $topProductos];
         }
 
-        $valor = 'COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)';
+        // INE: regla única de valor (FOB si exporta, CIF frontera si importa).
+        $valor = \App\Support\ReglaValor::total();
 
         $topPaises = $this->aplicar($this->base($orgId), $f)
             ->join('pais as pa', 'pa.pais_id', '=', 'o.pais_id')

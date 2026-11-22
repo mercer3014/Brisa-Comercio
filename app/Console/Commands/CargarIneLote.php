@@ -75,7 +75,7 @@ class CargarIneLote extends Command
             }
 
             $carga = CargaArchivo::create([
-                'organizacion_id' => 1,
+                'organizacion_id' => \App\Support\Organizaciones::id(\App\Support\Organizaciones::INE),
                 'usuario_id'      => 1,
                 'nombre_archivo'  => $nombre,
                 'tipo_flujo'      => $flujo,
@@ -97,14 +97,8 @@ class CargarIneLote extends Command
         // Refrescar vistas materializadas del portal (omitible en corridas paralelas).
         $this->newLine();
         if (! $this->option('no-refresh')) {
-            $this->line('Refrescando vistas materializadas...');
-            foreach (['mv_resumen_anual_ine', 'mv_resumen_mensual_ine'] as $mv) {
-                try {
-                    \Illuminate\Support\Facades\DB::statement("REFRESH MATERIALIZED VIEW {$mv}");
-                } catch (\Throwable $e) {
-                    $this->warn("  No se pudo refrescar {$mv}: {$e->getMessage()}");
-                }
-            }
+            $this->line('Refrescando vistas materializadas (resumen_* del INE)...');
+            \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas', ['--solo' => 'ine']);
         }
 
         $this->info("Listo. Total filas insertadas en esta corrida: ".number_format($totalFilas));

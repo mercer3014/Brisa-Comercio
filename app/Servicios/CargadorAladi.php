@@ -3,6 +3,9 @@
 namespace App\Servicios;
 
 use App\Models\CargaArchivo;
+use App\Servicios\Concerns\CargaTransaccional;
+use App\Support\Organizaciones;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -23,7 +26,8 @@ use Throwable;
  */
 class CargadorAladi
 {
-    private const ORG_ID = 2;
+    use CargaTransaccional;
+
 
     /** Miles de USD -> USD. */
     private const FACTOR_USD = 1000;
@@ -80,6 +84,9 @@ class CargadorAladi
                 : $this->resolverPaisBolivia();
             $archivoId = $this->crearArchivoFuente($carga, $ruta, $paisId);
 
+            // La carga es atómica: DELETE previo + INSERTs en una sola transacción.
+            $this->iniciarTransaccion();
+
             // Idempotencia
             DB::table('ranking_comercio')->where('archivo_id', $archivoId)->delete();
 
@@ -99,17 +106,24 @@ class CargadorAladi
                     $validas++;
 
                     if (count($lote) >= 500) {
-                        DB::table('ranking_comercio')->insert($lote);
+                        $mal = $this->insertarLote('ranking_comercio', $lote);
+                        $validas -= $mal; $errores += $mal;
                         $lote = [];
                     }
                 } catch (Throwable $e) {
+                    if ($e instanceof QueryException) {
+                        throw $e; // transacción abortada: se revierte la carga completa
+                    }
                     $errores++;
                 }
             }
 
             if (! empty($lote)) {
-                DB::table('ranking_comercio')->insert($lote);
+                $mal = $this->insertarLote('ranking_comercio', $lote);
+                $validas -= $mal; $errores += $mal;
             }
+
+            $this->confirmarTransaccion();
 
             $carga->update([
                 'total_filas_leidas'  => $leidas,
@@ -131,7 +145,8 @@ class CargadorAladi
                 \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas');
             }
         } catch (Throwable $e) {
-            $carga->update(['estado' => 'FALLIDO']);
+            $this->revertirTransaccion();
+            $carga->update(['estado' => 'FALLIDO', 'total_filas_validas' => 0]);
             $proceso->update([
                 'estado'      => 'FALLIDO',
                 'fecha_fin'   => now(),
@@ -173,7 +188,7 @@ class CargadorAladi
         $acumUsd  = $this->numNull($valAcum);
 
         return [
-            'organizacion_id'         => self::ORG_ID,
+            'organizacion_id'         => $this->orgId(),
             'archivo_id'              => $archivoId,
             'pais_reportante_id'      => $paisId,
             'flujo_id'                => $flujoId,
@@ -198,12 +213,12 @@ class CargadorAladi
     private function resolverFuente(): int
     {
         $id = DB::table('fuente_datos')
-            ->where('organizacion_id', self::ORG_ID)
+            ->where('organizacion_id', $this->orgId())
             ->where('version_nomenclatura', 'ALADI-base')
             ->value('fuente_id');
 
         return $id ? (int) $id : (int) DB::table('fuente_datos')->insertGetId([
-            'organizacion_id'      => self::ORG_ID,
+            'organizacion_id'      => $this->orgId(),
             'version_nomenclatura' => 'ALADI-base',
             'fecha_descarga'       => now()->toDateString(),
         ], 'fuente_id');
@@ -253,6 +268,9 @@ class CargadorAladi
     private function resolverPaisBolivia(): ?int
     {
         $id = DB::table('pais')
+            // Solo la Bolivia de la fuente ALADI: desde la armonización ISO 3166 las filas de
+            // Bolivia del INE/MERCOSUR/FAOSTAT también tienen iso_alpha3 = 'BOL'.
+            ->where('fuente_id', $this->resolverFuente())
             ->where(fn ($q) => $q->where('iso_alpha3', 'BOL')->orWhere('iso_alpha2', 'BO'))
             ->value('pais_id');
 
@@ -301,7 +319,7 @@ class CargadorAladi
         }
 
         return (int) DB::table('archivo_fuente')->insertGetId([
-            'organizacion_id'     => self::ORG_ID,
+            'organizacion_id'     => $this->orgId(),
             'pais_reportante_id'  => $paisId,
             'gestion'             => $carga->gestion,
             'ruta_archivo'        => $ruta,
@@ -352,5 +370,10 @@ class CargadorAladi
     private function numNull(mixed $v): ?float
     {
         return ($v === null || $v === '') ? null : $this->num($v);
+    }
+
+    private function orgId(): int
+    {
+        return Organizaciones::id(Organizaciones::ALADI);
     }
 }

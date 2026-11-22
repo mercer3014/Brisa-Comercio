@@ -97,13 +97,12 @@ const opcionesChart = computed(() => {
 <template>
     <Head title="Comparador" />
 
-    <section class="bg-white border-b border-gris-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <p class="inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rojo-600 mb-4"><span class="w-7 h-px bg-rojo-500"></span> Herramienta interactiva</p>
-            <h1 class="titular-editorial text-4xl sm:text-5xl text-institucional-900">Comparador</h1>
-            <p class="text-institucional-500 mt-4 max-w-2xl leading-relaxed text-lg">Compara países, productos o años usando datos reales del portal. Cada selector actualiza la comparación al instante.</p>
-        </div>
-    </section>
+    <!-- Encabezado estilo mockup (GEO-12) -->
+    <div class="page-wrap gd-pt" style="padding-bottom:0">
+        <span class="gd-kicker">● Herramienta interactiva</span>
+        <h2 class="gd-titulo">Comparador</h2>
+        <p class="gd-sub">Compara países, productos o años usando datos reales del portal. Cada selector actualiza la comparación al instante.</p>
+    </div>
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         <div class="tarjeta p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">

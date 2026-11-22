@@ -1,0 +1,126 @@
+/* ===========================================================================
+   PORTAL PÚBLICO — ajustes propios sobre el estilo del mockup (GEO-12)
+   1) Dentro de .gd se redefinen los tokens de Tailwind: paleta vino/navy y
+      bordes rectos (el mockup usa radius 0). Así las páginas antiguas del
+      portal (mapa, explorador, comparador...) toman el mismo look sin
+      reescribirlas. El panel admin no está dentro de .gd y no cambia.
+   2) Clases gd-* para lo que el mockup no tenía: estados "sin datos",
+      chips de cobertura por flujo, menú móvil, etc.
+   =========================================================================== */
+.gd {
+    --color-rojo-50:  #fbf1f3;
+    --color-rojo-100: #f6dde2;
+    --color-rojo-200: #ecb8c2;
+    --color-rojo-300: #df8a9a;
+    --color-rojo-400: #d65a72;
+    --color-rojo-500: #c81e3a;
+    --color-rojo-600: #5e1224;
+    --color-rojo-700: #4c0e1d;
+    --color-rojo-800: #3a0914;
+    --color-rojo-900: #2a0610;
+    --color-institucional-700: #1b2c4f;
+    --color-institucional-800: #152545;
+    --color-institucional-900: #12203d;
+    --color-institucional-950: #0b1324;
+    --radius-xs: 0;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
+    --radius-2xl: 0;
+    --radius-3xl: 0;
+    background: #f3f6f8;
+}
+
+@layer components {
+    .gd .gd-espaciador { height: 84px; }
+    .gd .page-wrap.gd-pt { padding-top: 34px; }
+    .gd .gd-nav-toggle { display: none; }
+    .gd .gd-nav-movil { display: none; }
+    @media (max-width: 1100px) {
+        .gd .gd-nav-desktop { display: none; }
+        .gd .gd-nav-toggle { display: inline-block; }
+        .gd .gd-nav-movil { display: flex; flex-direction: column; gap: 2px; padding: 8px 16px 14px; background: rgba(94, 18, 36, 0.98); }
+    }
+
+    /* Encabezado de página (kicker + título) */
+    .gd .gd-kicker { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.14em; color: var(--wine); text-transform: uppercase; }
+    .gd .gd-titulo { font-size: clamp(1.9rem, 3.4vw, 2.7rem); font-weight: 800; color: var(--navy); margin: 4px 0; line-height: 1.12; }
+    .gd .gd-sub { color: var(--muted); max-width: 72ch; font-size: 0.92rem; }
+    .gd .gd-cab { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
+
+    /* Estado sin datos */
+    .gd .gd-sindatos { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px;
+        padding: 26px 18px; background: repeating-linear-gradient(135deg, #f8fafb 0 10px, #f1f5f9 10px 20px); border: 1px dashed #cbd5e1; color: var(--muted); min-height: 140px; }
+    .gd .gd-sindatos b { color: var(--navy); font-size: 0.92rem; }
+    .gd .gd-sindatos small { font-size: 0.78rem; max-width: 46ch; }
+    .gd .gd-tag-sindatos { display: inline-block; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+        background: #fef3c7; color: #92400e; padding: 2px 8px; }
+
+    /* Cobertura por flujo */
+    .gd .gd-cobertura { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.76rem; color: var(--muted); }
+    .gd .gd-cob { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); padding: 4px 10px; font-weight: 700; color: var(--navy); }
+    .gd .gd-cob i { width: 8px; height: 8px; display: inline-block; }
+    .gd .gd-cob.exp i { background: var(--exp); }
+    .gd .gd-cob.imp i { background: var(--imp); }
+    .gd .gd-cob.vacio { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+
+    .gd .gd-nota { font-size: 0.76rem; color: var(--muted); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .gd .pos { color: #15803d; }
+    .gd .neg { color: #b91c1c; }
+    .gd .tlv-dot.pos, .gd .tlv-dot.neg { color: #fff; }
+    .gd .gd-cargando { opacity: 0.55; transition: opacity 0.2s; pointer-events: none; }
+
+    /* Tabla de datos genérica (compatible con .data-table del mockup) */
+    .gd .gd-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .gd .gd-var { display: inline-block; padding: 1px 7px; font-size: 0.74rem; font-weight: 800; }
+    .gd .gd-var.pos { background: #dcfce7; }
+    .gd .gd-var.neg { background: #fee2e2; }
+
+    .gd .prd-movers { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .gd .prd-movers li button { min-width: 0; }
+    .gd .prd-movers li b { min-width: 0; }
+    .gd .prd-table td.gd-desc { white-space: normal; min-width: 260px; }
+    .gd .prd-table td.gd-sec { white-space: normal; min-width: 150px; font-size: 0.78rem; }
+
+    /* Compatibilidad con las páginas antiguas del portal */
+    .gd .tarjeta { background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+    .gd .titular-editorial { color: var(--navy); font-weight: 800; letter-spacing: -0.01em; }
+    .gd .btn-primario { background: var(--wine); color: #fff; }
+    .gd .btn-primario:hover { background: var(--wine-dark); }
+}
+
+@layer components {
+    .gd a.rc-reserve-btn { display: block; text-align: center; }
+    .gd .retreat-card .rc-content { justify-content: flex-end; }
+}
+
+@layer components {
+    .gd .gd-acerca-banner { background: linear-gradient(135deg, var(--wine) 0%, #2a0815 48%, var(--navy) 100%); padding: clamp(28px, 4vw, 48px); color: #fff;
+        margin-bottom: 26px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; align-items: center; box-shadow: var(--shadow-lg); }
+    .gd .gd-acerca-banner h2 { font-size: clamp(2rem, 4vw, 3.1rem); font-weight: 800; line-height: 1.06; margin: 14px 0 12px; }
+    .gd .gd-acerca-banner p { font-size: 0.95rem; color: rgba(255, 255, 255, 0.86); margin-bottom: 18px; }
+    .gd .gd-acerca-pill { background: rgba(255, 255, 255, 0.15); padding: 5px 14px; font-size: 0.74rem; font-weight: 800; letter-spacing: 0.14em; }
+    .gd .gd-acerca-img { height: 260px; background-size: cover; background-position: center; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); border: 2px solid rgba(255, 255, 255, 0.22); }
+    .gd .gd-acerca-foto { height: 140px; background-size: cover; background-position: center; margin-bottom: 14px; }
+    @media (max-width: 900px) { .gd .gd-acerca-banner { grid-template-columns: 1fr; } }
+}
+
+/* Comercio por vía (GEO-12) */
+.gd .gd-kpi-mini { background: #fff; border: 1px solid #e2e8f0; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.gd .gd-kpi-mini small { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #64748b; }
+.gd .gd-kpi-mini strong { font-size: 1.35rem; font-weight: 800; color: #12203d; }
+.gd .gd-mini-nota { font-size: .72rem; color: #64748b; }
+@media (max-width: 900px) { .gd .gd-via-grid { grid-template-columns: 1fr !important; } }
+/* Organizaciones: columna "Ver →" sin cortes */
+.gd td.gd-nowrap, .gd th.gd-nowrap { white-space: nowrap; }
+/* Productos: mayores alzas/caídas sin desbordes (texto recortado con "…") */
+.gd .prd-movers { grid-template-columns: minmax(0, 1fr) !important; }
+.gd .prd-movers > div { min-width: 0; }
+.gd .prd-movers li button { min-width: 0; align-items: baseline; }
+.gd .prd-movers li b { flex: 1 1 auto; min-width: 0; display: block; }
+.gd .prd-movers li span { flex: 0 0 auto; }
+.gd .prd-movers ul { grid-template-columns: minmax(0, 1fr); }
+.gd .prd-movers li { min-width: 0; overflow: hidden; }
+.gd .prd-movers li button { overflow: hidden; }
+.gd .prd-movers li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

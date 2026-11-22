@@ -17,7 +17,7 @@ class CargaArchivo extends Model
     protected $fillable = [
         'organizacion_id', 'fuente_id', 'perfil_id', 'usuario_id',
         'nombre_archivo', 'tipo_flujo', 'gestion', 'mes',
-        'total_filas_leidas', 'total_filas_validas', 'total_filas_error',
+        'total_filas_leidas', 'total_filas_validas', 'total_filas_error', 'total_filas_omitidas',
         'estado', 'fecha_carga',
     ];
 

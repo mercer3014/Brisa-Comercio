@@ -6,6 +6,7 @@ use App\Models\CargaArchivo;
 use App\Servicios\CargadorMercosurItem;
 use App\Servicios\CargadorMercosurPais;
 use Illuminate\Console\Command;
+use App\Support\Organizaciones;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,9 +26,13 @@ class CargarMercosurLote extends Command
     protected $signature = 'geodata:cargar-mercosur
         {base=D:/MERCOSUR : Carpeta base que contiene las carpetas "MERCOSUR N"}
         {--bloque=5 : Versión del bloque a cargar (5 = 5 miembros)}
+        {--permitir-fallos : Con --fresh, confirmar igual aunque algun archivo falle}
         {--fresh : Borrar los datos previos de MERCOSUR (org 3) antes de cargar}
         {--solo= : Cargar solo "paises" o "items" (por defecto ambos)}
         {--no-refresh : No refrescar las vistas materializadas al terminar}';
+
+    /** @var string[] archivos que fallaron en esta corrida */
+    private array $fallidos = [];
 
     protected $description = 'Carga masiva de los Excel de MERCOSUR (por país y por item) hacia las series de comercio.';
 
@@ -44,13 +49,17 @@ class CargarMercosurLote extends Command
         }
 
         if ($this->option('fresh')) {
-            $this->warn('Borrando datos previos de MERCOSUR (org 3)...');
-            DB::table('serie_comercio_producto_zona')->where('organizacion_id', 3)->delete();
-            DB::table('serie_comercio_zona')->where('organizacion_id', 3)->delete();
+            // Todo el lote va en una transacción: el borrado solo se confirma si la recarga sale bien.
+            DB::beginTransaction();
+            $org = Organizaciones::id(Organizaciones::MERCOSUR);
+            $this->warn('Borrando datos previos de MERCOSUR (se confirma al final)...');
+            DB::table('serie_comercio_producto_zona')->where('organizacion_id', $org)->delete();
+            DB::table('serie_comercio_zona')->where('organizacion_id', $org)->delete();
         }
 
         $totalPais = 0;
         $totalItem = 0;
+        $this->fallidos = [];
 
         // ---- Por Países -> serie_comercio_zona -----------------------------
         if ($solo === '' || $solo === 'paises') {
@@ -70,21 +79,25 @@ class CargarMercosurLote extends Command
             }
         }
 
+        if (! $this->cerrarTransaccionFresh($this->fallidos)) {
+            return self::FAILURE;
+        }
+
         // ---- Refrescar vistas materializadas una sola vez ------------------
         $this->newLine();
         if (! $this->option('no-refresh')) {
             $this->line('Refrescando vista materializada mv_resumen_mercosur_zona...');
-            try {
-                DB::statement('REFRESH MATERIALIZED VIEW mv_resumen_mercosur_zona');
-            } catch (\Throwable $e) {
-                $this->warn('  No se pudo refrescar la vista: ' . $e->getMessage());
-            }
+            \Illuminate\Support\Facades\Artisan::call('geodata:refrescar-vistas', ['--solo' => 'mercosur']);
         }
 
         $this->line('Precalentando cache...');
         \Illuminate\Support\Facades\Artisan::call('geodata:calentar-cache');
 
         $this->info('Listo. Países: ' . number_format($totalPais) . ' filas · Items: ' . number_format($totalItem) . ' filas.');
+        if (! empty($this->fallidos)) {
+            $this->error(count($this->fallidos) . ' archivo(s) fallaron: ' . implode(', ', $this->fallidos));
+            return self::FAILURE;
+        }
         return self::SUCCESS;
     }
 
@@ -106,7 +119,7 @@ class CargarMercosurLote extends Command
     {
         $nombre = basename($ruta);
         $carga = CargaArchivo::create([
-            'organizacion_id' => 3,
+            'organizacion_id' => Organizaciones::id(Organizaciones::MERCOSUR),
             'usuario_id'      => 1,
             'nombre_archivo'  => $nombre,
             'tipo_flujo'      => $flujo,
@@ -121,7 +134,35 @@ class CargarMercosurLote extends Command
 
         $ok = $carga->estado === 'COMPLETADO';
         $this->line(($ok ? '<info>OK</info>' : '<error>FALLÓ</error>') . " {$carga->total_filas_validas} filas ({$seg}s)");
+        if (! $ok) {
+            $this->fallidos[] = $nombre;
+        }
 
         return (int) $carga->total_filas_validas;
+    }
+
+    /**
+     * Con --fresh todo el lote corre en UNA transacción: si algún archivo falla
+     * se revierte el borrado previo y los datos anteriores quedan intactos
+     * (salvo --permitir-fallos). Devuelve false si se revirtió.
+     */
+    private function cerrarTransaccionFresh(array $fallidos): bool
+    {
+        if (! $this->option('fresh') || DB::transactionLevel() === 0) {
+            return true;
+        }
+        if (! empty($fallidos) && ! $this->option('permitir-fallos')) {
+            DB::rollBack(0);
+            $this->error(count($fallidos).' archivo(s) fallaron; se revirtió todo el lote --fresh. Los datos anteriores quedan intactos:');
+            foreach ($fallidos as $f) {
+                $this->line("  - {$f}");
+            }
+            $this->line('Use --permitir-fallos para confirmar igualmente los archivos que sí cargaron.');
+
+            return false;
+        }
+        DB::commit();
+
+        return true;
     }
 }

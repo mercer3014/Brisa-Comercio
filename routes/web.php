@@ -9,7 +9,9 @@ use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExploradorController;
 use App\Http\Controllers\ExploradorPublicoController;
+use App\Http\Controllers\GestionDatosController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalDatosController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\OrganizacionController;
@@ -31,6 +33,14 @@ use Inertia\Inertia;
 Route::middleware('throttle:120,1')->group(function () {
     Route::get('/', [PortalController::class, 'inicio'])->name('portal.inicio');
     Route::get('/portal/datos', [PortalController::class, 'datos'])->name('portal.datos');
+    // Portal rediseñado (GEO-12): páginas y JSON con datos reales
+    Route::get('/productos', [PortalController::class, 'productos'])->name('portal.productos');
+    Route::get('/portal/v2/panorama', [PortalDatosController::class, 'panorama'])->name('portal.v2.panorama');
+    Route::get('/portal/v2/vias', [PortalDatosController::class, 'vias'])->name('portal.v2.vias');
+    Route::get('/portal/v2/productos', [PortalDatosController::class, 'productos'])->name('portal.v2.productos');
+    Route::get('/portal/v2/productos/{id}', [PortalDatosController::class, 'ficha'])->whereNumber('id')->name('portal.v2.ficha');
+    Route::get('/portal/v2/rankings', [PortalDatosController::class, 'rankings'])->name('portal.v2.rankings');
+    Route::get('/portal/v2/indicadores', [PortalDatosController::class, 'indicadores'])->name('portal.v2.indicadores');
     Route::get('/explorar', [ExploradorPublicoController::class, 'index'])->name('portal.explorar');
     Route::post('/explorar/consultar', [ExploradorPublicoController::class, 'consultar'])->name('portal.explorar.consultar');
     Route::get('/rankings', [PortalController::class, 'rankings'])->name('portal.rankings');
@@ -156,6 +166,25 @@ Route::middleware('auth')->group(function () {
             ->middleware('permiso:carga.crear')->name('cargas.previsualizar');
         Route::post('/cargas', [CargaController::class, 'store'])
             ->middleware('permiso:carga.crear')->name('cargas.store');
+        // Plantillas Excel por entidad/flujo (columnas exactas de cada cargador).
+        Route::get('/cargas/plantilla/{entidad}/{flujo}', [CargaController::class, 'plantilla'])
+            ->middleware('permiso:carga.ver')->name('cargas.plantilla');
+        Route::get('/cargas/resumen/exportar', [CargaController::class, 'exportarResumen'])
+            ->middleware(['permiso:carga.ver', 'throttle:10,1'])->name('cargas.resumen.exportar');
+        Route::post('/cargas/{carga}/reintentar', [CargaController::class, 'reintentar'])
+            ->whereNumber('carga')->middleware('permiso:carga.procesar')->name('cargas.reintentar');
+        Route::delete('/cargas/{carga}', [CargaController::class, 'destroy'])
+            ->whereNumber('carga')->middleware('permiso:carga.procesar')->name('cargas.destroy');
+
+        // Gestión de datos (diseño nuevo): explorador de gráficos y configuración.
+        Route::get('/gestion/graficos', [GestionDatosController::class, 'graficos'])
+            ->middleware('permiso:explorador.ver')->name('gestion.graficos');
+        Route::post('/gestion/graficos/consultar', [GestionDatosController::class, 'consultarGraficos'])
+            ->middleware('permiso:explorador.ver')->name('gestion.graficos.consultar');
+        Route::get('/gestion/configuracion', [GestionDatosController::class, 'configuracion'])
+            ->middleware('permiso:configuracion.ver')->name('gestion.configuracion');
+        Route::post('/gestion/refrescar-vistas', [GestionDatosController::class, 'refrescarVistas'])
+            ->middleware('permiso:configuracion.editar')->name('gestion.refrescar');
 
         /*
         |------------------------------------------------------------------

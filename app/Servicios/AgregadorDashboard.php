@@ -29,8 +29,16 @@ class AgregadorDashboard
     }
 
     // Expresiones reutilizables
-    private string $valorExpo = 'COALESCE(o.valor_fob_usd,0)';
-    private string $valorImpo = 'COALESCE(o.valor_cif_frontera_usd,0)';
+    /** Regla única de valor (App\Support\ReglaValor): FOB si exporta, CIF frontera si importa. */
+    private function valorExpo(): string
+    {
+        return \App\Support\ReglaValor::expo();
+    }
+
+    private function valorImpo(): string
+    {
+        return \App\Support\ReglaValor::impo();
+    }
 
     /**
      * KPIs principales. Incluye variación interanual si se pasa gestión.
@@ -38,8 +46,8 @@ class AgregadorDashboard
     public function kpis(int $orgId, ?int $gestion = null): array
     {
         $row = $this->base($orgId, $gestion)
-            ->selectRaw("SUM({$this->valorExpo}) as expo")
-            ->selectRaw("SUM({$this->valorImpo}) as impo")
+            ->selectRaw("SUM({$this->valorExpo()}) as expo")
+            ->selectRaw("SUM({$this->valorImpo()}) as impo")
             ->selectRaw('SUM(COALESCE(o.peso_bruto_kg,0)) as peso_bruto')
             ->selectRaw('SUM(COALESCE(o.peso_neto_kg,0)) as peso_neto')
             ->selectRaw('COUNT(*) as registros')
@@ -54,7 +62,7 @@ class AgregadorDashboard
         $variacion = null;
         if ($gestion) {
             $ant = $this->base($orgId, $gestion - 1)
-                ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as v")->value('v');
+                ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as v")->value('v');
             $ant = (float) $ant;
             if ($ant > 0) {
                 $variacion = round((($valorTotal - $ant) / $ant) * 100, 1);
@@ -81,13 +89,13 @@ class AgregadorDashboard
     {
         return $this->base($orgId, $gestion)
             ->selectRaw('t.gestion, t.mes')
-            ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as valor")
             ->selectRaw('SUM(COALESCE(o.peso_bruto_kg,0)) as peso')
             ->groupBy('t.gestion', 't.mes')
             ->orderBy('t.gestion')->orderBy('t.mes')
             ->get()
             ->map(fn ($r) => [
-                'periodo' => $r->gestion.'-'.str_pad($r->mes, 2, '0', STR_PAD_LEFT),
+                'periodo' => (int) $r->mes === 0 ? $r->gestion.' (anual)' : $r->gestion.'-'.str_pad($r->mes, 2, '0', STR_PAD_LEFT),
                 'valor'   => (float) $r->valor,
                 'peso'    => (float) $r->peso,
             ])->all();
@@ -105,8 +113,8 @@ class AgregadorDashboard
             "ine.evo.anual.{$orgId}.".ClavesCache::version(), ClavesCache::TTL,
             fn () => $this->base($orgId)
                 ->selectRaw('t.gestion')
-                ->selectRaw("SUM({$this->valorExpo}) as expo")
-                ->selectRaw("SUM({$this->valorImpo}) as impo")
+                ->selectRaw("SUM({$this->valorExpo()}) as expo")
+                ->selectRaw("SUM({$this->valorImpo()}) as impo")
                 ->groupBy('t.gestion')->orderBy('t.gestion')
                 ->get()
                 ->map(fn ($r) => [
@@ -126,7 +134,7 @@ class AgregadorDashboard
         return $this->base($orgId, $gestion)
             ->join('pais as pa', 'pa.pais_id', '=', 'o.pais_id')
             ->selectRaw('pa.nombre as label')
-            ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as valor")
             ->groupBy('pa.nombre')->orderByDesc('valor')->limit($n)
             ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
     }
@@ -138,9 +146,9 @@ class AgregadorDashboard
     {
         return $this->base($orgId, $gestion)
             ->join('producto as p', 'p.producto_id', '=', 'o.producto_id')
-            ->selectRaw('p.codigo_nandina, p.descripcion as label')
-            ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as valor")
-            ->groupBy('p.codigo_nandina', 'p.descripcion')->orderByDesc('valor')->limit($n)
+            ->selectRaw('p.codigo_nandina_txt as codigo_nandina, p.descripcion as label')
+            ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as valor")
+            ->groupBy('p.codigo_nandina_txt', 'p.descripcion')->orderByDesc('valor')->limit($n)
             ->get()->map(fn ($r) => [
                 'label' => mb_strimwidth($r->label, 0, 40, '...'),
                 'nandina' => $r->codigo_nandina,
@@ -157,7 +165,7 @@ class AgregadorDashboard
             ->join('pais as pa', 'pa.pais_id', '=', 'o.pais_id')
             ->join('zona_geoeconomica as z', 'z.zona_id', '=', 'pa.zona_id')
             ->selectRaw('z.descripcion as label')
-            ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as valor")
             ->groupBy('z.descripcion')->orderByDesc('valor')
             ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
     }
@@ -170,7 +178,7 @@ class AgregadorDashboard
         return $this->base($orgId, $gestion)
             ->join('departamento as d', 'd.departamento_id', '=', 'o.departamento_id')
             ->selectRaw('d.nombre as label')
-            ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as valor")
             ->groupBy('d.nombre')->orderByDesc('valor')
             ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor])->all();
     }
@@ -199,7 +207,7 @@ class AgregadorDashboard
             ->join('medio_transporte as m', 'm.medio_id', '=', 'o.medio_id')
             ->selectRaw('m.descripcion as label')
             ->selectRaw('SUM(COALESCE(o.peso_bruto_kg,0)) as peso')
-            ->selectRaw("SUM({$this->valorExpo} + {$this->valorImpo}) as valor")
+            ->selectRaw("SUM({$this->valorExpo()} + {$this->valorImpo()}) as valor")
             ->groupBy('m.descripcion')->orderByDesc('valor')
             ->get()->map(fn ($r) => ['label' => $r->label, 'valor' => (float) $r->valor, 'peso' => (float) $r->peso])->all();
     }

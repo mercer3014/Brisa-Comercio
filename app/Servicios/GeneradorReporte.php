@@ -26,7 +26,11 @@ class GeneradorReporte
         ];
     }
 
-    private string $valor = 'COALESCE(o.valor_fob_usd,0) + COALESCE(o.valor_cif_frontera_usd,0)';
+    /** Regla única de valor (App\Support\ReglaValor): FOB si exporta, CIF frontera si importa. */
+    private function valor(): string
+    {
+        return \App\Support\ReglaValor::total();
+    }
 
     private function base(array $p): Builder
     {
@@ -40,11 +44,12 @@ class GeneradorReporte
         if (! empty($p['gestion_hasta'])) {
             $q->where('t.gestion', '<=', $p['gestion_hasta']);
         }
-        // Flujo: EXPORTACION usa fob, IMPORTACION usa cif. Se filtra por el valor presente.
+        // Flujo: se filtra por flujo_id (antes por "valor no nulo", pero las
+        // importaciones del INE también traen FOB y se colaban en EXPORTACION).
         if (($p['flujo'] ?? '') === 'EXPORTACION') {
-            $q->whereNotNull('o.valor_fob_usd');
+            $q->whereIn('o.flujo_id', \App\Support\ReglaValor::flujos()['expo']);
         } elseif (($p['flujo'] ?? '') === 'IMPORTACION') {
-            $q->whereNotNull('o.valor_cif_frontera_usd');
+            $q->whereIn('o.flujo_id', \App\Support\ReglaValor::flujos()['impo']);
         }
 
         return $q;
@@ -84,7 +89,7 @@ class GeneradorReporte
             ->join('capitulo_arancelario as c', 'c.capitulo_id', '=', 'pr.capitulo_id')
             ->join('seccion_arancelaria as s', 's.seccion_id', '=', 'c.seccion_id')
             ->selectRaw('s.codigo_seccion as codigo, s.descripcion as nombre, COUNT(*) as registros')
-            ->selectRaw("SUM({$this->valor}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
+            ->selectRaw("SUM({$this->valor()}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
             ->groupBy('s.codigo_seccion', 's.descripcion')->orderByDesc('valor')
             ->get()->map(fn ($r) => [$r->codigo, $r->nombre, (int) $r->registros, round($r->valor, 2), round($r->peso, 2)])->all();
     }
@@ -95,7 +100,7 @@ class GeneradorReporte
             ->join('producto as pr', 'pr.producto_id', '=', 'o.producto_id')
             ->join('capitulo_arancelario as c', 'c.capitulo_id', '=', 'pr.capitulo_id')
             ->selectRaw('c.codigo_capitulo as codigo, c.descripcion as nombre, COUNT(*) as registros')
-            ->selectRaw("SUM({$this->valor}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
+            ->selectRaw("SUM({$this->valor()}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
             ->groupBy('c.codigo_capitulo', 'c.descripcion')->orderByDesc('valor')
             ->get()->map(fn ($r) => [$r->codigo, $r->nombre, (int) $r->registros, round($r->valor, 2), round($r->peso, 2)])->all();
     }
@@ -105,7 +110,7 @@ class GeneradorReporte
         return $this->base($p)
             ->join('pais as pa', 'pa.pais_id', '=', 'o.pais_id')
             ->selectRaw('pa.nombre as nombre, COUNT(*) as registros')
-            ->selectRaw("SUM({$this->valor}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
+            ->selectRaw("SUM({$this->valor()}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
             ->groupBy('pa.nombre')->orderByDesc('valor')
             ->get()->map(fn ($r) => [$r->nombre, (int) $r->registros, round($r->valor, 2), round($r->peso, 2)])->all();
     }
@@ -115,7 +120,7 @@ class GeneradorReporte
         return $this->base($p)
             ->join('departamento as d', 'd.departamento_id', '=', 'o.departamento_id')
             ->selectRaw('d.nombre as nombre, COUNT(*) as registros')
-            ->selectRaw("SUM({$this->valor}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
+            ->selectRaw("SUM({$this->valor()}) as valor, SUM(COALESCE(o.peso_bruto_kg,0)) as peso")
             ->groupBy('d.nombre')->orderByDesc('valor')
             ->get()->map(fn ($r) => [$r->nombre, (int) $r->registros, round($r->valor, 2), round($r->peso, 2)])->all();
     }
@@ -124,10 +129,10 @@ class GeneradorReporte
     {
         return $this->base($p)
             ->selectRaw("t.gestion, t.mes")
-            ->selectRaw('SUM(COALESCE(o.valor_fob_usd,0)) as expo, SUM(COALESCE(o.valor_cif_frontera_usd,0)) as impo')
+            ->selectRaw('SUM('.\App\Support\ReglaValor::expo().') as expo, SUM('.\App\Support\ReglaValor::impo().') as impo')
             ->groupBy('t.gestion', 't.mes')->orderBy('t.gestion')->orderBy('t.mes')
             ->get()->map(fn ($r) => [
-                $r->gestion.'-'.str_pad($r->mes, 2, '0', STR_PAD_LEFT),
+                (int) $r->mes === 0 ? $r->gestion.' (anual)' : $r->gestion.'-'.str_pad($r->mes, 2, '0', STR_PAD_LEFT),
                 round($r->expo, 2), round($r->impo, 2), round($r->expo - $r->impo, 2),
             ])->all();
     }

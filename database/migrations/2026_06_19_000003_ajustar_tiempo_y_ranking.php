@@ -24,7 +24,11 @@ return new class extends Migration
         DB::statement('ALTER TABLE tiempo DROP CONSTRAINT IF EXISTS tiempo_semestre_check');
         DB::statement('ALTER TABLE tiempo ADD CONSTRAINT tiempo_semestre_check CHECK (semestre >= 0 AND semestre <= 2)');
 
-        // 2. ranking_comercio: hacer nullable las columnas opcionales
+        // 2. ranking_comercio: hacer nullable las columnas opcionales.
+        //    Guarda: la tabla la crea la baseline (2026_06_05_000005); si no existe, no falla.
+        if (! \Illuminate\Support\Facades\Schema::hasTable('ranking_comercio')) {
+            return;
+        }
         DB::statement('ALTER TABLE ranking_comercio ALTER COLUMN flujo_id DROP NOT NULL');
         DB::statement('ALTER TABLE ranking_comercio ALTER COLUMN fila_excel DROP NOT NULL');
         DB::statement('ALTER TABLE ranking_comercio ALTER COLUMN ordinal DROP NOT NULL');
@@ -38,6 +42,9 @@ return new class extends Migration
         DB::statement('ALTER TABLE tiempo DROP CONSTRAINT IF EXISTS tiempo_semestre_check');
         DB::statement('ALTER TABLE tiempo ADD CONSTRAINT tiempo_semestre_check CHECK (semestre >= 1 AND semestre <= 2)');
 
+        if (! \Illuminate\Support\Facades\Schema::hasTable('ranking_comercio')) {
+            return;
+        }
         DB::statement('ALTER TABLE ranking_comercio ALTER COLUMN flujo_id SET NOT NULL');
         DB::statement('ALTER TABLE ranking_comercio ALTER COLUMN fila_excel SET NOT NULL');
         DB::statement('ALTER TABLE ranking_comercio ALTER COLUMN ordinal SET NOT NULL');

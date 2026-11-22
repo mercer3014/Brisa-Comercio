@@ -1,3 +1,7 @@
+-- NOTA (2026-11-21): este archivo queda SOLO como referencia historica. La fuente de verdad del
+-- esquema son las migraciones de Laravel (php artisan migrate). Los objetos que antes solo estaban
+-- aqui los crea database/migrations/2026_06_05_000005_baseline_objetos_basedatos.php. Ver CAMBIOS_BD.md.
+
 
 -- ============================================================================
 --  GEODATA — BASE DE DATOS COMPLETA (FASE 0)
