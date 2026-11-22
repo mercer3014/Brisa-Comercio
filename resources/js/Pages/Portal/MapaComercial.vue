@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ChartCard from '../../Components/UI/ChartCard.vue';
 import EstadoVacio from '../../Components/UI/EstadoVacio.vue';
+import GdExplicacion from '../../Components/Gd/GdExplicacion.vue';
 import { useChartData } from '../../Components/Composables/useChartData.js';
 import { fmtCompacto, fmtUsd } from '../../lib/format';
 import { CENTROIDES } from '../../lib/centroides.js';
@@ -206,6 +207,7 @@ onBeforeUnmount(() => {
         <span class="gd-kicker">● Geografía del comercio</span>
         <h2 class="gd-titulo">Mapa Comercial</h2>
         <p class="gd-sub">Flujos comerciales reales de Bolivia por país y una vista rápida del peso exportador por departamento.</p>
+        <GdExplicacion clave="mapa.flujos" plegado style="margin-top:14px;margin-bottom:0" />
     </div>
 
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">

@@ -1,0 +1,55 @@
+{
+  "slug": "la-balanza-de-los-90",
+  "titulo": "Los 90: comprar y vender",
+  "resumen": "La única década con exportaciones e importaciones cargadas: año por año, ¿Bolivia vendió más o compró más?",
+  "orden": 3,
+  "pasos": [
+    {
+      "titulo": "Dos barras por año",
+      "texto": {
+        "colegio": "Verde es lo que Bolivia vendió y azul lo que compró. En 1992 vendió {exp:1992} y compró {imp:1992}.",
+        "universidad": "1992: X = {exp:1992}, M = {imp:1992}, saldo {saldo:1992}, tasa de cobertura {tc:1992}."
+      },
+      "grafico": {
+        "tipo": "serie_flujos",
+        "desde": 1992,
+        "hasta": 1999,
+        "resaltar": [
+          1992
+        ]
+      }
+    },
+    {
+      "titulo": "El saldo",
+      "texto": {
+        "colegio": "En {n_deficit:1992:1999} de los {n_saldo:1992:1999} años de esta década Bolivia compró más de lo que vendió (déficit). En 1999 el saldo fue {saldo:1999}.",
+        "universidad": "Gestiones con déficit entre 1992 y 1999: {n_deficit:1992:1999} de {n_saldo:1992:1999}. Saldo 1999: {saldo:1999}; tasa de cobertura {tc:1999}."
+      },
+      "grafico": {
+        "tipo": "serie_flujos",
+        "desde": 1992,
+        "hasta": 1999,
+        "resaltar": [
+          1999
+        ]
+      },
+      "enlace": {
+        "texto": "Saldo en la línea de tiempo",
+        "ruta": "/linea-de-tiempo"
+      }
+    },
+    {
+      "titulo": "¿Y después del 2000?",
+      "texto": {
+        "colegio": "Las importaciones desde el año 2000 todavía no están cargadas en Geodata. Cuando se carguen, esta historia podrá seguir sola.",
+        "universidad": "Cobertura actual de importaciones: {cob_imp}. El relato se extenderá automáticamente al cargar 2000–2026, porque todo se calcula desde la base."
+      },
+      "grafico": {
+        "tipo": "serie_flujos",
+        "desde": 1998,
+        "hasta": 2003,
+        "resaltar": []
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { ref, computed, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
 import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import GdExplicacion from '@/Components/Gd/GdExplicacion.vue';
 import { fmtM, fmtPct, fmtNum, fmtUsd, etiquetaGestion, getJson } from '@/lib/gd';
 
 const props = defineProps({
@@ -18,7 +19,9 @@ const props = defineProps({
     datosIniciales: { type: Object, default: null },
 });
 
-const gestion = ref(props.gestionInicial);
+// ?gestion=1999 en la URL (enlaces de retos y actividades docentes) fija la gestión inicial.
+const qsGestion = Number(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('gestion'));
+const gestion = ref(props.gestionesPortal.includes(qsGestion) ? qsGestion : props.gestionInicial);
 const datos = ref(props.datosIniciales);
 const cargando = ref(false);
 watch(gestion, async (g) => {
@@ -28,7 +31,7 @@ watch(gestion, async (g) => {
     } finally {
         cargando.value = false;
     }
-});
+}, { immediate: gestion.value !== props.gestionInicial });
 const etq = (g) => etiquetaGestion(g, props.cobertura);
 
 const FORMULAS = [
@@ -67,6 +70,8 @@ const maxExp = computed(() => Math.max(1, ...serieExp.value.map((s) => Math.max(
                 <Link class="tool-btn active" style="background:var(--navy)" href="/explorar">Explorador de datos →</Link>
             </div>
         </div>
+
+        <GdExplicacion clave="indicadores.resumen" plegado />
 
         <div :class="{ 'gd-cargando': cargando }">
             <div class="ov-cards-4" style="margin-bottom:22px">

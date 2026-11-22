@@ -8,6 +8,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
 import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import GdExplicacion from '@/Components/Gd/GdExplicacion.vue';
 import { fmtM, fmtPct, fmtNum, etiquetaGestion, getJson, descargarCsv } from '@/lib/gd';
 
 const props = defineProps({
@@ -24,9 +25,20 @@ const DIMENSIONES = [
     { v: 'seccion', t: 'Secciones del SA' },
 ];
 
-const flujo = ref('exp');
-const dimension = ref('producto');
-const anios = ref([props.gestionInicial - 1, props.gestionInicial].filter(Boolean));
+// Filtros iniciales desde la URL (enlaces de retos, lecciones y actividades docentes):
+// ?flujo=exp|imp&dimension=pais|producto|departamento|seccion&gestion=2010 o &anios=2010,2015
+const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+const flujo = ref(qs.get('flujo') === 'imp' ? 'imp' : 'exp');
+const dimension = ref(DIMENSIONES.some((d) => d.v === qs.get('dimension')) ? qs.get('dimension') : 'producto');
+function aniosIniciales() {
+    const disp = props.cobertura?.[flujo.value]?.anios ?? [];
+    const pedidos = (qs.get('anios') ?? '').split(',').map(Number).filter((a) => disp.includes(a)).slice(0, 6);
+    if (pedidos.length) return [...new Set(pedidos)].sort();
+    const g = Number(qs.get('gestion'));
+    if (g && disp.includes(g)) return [g - 1, g].filter((a) => disp.includes(a));
+    return [props.gestionInicial - 1, props.gestionInicial].filter(Boolean);
+}
+const anios = ref(aniosIniciales());
 const nuevoAnio = ref('');
 const buscar = ref('');
 const datos = ref(null);
@@ -125,6 +137,8 @@ function descargar() {
                 <button class="tool-btn" :disabled="!filas.length" @click="descargar">Descargar vista (Excel)</button>
             </div>
         </div>
+
+        <GdExplicacion clave="rankings.tabla" plegado />
 
         <div class="overview-panel" style="padding:16px 20px;margin-bottom:20px">
             <div class="rk-years">

@@ -1,0 +1,17 @@
+{
+  "slug": "bolivia-en-mercosur",
+  "titulo": "Bolivia en el MERCOSUR",
+  "resumen": "El comercio con el bloque regional según las series de MERCOSUR.",
+  "orden": 4,
+  "requiere": "mercosur",
+  "pasos": [
+    {
+      "titulo": "Próximamente",
+      "texto": {
+        "colegio": "Esta historia necesita los datos de MERCOSUR, que todavía no están cargados en Geodata.",
+        "universidad": "Depende de serie_comercio_zona (MERCOSUR), hoy sin filas en la base. Se habilitará cuando se carguen."
+      },
+      "grafico": {"tipo": "mercosur"}
+    }
+  ]
+}

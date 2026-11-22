@@ -68,6 +68,11 @@ class RolPermisoSeeder extends Seeder
             'paises' => [
                 ['pais.editar', 'Configurar URL de Power BI por pais'],
             ],
+            // Panel Educación (modo docente). El rol "docente" lo crea EducacionSeeder.
+            'educacion' => [
+                ['actividad.ver', 'Ver actividades docentes y las respuestas de los alumnos'],
+                ['actividad.crear', 'Crear, abrir y cerrar actividades docentes'],
+            ],
         ];
     }
 

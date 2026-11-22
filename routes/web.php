@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\ActividadController;
+use App\Http\Controllers\ActividadDocenteController;
 use App\Http\Controllers\Auth\AutenticacionController;
 use App\Http\Controllers\BitacoraController;
 use App\Http\Controllers\CalidadController;
@@ -7,6 +9,7 @@ use App\Http\Controllers\CargaController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EducacionController;
 use App\Http\Controllers\ExploradorController;
 use App\Http\Controllers\ExploradorPublicoController;
 use App\Http\Controllers\GestionDatosController;
@@ -55,6 +58,38 @@ Route::middleware('throttle:120,1')->group(function () {
     Route::get('/indicadores', [PortalController::class, 'indicadores'])->name('portal.indicadores');
     Route::get('/linea-de-tiempo', [PortalController::class, 'lineaDeTiempo'])->name('portal.linea-de-tiempo');
     Route::get('/acerca', [PortalController::class, 'acerca'])->name('portal.acerca');
+});
+
+/*
+|--------------------------------------------------------------------------
+| PANEL EDUCACIÓN (público, sin login) — track de educación
+|--------------------------------------------------------------------------
+| Lecciones, retos, glosario, historias y la cara del alumno del modo docente.
+| Contenido estático + cifras en vivo de brisa. Sin asistente de IA.
+*/
+Route::middleware('throttle:120,1')->group(function () {
+    Route::get('/aprende', [EducacionController::class, 'indice'])->name('edu.indice');
+    Route::get('/aprende/glosario', [EducacionController::class, 'glosario'])->name('edu.glosario');
+    Route::get('/aprende/retos', [EducacionController::class, 'retos'])->name('edu.retos');
+    Route::get('/aprende/retos/{slug}', [EducacionController::class, 'reto'])->where('slug', '[a-z0-9\-]+')->name('edu.reto');
+    Route::get('/aprende/retos/{slug}/abrir', [EducacionController::class, 'abrirReto'])->where('slug', '[a-z0-9\-]+')->name('edu.reto.abrir');
+    Route::get('/aprende/{slug}', [EducacionController::class, 'leccion'])->where('slug', '[a-z0-9\-]+')->name('edu.leccion');
+    Route::get('/historias', [EducacionController::class, 'historias'])->name('edu.historias');
+    Route::get('/historias/{slug}', [EducacionController::class, 'historia'])->where('slug', '[a-z0-9\-]+')->name('edu.historia');
+    Route::get('/actividad', [ActividadController::class, 'buscar'])->name('edu.actividad.buscar');
+    Route::get('/actividad/{codigo}', [ActividadController::class, 'ver'])->where('codigo', '[A-Za-z0-9]{4,10}')->name('edu.actividad');
+    Route::get('/portal/v2/aprende', [EducacionController::class, 'api'])->name('portal.v2.aprende');
+    Route::get('/portal/v2/aprende/glosario', [EducacionController::class, 'glosarioJson'])->name('portal.v2.aprende.glosario');
+    Route::get('/portal/v2/aprende/grafico/{id}', [EducacionController::class, 'grafico'])->where('id', '[a-z_]+')->name('portal.v2.aprende.grafico');
+});
+// Respuestas y progreso: límite propio (prefijo "edu-respuestas", no comparte contador con la
+// navegación) para que no se puedan "fuerza-brutear" los retos. 60/min por IP: un curso entero
+// suele salir a internet con la misma IP del colegio.
+Route::middleware('throttle:60,1,edu-respuestas')->group(function () {
+    Route::post('/aprende/participante', [EducacionController::class, 'participante'])->name('edu.participante');
+    Route::post('/aprende/retos/{slug}/responder', [EducacionController::class, 'responder'])->where('slug', '[a-z0-9\-]+')->name('edu.reto.responder');
+    Route::post('/aprende/{slug}/completar', [EducacionController::class, 'completarLeccion'])->where('slug', '[a-z0-9\-]+')->name('edu.leccion.completar');
+    Route::post('/actividad/{codigo}/responder', [ActividadController::class, 'responder'])->where('codigo', '[A-Za-z0-9]{4,10}')->name('edu.actividad.responder');
 });
 
 // Exportaciones (Excel): generan archivos, más costosas que una consulta normal —
@@ -247,6 +282,24 @@ Route::middleware('auth')->group(function () {
             ->middleware('permiso:catalogo.ver')->name('catalogos.index');
         Route::put('/catalogos/{catalogo}/{id}', [CatalogoController::class, 'update'])
             ->middleware('permiso:catalogo.editar')->name('catalogos.update');
+
+        /*
+        |------------------------------------------------------------------
+        | Educación: modo docente (actividades con código para los alumnos)
+        |------------------------------------------------------------------
+        */
+        Route::get('/actividades', [ActividadDocenteController::class, 'index'])
+            ->middleware('permiso:actividad.ver')->name('actividades.index');
+        Route::get('/actividades/nueva', [ActividadDocenteController::class, 'nueva'])
+            ->middleware('permiso:actividad.crear')->name('actividades.nueva');
+        Route::post('/actividades', [ActividadDocenteController::class, 'guardar'])
+            ->middleware('permiso:actividad.crear')->name('actividades.guardar');
+        Route::get('/actividades/{id}', [ActividadDocenteController::class, 'ver'])
+            ->whereNumber('id')->middleware('permiso:actividad.ver')->name('actividades.ver');
+        Route::get('/actividades/{id}/respuestas', [ActividadDocenteController::class, 'respuestas'])
+            ->whereNumber('id')->middleware('permiso:actividad.ver')->name('actividades.respuestas');
+        Route::patch('/actividades/{id}/estado', [ActividadDocenteController::class, 'alternar'])
+            ->whereNumber('id')->middleware('permiso:actividad.crear')->name('actividades.estado');
 
         Route::get('/paises/{pais_id}', [PaisDashboardController::class, 'show'])
             ->name('paises.dashboard');

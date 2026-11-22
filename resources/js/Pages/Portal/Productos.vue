@@ -8,6 +8,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
 import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import GdExplicacion from '@/Components/Gd/GdExplicacion.vue';
 import { fmtM, fmtPct, fmtNum, fmtUsd, etiquetaGestion, getJson, SECCIONES_SA, colorSeccion, bandera, descargarCsv } from '@/lib/gd';
 import { squarify } from '@/lib/treemap';
 
@@ -144,6 +145,8 @@ function descargar() {
             </div>
             <span class="year-tag">Fuente: INE Bolivia · {{ datos?.total?.periodo ?? gestion }}</span>
         </div>
+
+        <GdExplicacion clave="productos.treemap" plegado />
 
         <div class="overview-panel prd-controls">
             <label class="prd-f"><span>Fuente</span>

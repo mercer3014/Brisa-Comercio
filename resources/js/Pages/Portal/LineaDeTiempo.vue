@@ -7,6 +7,7 @@
 import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import GdExplicacion from '@/Components/Gd/GdExplicacion.vue';
 import { fmtM, fmtPct, fmtNum } from '@/lib/gd';
 
 const props = defineProps({
@@ -16,7 +17,9 @@ const props = defineProps({
 
 const modo = ref('flujos'); // 'flujos' | 'saldo'
 const orden = ref('asc');
-const sel = ref(props.serie.at(-1)?.gestion ?? null);
+// ?gestion=2015 en la URL (enlaces de retos e historias) selecciona ese año.
+const qsGestion = Number(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('gestion'));
+const sel = ref(props.serie.some((s) => s.gestion === qsGestion) ? qsGestion : (props.serie.at(-1)?.gestion ?? null));
 const actual = computed(() => props.serie.find((s) => s.gestion === sel.value));
 const parcial = (s) => s.meses_exp > 0 && s.meses_exp < 12;
 
@@ -46,6 +49,8 @@ const bloques = computed(() => {
             </div>
             <GdCobertura :cobertura="cobertura" />
         </div>
+
+        <GdExplicacion clave="linea.serie" plegado />
 
         <div class="overview-panel">
             <div class="bento-h">

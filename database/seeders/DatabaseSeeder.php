@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             UsuarioAdminSeeder::class,
             OrganizacionIneSeeder::class,
             ReglaValidacionSeeder::class,
+            EducacionSeeder::class, // panel Educación: retos, insignias, rol docente
         ]);
     }
 }

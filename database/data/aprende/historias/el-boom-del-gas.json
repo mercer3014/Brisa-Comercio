@@ -1,0 +1,109 @@
+{
+  "slug": "el-boom-del-gas",
+  "titulo": "El boom exportador: subida, caída y nuevo récord",
+  "resumen": "De 1992 a hoy: cómo las exportaciones de Bolivia se multiplicaron, cayeron después de 2014 y volvieron a subir.",
+  "orden": 1,
+  "pasos": [
+    {
+      "titulo": "Antes del boom (1992–2003)",
+      "texto": {
+        "colegio": "En 1992 Bolivia exportó {exp:1992}. Once años después, en 2003, vendía {exp:2003}. El producto que más vendía en 2003 era: {lider:2003}.",
+        "universidad": "Entre 1992 y 2003 la exportación FOB pasó de {exp:1992} a {exp:2003} (variación acumulada {var_exp:1992:2003}). Producto líder en 2003: {lider:2003} ({lider_pct:2003} del total)."
+      },
+      "grafico": {
+        "tipo": "serie_exp",
+        "desde": 1992,
+        "hasta": 2003,
+        "resaltar": [
+          2003
+        ]
+      },
+      "enlace": {
+        "texto": "Ver 2003 en la línea de tiempo",
+        "ruta": "/linea-de-tiempo?gestion=2003"
+      }
+    },
+    {
+      "titulo": "El despegue (2004–2008)",
+      "texto": {
+        "colegio": "De 2004 a 2008 las ventas crecieron muchísimo: de {exp:2004} a {exp:2008}. Es decir, cambiaron {var_exp:2004:2008}.",
+        "universidad": "2004→2008: {var_exp:2004:2008}. Producto líder en 2008: {lider:2008} ({lider_pct:2008} del FOB). ¿Cuánto del salto es precio y cuánto volumen? Compara el valor unitario en /indicadores."
+      },
+      "grafico": {
+        "tipo": "serie_exp",
+        "desde": 2000,
+        "hasta": 2008,
+        "resaltar": [
+          2004,
+          2008
+        ]
+      }
+    },
+    {
+      "titulo": "El tropiezo de 2009",
+      "texto": {
+        "colegio": "En 2009 las exportaciones cambiaron {var_exp:2008:2009} respecto a 2008. ¿Coincide con la crisis financiera mundial de esos años?",
+        "universidad": "Variación 2008→2009: {var_exp:2008:2009}; recuperación 2009→2010: {var_exp:2009:2010}. Hipótesis a contrastar: ¿shock externo de demanda y precios, o cambio en la producción interna?"
+      },
+      "grafico": {
+        "tipo": "serie_exp",
+        "desde": 2006,
+        "hasta": 2011,
+        "resaltar": [
+          2009
+        ]
+      }
+    },
+    {
+      "titulo": "La cima del ciclo: 2014",
+      "texto": {
+        "colegio": "En 2014 Bolivia vendió {exp:2014}. El producto número uno fue {lider:2014} y el mejor cliente, {destino:2014}.",
+        "universidad": "2014 cierra el ciclo con {exp:2014}. Producto líder: {lider:2014} ({lider_pct:2014}); destino líder: {destino:2014}. HHI de productos exportados: {hhi_prod:2014}."
+      },
+      "grafico": {
+        "tipo": "top_productos",
+        "gestion": 2014,
+        "n": 6
+      },
+      "enlace": {
+        "texto": "Productos de 2014",
+        "ruta": "/productos?gestion=2014"
+      }
+    },
+    {
+      "titulo": "La caída (2015–2016)",
+      "texto": {
+        "colegio": "Al año siguiente las ventas cambiaron {var_exp:2014:2015}: en 2015 fueron {exp:2015} y en 2016 {exp:2016}.",
+        "universidad": "2014→2015: {var_exp:2014:2015}; 2015→2016: {var_exp:2015:2016}. Con una canasta concentrada (HHI de productos 2015: {hhi_prod:2015}), una caída de precios internacionales pega casi completa en el valor exportado. ¿Lo confirma el valor unitario?"
+      },
+      "grafico": {
+        "tipo": "serie_exp",
+        "desde": 2012,
+        "hasta": 2017,
+        "resaltar": [
+          2015,
+          2016
+        ]
+      }
+    },
+    {
+      "titulo": "Un nuevo récord",
+      "texto": {
+        "colegio": "Después vino la recuperación. El año con más exportaciones de toda la serie es {max_exp_anio}, con {max_exp}. El producto líder ese año fue {lider:max_exp_anio}.",
+        "universidad": "El máximo de la serie 1992–{defecto} es {max_exp_anio} ({max_exp}), con {lider:max_exp_anio} como producto líder ({lider_pct:max_exp_anio}). Última gestión completa: {defecto}, {exp:defecto}."
+      },
+      "grafico": {
+        "tipo": "serie_exp",
+        "desde": 2016,
+        "hasta": 2025,
+        "resaltar": [
+          "max_exp_anio"
+        ]
+      },
+      "enlace": {
+        "texto": "Abrir la línea de tiempo",
+        "ruta": "/linea-de-tiempo"
+      }
+    }
+  ]
+}

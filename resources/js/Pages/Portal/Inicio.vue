@@ -12,6 +12,7 @@ import GdBarras from '@/Components/Gd/GdBarras.vue';
 import GdTop3 from '@/Components/Gd/GdTop3.vue';
 import GdSinDatos from '@/Components/Gd/GdSinDatos.vue';
 import GdCobertura from '@/Components/Gd/GdCobertura.vue';
+import GdExplicacion from '@/Components/Gd/GdExplicacion.vue';
 import { fmtM, fmtPct, fmtNum, etiquetaGestion, getJson } from '@/lib/gd';
 
 const props = defineProps({
@@ -215,6 +216,7 @@ const periodo = computed(() => datos.value?.exp?.periodo ?? datos.value?.imp?.pe
                 </div>
                 <div style="margin-top:12px"><GdCobertura :cobertura="cobertura" /></div>
             </section>
+            <GdExplicacion clave="inicio.panorama" plegado />
 
             <!-- ================= EXPORTACIONES ================= -->
             <section class="inv-middle-grid">

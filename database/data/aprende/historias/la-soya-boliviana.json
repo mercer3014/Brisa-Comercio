@@ -1,0 +1,69 @@
+{
+  "slug": "la-soya-boliviana",
+  "titulo": "La soya boliviana",
+  "resumen": "Grano, aceite y torta de soya: su recorrido exportador a lo largo de tres décadas, con las cifras del INE.",
+  "orden": 2,
+  "pasos": [
+    {
+      "titulo": "¿Qué contamos como soya?",
+      "texto": {
+        "colegio": "Sumamos tres productos: el grano de soya, el aceite de soya y la torta de soya (lo que queda después de sacar el aceite). En 1992 juntos se vendieron por {soya:1992}.",
+        "universidad": "Partidas NANDINA 1201 (habas de soya), 1507 (aceite) y 2304 (tortas y residuos). Exportación FOB 1992: {soya:1992}."
+      },
+      "grafico": {
+        "tipo": "soya_serie",
+        "desde": 1992,
+        "hasta": 2003,
+        "resaltar": [
+          1992
+        ]
+      }
+    },
+    {
+      "titulo": "El crecimiento",
+      "texto": {
+        "colegio": "En 2013 la soya llegó a {soya:2013}. ¡Muchas veces más que en 1992!",
+        "universidad": "2013: {soya:2013}, equivalente a {soya_pct:2013} de la exportación total de esa gestión. Ese peso cambia también con el valor de los minerales y el gas."
+      },
+      "grafico": {
+        "tipo": "soya_serie",
+        "desde": 2000,
+        "hasta": 2015,
+        "resaltar": [
+          2013
+        ]
+      }
+    },
+    {
+      "titulo": "El mejor año",
+      "texto": {
+        "colegio": "El año récord de la soya fue {soya_max_anio}, con {soya_max}.",
+        "universidad": "Máximo de la serie: {soya_max_anio} ({soya_max}), {soya_pct:soya_max_anio} de la exportación total de esa gestión."
+      },
+      "grafico": {
+        "tipo": "soya_serie",
+        "desde": 2015,
+        "hasta": 2025,
+        "resaltar": [
+          "soya_max_anio"
+        ]
+      }
+    },
+    {
+      "titulo": "¿A quién le vendemos soya?",
+      "texto": {
+        "colegio": "Estos son los países que más soya le compraron a Bolivia en {defecto}.",
+        "universidad": "Destinos de las partidas 1201, 1507 y 2304 en {defecto}; peso de la soya en la exportación total: {soya_pct:defecto}."
+      },
+      "grafico": {
+        "tipo": "soya_destinos",
+        "gestion": "defecto",
+        "n": 6
+      },
+      "enlace": {
+        "texto": "Buscar soya en Productos",
+        "ruta": "/productos"
+      }
+    }
+  ]
+}

@@ -22,6 +22,7 @@ const navegacion = [
     { titulo: 'Mapa Comercial',        ruta: '/mapa-comercial' },
     { titulo: 'Indicadores',           ruta: '/indicadores' },
     { titulo: 'Línea de Tiempo',       ruta: '/linea-de-tiempo' },
+    { titulo: 'Educación',             ruta: '/aprende', extra: ['/historias', '/actividad'] },
     { titulo: 'Acerca de',             ruta: '/acerca' },
 ];
 
@@ -35,6 +36,7 @@ const modulos = [
     { titulo: 'Indicadores', ruta: '/indicadores' },
     { titulo: 'Explorador de datos', ruta: '/explorar' },
     { titulo: 'Línea de tiempo', ruta: '/linea-de-tiempo' },
+    { titulo: 'Educación: aprende, retos e historias', ruta: '/aprende' },
     { titulo: 'Acerca de', ruta: '/acerca' },
 ];
 

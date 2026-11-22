@@ -5,11 +5,12 @@
  * PortalVistas::viasDetalle(); null = sin datos (nunca se muestra como 0).
  */
 import { Head } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import LayoutPublico from '../../Layouts/LayoutPublico.vue';
 import GdCobertura from '../../Components/Gd/GdCobertura.vue';
 import GdSinDatos from '../../Components/Gd/GdSinDatos.vue';
 import GdBarras from '../../Components/Gd/GdBarras.vue';
+import GdExplicacion from '../../Components/Gd/GdExplicacion.vue';
 import { fmtM, fmtMM, fmtPct, etiquetaGestion, getJson, descargarCsv } from '../../lib/gd.js';
 
 defineOptions({ layout: LayoutPublico });
@@ -127,6 +128,12 @@ function csv() {
     vias.value.forEach((v) => v.serie.forEach((p) => filas.push([INFO[v.clave].titulo, p.gestion, p.exp ?? 'sin datos', p.imp ?? 'sin datos'])));
     descargarCsv('comercio_por_via_INE.csv', filas);
 }
+
+// ?gestion=2022 en la URL (enlaces de retos y actividades docentes) abre esa gestión.
+onMounted(() => {
+    const g = Number(new URLSearchParams(window.location.search).get('gestion'));
+    if (g && g !== gestion.value && props.gestionesPortal.includes(g)) cambiarGestion(g);
+});
 </script>
 
 <template>
@@ -147,6 +154,7 @@ function csv() {
             </div>
         </div>
         <GdCobertura :cobertura="cobertura" />
+        <GdExplicacion clave="vias.tablero" plegado />
 
         <GdSinDatos v-if="!datos || !vias.length" titulo="Sin datos de transporte" mensaje="Todavía no hay operaciones del INE cargadas con medio de transporte." />
 
